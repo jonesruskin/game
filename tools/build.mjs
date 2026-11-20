@@ -7,6 +7,7 @@ const SDK = {
   poki: '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>',
   web: '', // itch.io, GameDistribution-less hosting, your own site
 };
+const GAME = path.basename(root) === 'game' ? 'stealstorm' : path.basename(root);
 const FILES = ['index.html', 'css', 'src'];
 function copy(src, dst) { const st = fs.statSync(src); if (st.isDirectory()) { fs.mkdirSync(dst, { recursive: true }); for (const f of fs.readdirSync(src)) copy(path.join(src, f), path.join(dst, f)); } else fs.copyFileSync(src, dst); }
 function walk(d, base = d, out = []) { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); fs.statSync(p).isDirectory() ? walk(p, base, out) : out.push(path.relative(base, p).split(path.sep).join('/')); } return out; }
@@ -30,6 +31,6 @@ for (const [portal, tag] of Object.entries(SDK)) {
   const out = path.join(dist, portal); fs.mkdirSync(out, { recursive: true });
   for (const f of FILES) copy(path.join(root, f), path.join(out, f));
   const idx = path.join(out, 'index.html'); fs.writeFileSync(idx, fs.readFileSync(idx, 'utf8').replace('<!--SDK-->', tag));
-  const zf = path.join(dist, `stealstorm-${portal}.zip`); zip(out, zf);
+  const zf = path.join(dist, `${GAME}-${portal}.zip`); zip(out, zf);
   console.log(`✔ ${portal.padEnd(11)} ${(fs.statSync(zf).size / 1024).toFixed(1)} KB  → ${path.relative(root, zf)}`);
 }
