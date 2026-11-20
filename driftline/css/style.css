@@ -1,4 +1,4 @@
-:root{--bg:#140a24;--panel:#1f1238;--panel2:#2a1a4a;--line:#4b2f7a;--txt:#f5f0ff;--mut:#b6a6d6;--acc:#ffd60a;--acc2:#ff4d6d;--good:#7CFC9A;--blue:#4cc9f0;--purp:#c77dff;--r:14px;
+:root{--bg:#0a0618;--panel:#1f1238;--panel2:#2a1a4a;--line:#4b2f7a;--txt:#f5f0ff;--mut:#b6a6d6;--acc:#ffd60a;--acc2:#ff4d6d;--good:#7CFC9A;--blue:#4cc9f0;--purp:#c77dff;--r:14px;
 --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px)}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'Trebuchet MS',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
@@ -9,8 +9,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .stroke{text-shadow:0 2px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 4px 10px rgba(0,0,0,.5)}
 /* boot */
 #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#3c1c6e,#140a24 70%);z-index:100;transition:opacity .4s}
-#boot .logo,.logo{font-weight:900;font-size:clamp(40px,9vw,96px);letter-spacing:2px;color:#fff;font-style:italic;text-shadow:0 5px 0 #6a2bd1,0 10px 30px rgba(199,125,255,.6);transform:skew(-6deg)}
-.logo span{color:var(--acc);text-shadow:0 5px 0 #c1121f,0 10px 30px rgba(255,214,10,.5)}
+#boot .logo,.logo{font-weight:900;font-size:clamp(40px,9vw,96px);letter-spacing:2px;color:#fff;font-style:italic;text-shadow:0 5px 0 #b5179e,0 10px 30px rgba(247,37,133,.6);transform:skew(-6deg)}
+.logo span{color:#4cc9f0;text-shadow:0 5px 0 #3a0ca3,0 10px 30px rgba(76,201,240,.6)}
 #boot .bar{width:220px;height:10px;border-radius:9px;background:#2a1a4a;margin-top:26px;overflow:hidden}#boot .bar i{display:block;height:100%;width:30%;background:linear-gradient(90deg,var(--acc),var(--acc2));animation:ld 1s infinite}
 @keyframes ld{0%{transform:translateX(-100%)}100%{transform:translateX(330%)}}
 /* generic UI */
@@ -143,7 +143,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .tult{width:78px;height:78px;right:calc(46px + var(--safe-r));bottom:calc(150px + var(--safe-b));border-color:var(--acc)}
 .temote{width:46px;height:46px;right:calc(210px + var(--safe-r));bottom:calc(130px + var(--safe-b));font-size:20px}
 /* toasts */
-#toasts{position:fixed;top:calc(60px + var(--safe-t));left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+#toasts{position:fixed;bottom:calc(100px + var(--safe-b));left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
 .toast{background:linear-gradient(180deg,#3a2468,#26164a);border:2px solid var(--acc);border-radius:12px;padding:8px 16px;font-weight:900;font-size:15px;animation:pop .25s;box-shadow:0 8px 20px rgba(0,0,0,.5);display:flex;gap:8px;align-items:center}
 input.name{font:inherit;font-weight:900;font-size:18px;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:#120a24;color:#fff;width:100%;max-width:260px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
@@ -156,3 +156,24 @@ input.name{font:inherit;font-weight:900;font-size:18px;padding:8px 12px;border-r
 .rnode.done{opacity:.5}.rnode.can{border-color:var(--good);box-shadow:0 0 14px rgba(124,252,154,.5)}.rnode.next{border-color:var(--acc)}
 @media (max-height:520px){.navb{width:62px;height:50px;font-size:9px}.navb .ic{font-size:19px}.play{height:64px;font-size:26px}.side{gap:6px}.card{padding:7px 10px}.qrow{font-size:11px;margin:3px 0}.slot{width:58px;height:58px;font-size:28px}.slot.ult{width:68px;height:68px}#hud .mm{width:110px;height:110px}#hud .feed{top:calc(126px + var(--safe-t))}.heroname .n{font-size:24px}}
 @media (max-width:700px) and (orientation:portrait){.lmain{flex-direction:column}.nav{flex-direction:row;justify-content:center;flex-wrap:wrap}.side{width:100%}.stage{min-height:260px}}
+
+/* DRIFTLINE specific */
+.lobby{background:linear-gradient(180deg,#1a0b3a 0%,#2b0f4f 45%,#ff2d7520 70%,#0a0618 100%)}
+.modes{display:flex;flex-direction:column;gap:8px}
+.mode{display:flex;align-items:center;gap:10px;background:rgba(10,6,24,.75);border:2px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;text-align:left;transition:transform .1s}
+.mode:hover{transform:translateX(-3px)}.mode .ic{font-size:30px}.mode b{font-size:16px;display:block}.mode span{font-size:12px;color:var(--mut);font-weight:700}
+.dhud{position:fixed;inset:0;pointer-events:none;z-index:5;font-weight:900}
+.dhud .lap{position:absolute;top:calc(10px + var(--safe-t));left:calc(60px + var(--safe-l));font-size:20px}
+.dhud .pos{position:absolute;top:calc(40px + var(--safe-t));left:calc(14px + var(--safe-l));font-size:clamp(34px,6vw,58px);font-style:italic;color:#ffd60a}
+.dhud .pos sub{font-size:.4em;vertical-align:baseline;color:#fff}
+.dhud .tm{position:absolute;top:calc(10px + var(--safe-t));left:50%;transform:translateX(-50%);font-size:20px;text-align:center;font-variant-numeric:tabular-nums}
+.dhud .tm small{display:block;font-size:12px;color:var(--mut)}
+.dhud .spd{position:absolute;bottom:calc(16px + var(--safe-b));left:50%;transform:translateX(-50%);text-align:center;font-size:34px;font-style:italic;font-variant-numeric:tabular-nums}
+.dhud .spd small{font-size:12px;color:var(--mut);display:block;font-style:normal}
+.dhud .mm{position:absolute;top:calc(10px + var(--safe-t));right:calc(10px + var(--safe-r));width:140px;height:140px;border-radius:12px;border:2px solid rgba(247,37,133,.5)}
+.dhud .count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(90px,20vw,200px);font-style:italic;color:#ffd60a}
+.tzone2{position:absolute;bottom:0;width:50%;height:100%;pointer-events:auto;display:flex;align-items:flex-end;padding:calc(20px + var(--safe-b)) 30px;font-size:46px;opacity:.5}
+.tzone2.l{left:0}.tzone2.r{right:0;justify-content:flex-end}.tzone2.down{opacity:.95}
+.carcv{width:100%;height:100%}
+.statbar{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin:3px 0}.statbar .pips{display:flex;gap:3px;flex:1}.statbar .pips i{flex:1;height:7px;border-radius:4px;background:#0a0618}.statbar .pips i.on{background:#4cc9f0}
+.medal{font-size:26px}

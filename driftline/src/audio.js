@@ -57,6 +57,11 @@ export class Audio {
       case 'record': [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, f, 0.16, 'square', 0.1, i * 0.07)); break;
     }
   }
+  // ----- continuous engine (driftline)
+  engineStart() { if (!this.ctx || this.eng) return; const c = this.ctx; const o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(); o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = 700; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g); g.connect(this.sfx); o.start(); o2.start(); this.eng = { o, o2, f, g }; }
+  engineSet(k, drift, boost) { if (!this.eng) return; const t = this.ctx.currentTime; const f = 60 + k * 140 + (boost ? 30 : 0); this.eng.o.frequency.setTargetAtTime(f, t, 0.05); this.eng.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05); this.eng.f.frequency.setTargetAtTime(500 + k * 1400, t, 0.1); this.eng.g.gain.setTargetAtTime(this.muted || this.forceMute ? 0 : 0.05 + k * 0.05, t, 0.1);
+    if (drift && Math.random() < 0.25) this.noiseHit(0.12, 1800 + Math.random() * 600, 0.03, 0, 'bandpass'); }
+  engineStop() { if (!this.eng) return; const e = this.eng; this.eng = null; try { e.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05); setTimeout(() => { e.o.stop(); e.o2.stop(); }, 300); } catch (x) {} }
   // ----- generative music: bass + arpeggio, intensity follows game mode
   startMusic() {
     if (!this.ctx || this.musicOn) return; this.musicOn = true; this.step = 0; this.nextT = this.ctx.currentTime + 0.1;

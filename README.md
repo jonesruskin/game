@@ -1,3 +1,15 @@
+# 🎮 Game Studio Repo: 3 browser games ready for CrazyGames / Poki
+
+| Game | Genre | Folder | Upload-ready zips |
+|---|---|---|---|
+| ⛈️ **Stealstorm** | Battle royale where KOs steal abilities | `/` (repo root) | `dist/stealstorm-*.zip` |
+| 🐜 **Hordemind** | Reverse survivors: you are the swarm | [`hordemind/`](hordemind/) | `hordemind/dist/hordemind-*.zip` |
+| 🏎️ **Driftline** | One-thumb neon drift racer | [`driftline/`](driftline/) | `driftline/dist/driftline-*.zip` |
+
+Each game ships three zips: **crazygames** (CrazyGames SDK v3), **poki** (Poki SDK v2) and **web** (itch.io / own site). All three games are under 75 KB with zero asset files, use cosmetic-only monetization, and need $0 to build or host. See [LAUNCH.md](LAUNCH.md) for the submission checklist, which applies to all three.
+
+---
+
 # ⛈️ STEALSTORM
 **KO rivals. Steal their powers. Survive the storm.**
 
