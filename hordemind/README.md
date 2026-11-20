@@ -3,6 +3,8 @@ A **reverse survivors** game. In Vampire Survivors-style games you fight the swa
 
 **📦 Upload-ready zips:** [`dist/hordemind-crazygames.zip`](dist/hordemind-crazygames.zip) · [`dist/hordemind-poki.zip`](dist/hordemind-poki.zip) · [`dist/hordemind-web.zip`](dist/hordemind-web.zip) (~48 KB each)
 
+**📤 How to upload:** see [UPLOAD.md](UPLOAD.md). Covers, videos, thumbnails and listing text are in [`store/`](store/).
+
 ## Core loop (3-minute hunts)
 - **Hold to SWARM:** every minion charges the hero. **Release** to pull them back.
 - The hero **telegraphs** each attack with a red zone. The core skill is pulling the swarm out just in time, then flooding back in.

@@ -3,6 +3,8 @@
 
 **📦 Upload-ready zips:** [`dist/driftline-crazygames.zip`](dist/driftline-crazygames.zip) · [`dist/driftline-poki.zip`](dist/driftline-poki.zip) · [`dist/driftline-web.zip`](dist/driftline-web.zip) (~41 KB each)
 
+**📤 How to upload:** see [UPLOAD.md](UPLOAD.md). Covers, videos, thumbnails and listing text are in [`store/`](store/).
+
 ## Modes
 - **Career:** 5 cups × 3 tracks against 5 named rivals. Finish 1st/2nd/3rd for ⭐⭐⭐/⭐⭐/⭐. 45 stars unlock cups and cars.
 - **Quick Race:** a random procedural track. Trophies decide your league (Rookie → Drift King), and rivals get smarter as you climb.

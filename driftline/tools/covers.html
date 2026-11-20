@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// DRIFTLINE cover art generator. Usage: covers.html?w=1920&h=1080&text=1
+import { drawCar } from '../src/race.js';
+import { CAR, PAINTS, DECALS, GLOWS } from '../src/data.js';
+const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
+const cv = document.getElementById('c'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
+let seed = 5; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const TAU = Math.PI * 2; const land = W / H > 1.3, port = H / W > 1.2; const u = Math.min(W, H) / 100;
+const hz = H * (port ? 0.42 : 0.5); // horizon
+// sky
+let g = x.createLinearGradient(0, 0, 0, hz); g.addColorStop(0, '#0d0221'); g.addColorStop(0.55, '#3c096c'); g.addColorStop(1, '#ff2d75'); x.fillStyle = g; x.fillRect(0, 0, W, hz);
+for (let i = 0; i < 120; i++) { x.fillStyle = '#fff'; x.globalAlpha = R() * 0.8; const s = R() * u * 0.3 + 1; x.fillRect(R() * W, R() * hz * 0.7, s, s); } x.globalAlpha = 1;
+// striped sun
+const sr = Math.min(W, H) * (port ? 0.3 : 0.26), sx = W / 2, sy = hz - sr * 0.15;
+x.save(); x.beginPath(); x.arc(sx, sy, sr, 0, TAU); x.clip();
+g = x.createLinearGradient(0, sy - sr, 0, sy + sr); g.addColorStop(0, '#ffe66d'); g.addColorStop(0.5, '#ff9f1c'); g.addColorStop(1, '#ff2d75'); x.fillStyle = g; x.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+x.fillStyle = '#3c096c'; for (let i = 0; i < 7; i++) { const y = sy + sr * (0.05 + i * 0.13); x.fillRect(sx - sr, y, sr * 2, sr * 0.02 + i * u * 0.18); }
+x.restore(); x.shadowColor = '#ff2d75'; x.shadowBlur = sr * 0.5; x.strokeStyle = 'rgba(255,45,117,.0)'; x.beginPath(); x.arc(sx, sy, sr, 0, TAU); x.stroke(); x.shadowBlur = 0;
+// mountains
+x.fillStyle = '#1a0533'; x.beginPath(); x.moveTo(0, hz); let mx = 0; while (mx < W) { mx += W * (0.05 + R() * 0.08); x.lineTo(mx, hz - H * (0.04 + R() * 0.1)); mx += W * 0.04; x.lineTo(mx, hz); } x.lineTo(W, hz); x.closePath(); x.fill();
+// floor with perspective grid
+g = x.createLinearGradient(0, hz, 0, H); g.addColorStop(0, '#2b0f4f'); g.addColorStop(1, '#0a0618'); x.fillStyle = g; x.fillRect(0, hz, W, H - hz);
+x.strokeStyle = 'rgba(247,37,133,.65)'; x.lineWidth = u * 0.25;
+for (let i = -24; i <= 24; i++) { x.beginPath(); x.moveTo(W / 2 + i * W * 0.02, hz); x.lineTo(W / 2 + i * W * 0.22, H); x.stroke(); }
+for (let k = 1; k < 18; k++) { const y = hz + (H - hz) * Math.pow(k / 18, 2.1); x.globalAlpha = 0.3 + 0.7 * k / 18; x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke(); } x.globalAlpha = 1;
+// sweeping road (thick curve) in the foreground
+const cs = land ? H / 1080 : W / 800; const roadW = (land ? 300 : 260) * cs;
+const p0 = [W * -0.1, H * 1.02], p1 = [W * (land ? 0.35 : 0.2), hz + (H - hz) * 0.25], p2 = [W * 1.1, H * (port ? 0.78 : 0.86)];
+const road = (w, c) => { x.strokeStyle = c; x.lineWidth = w; x.lineCap = 'round'; x.beginPath(); x.moveTo(...p0); x.quadraticCurveTo(...p1, ...p2); x.stroke(); };
+road(roadW + 60 * cs, 'rgba(247,37,133,.25)'); road(roadW + 22 * cs, '#f72585'); road(roadW + 10 * cs, '#fff'); road(roadW, '#26233a');
+x.setLineDash([40 * cs, 50 * cs]); road(6 * cs, 'rgba(255,255,255,.35)'); x.setLineDash([]);
+// point on curve helper
+const bez = (t) => [(1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]];
+const tan = (t) => Math.atan2(2 * (1 - t) * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1]), 2 * (1 - t) * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0]));
+// skid marks + smoke trail behind hero car
+const tc = land ? 0.62 : 0.6; const [cx, cy] = bez(tc); const ca = tan(tc) + 0.55; // drift angle
+x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 9 * cs;
+for (const off of [-14, 14]) { x.beginPath(); for (let t = tc - 0.28; t <= tc; t += 0.01) { const [px, py] = bez(t); const a = tan(t) + Math.PI / 2; const k = (t - (tc - 0.28)) / 0.28; const o = off * cs * 1.8 + Math.sin(k * 3) * 6 * cs; (t === tc - 0.28 ? x.moveTo : x.lineTo).call(x, px + Math.cos(a) * o, py + Math.sin(a) * o); } x.stroke(); }
+for (let i = 0; i < 160; i++) { const t = tc - R() * 0.3; const [px, py] = bez(t); const r = (12 + R() * 40) * cs * (1 + (tc - t) * 3); x.fillStyle = (R() < 0.55 ? 'rgba(255,143,171,' : 'rgba(255,255,255,') + (0.06 + R() * 0.14).toFixed(3) + ')'; x.beginPath(); x.arc(px + (R() - 0.5) * 60 * cs, py + (R() - 0.5) * 60 * cs, r, 0, TAU); x.fill(); }
+// rival car behind
+const rt = tc - (land ? 0.2 : 0.3); const [rx, ry] = bez(rt); const S = land ? 4.6 * cs : 4.2 * cs;
+x.save(); x.translate(rx, ry); x.scale(S * 0.8, S * 0.8); drawCar(x, { x: 0, y: 0, a: tan(rt) + 0.2, av: 0.4, id: 6, def: CAR.viper, paint: PAINTS.find((p) => p.id === 'p_lime'), decal: DECALS[1], glow: GLOWS[3] }, 1); x.restore();
+// purple sparks + boost flame
+for (let i = 0; i < 70; i++) { const a = ca + Math.PI + (R() - 0.5) * 1.6, r = R() * 120 * cs; x.fillStyle = R() < 0.7 ? '#c77dff' : '#fff'; x.globalAlpha = 0.5 + R() * 0.5; const s = (2 + R() * 4) * cs; x.fillRect(cx + Math.cos(a) * (r + 60 * cs), cy + Math.sin(a) * (r + 60 * cs), s, s); } x.globalAlpha = 1;
+// hero car (drifting)
+x.save(); x.translate(cx, cy); x.scale(S, S);
+const fl = x.createRadialGradient(-30, 0, 0, -30, 0, 26); fl.addColorStop(0, 'rgba(255,255,255,.9)'); fl.addColorStop(0.4, 'rgba(199,125,255,.8)'); fl.addColorStop(1, 'rgba(199,125,255,0)');
+x.rotate(ca); x.fillStyle = fl; x.beginPath(); x.ellipse(-34, 0, 26, 10, 0, 0, TAU); x.fill(); x.rotate(-ca);
+drawCar(x, { x: 0, y: 0, a: ca, av: -0.9, id: 7, def: CAR.wraith, paint: PAINTS.find((p) => p.id === 'p_synth'), decal: DECALS.find((d) => d.id === 'd_bolt'), glow: GLOWS.find((g) => g.id === 'g_cyan') }, 0.4);
+x.restore();
+// title (CrazyGames allows only the game title)
+if (TEXT) {
+  let fs = land ? H * 0.18 : W * 0.2; const ty = land ? H * 0.16 : H * 0.12;
+  x.save(); x.translate(W / 2, ty); x.transform(1, 0, -0.15, 1, 0, 0); x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`;
+  const a = 'DRIFT', b = 'LINE'; const fit = (W * 0.88) / x.measureText(a + b).width; if (fit < 1) { fs *= fit; x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`; }
+  const wa = x.measureText(a).width, wb = x.measureText(b).width; const sx2 = -(wa + wb) / 2; x.textBaseline = 'middle'; x.textAlign = 'left'; x.lineJoin = 'round';
+  const part = (t, px, c1, c2, shade, glow) => { x.shadowColor = glow; x.shadowBlur = fs * 0.35; x.fillStyle = shade; x.fillText(t, px, fs * 0.08); x.shadowBlur = 0; x.strokeStyle = '#0d0221'; x.lineWidth = fs * 0.12; x.strokeText(t, px, 0); const gg = x.createLinearGradient(0, -fs / 2, 0, fs / 2); gg.addColorStop(0, c1); gg.addColorStop(0.5, '#ffffff'); gg.addColorStop(0.52, c2); gg.addColorStop(1, c1); x.fillStyle = gg; x.fillText(t, px, 0); };
+  part(a, sx2, '#ff8fab', '#f72585', '#b5179e', 'rgba(247,37,133,.8)'); part(b, sx2 + wa, '#90e0ef', '#4cc9f0', '#3a0ca3', 'rgba(76,201,240,.8)'); x.restore();
+}
+g = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.45)'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+window.coverReady = true;
+</script></body></html>

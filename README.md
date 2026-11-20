@@ -6,7 +6,7 @@
 | 🐜 **Hordemind** | Reverse survivors: you are the swarm | [`hordemind/`](hordemind/) | `hordemind/dist/hordemind-*.zip` |
 | 🏎️ **Driftline** | One-thumb neon drift racer | [`driftline/`](driftline/) | `driftline/dist/driftline-*.zip` |
 
-Each game ships three zips: **crazygames** (CrazyGames SDK v3), **poki** (Poki SDK v2) and **web** (itch.io / own site). All three games are under 75 KB with zero asset files, use cosmetic-only monetization, and need $0 to build or host. See [LAUNCH.md](LAUNCH.md) for the submission checklist, which applies to all three.
+Each game ships three zips: **crazygames** (CrazyGames SDK v3), **poki** (Poki SDK v2) and **web** (itch.io / own site). All three games are under 75 KB with zero asset files, use cosmetic-only monetization, and need $0 to build or host. **📤 Uploading:** follow [UPLOAD.md](UPLOAD.md). Each game also has a `store/` folder with covers, a Poki thumbnail, preview videos, screenshots and copy-paste listing text (`store/description.md`). [LAUNCH.md](LAUNCH.md) covers the money plan.
 
 ---
 

@@ -124,7 +124,10 @@ class App {
   }
   async afterResults(again) {
     const p = Save.p;
-    if (Platform.adsAvailable && p.stats.hunts > 2 && p.sinceAd >= 2 && Date.now() - (p.lastMidgame || 0) > 180000) {
+    // Poki: no own timers — call a break whenever the player heads back into gameplay; Poki decides if an ad shows.
+    // CrazyGames: natural breaks only, spaced out, never in the first matches.
+    const pokiBreak = Platform.name === 'poki' && !!again;
+    if (pokiBreak || Platform.adsAvailable && Platform.name !== 'poki' && p.stats.hunts > 2 && p.sinceAd >= 2 && Date.now() - (p.lastMidgame || 0) > 180000) {
       p.sinceAd = 0; p.lastMidgame = Date.now(); Save.save();
       await Platform.midgame(() => this.audio.setForceMute(true)); this.audio.setForceMute(Platform.muteAudioSetting());
     }
@@ -135,7 +138,7 @@ class App {
     const ui = document.getElementById('ui'); ui.style.pointerEvents = 'none';
     const ok = await Platform.rewarded(() => this.audio.setForceMute(true));
     ui.style.pointerEvents = ''; this.audio.setForceMute(Platform.muteAudioSetting());
-    if (ok) cb(); else this.menus.toast({ icon: '📺', text: 'Ad not available — try again later' });
+    if (ok) cb(); else if (Platform.name !== 'poki') this.menus.toast({ icon: '📺', text: 'Ad not available — try again later' });
   }
   pause() { if (this.state !== 'hunt') return; this.state = 'paused'; this.input.setEnabled(false); Platform.gameplayStop(); this.menus.pause(); }
   resume() { if (this.state !== 'paused') return; this.menus.modalEl?.remove(); this.menus.modalEl = null; this.state = 'hunt'; this.input.setEnabled(true); this.last = performance.now(); Platform.gameplayStart(); }

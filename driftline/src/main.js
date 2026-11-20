@@ -108,7 +108,10 @@ class App {
   }
   async afterResults(again) {
     const p = Save.p;
-    if (Platform.adsAvailable && p.stats.races > 2 && p.sinceAd >= 2 && Date.now() - (p.lastMidgame || 0) > 180000) { p.sinceAd = 0; p.lastMidgame = Date.now(); Save.save(); await Platform.midgame(() => this.audio.setForceMute(true)); this.audio.setForceMute(Platform.muteAudioSetting()); }
+    // Poki: no own timers — call a break whenever the player heads back into gameplay; Poki decides if an ad shows.
+    // CrazyGames: natural breaks only, spaced out, never in the first matches.
+    const pokiBreak = Platform.name === 'poki' && !!again;
+    if (pokiBreak || Platform.adsAvailable && Platform.name !== 'poki' && p.stats.races > 2 && p.sinceAd >= 2 && Date.now() - (p.lastMidgame || 0) > 180000) { p.sinceAd = 0; p.lastMidgame = Date.now(); Save.save(); await Platform.midgame(() => this.audio.setForceMute(true)); this.audio.setForceMute(Platform.muteAudioSetting()); }
     if (again === 'next') this.startRace({ ...this.cfg, ti: this.cfg.ti + 1, tutorial: false });
     else if (again) this.startRace({ ...this.cfg, tutorial: false });
     else this.toLobby();
@@ -116,7 +119,7 @@ class App {
   async rewardedAd(cb) {
     if (!Platform.adsAvailable) { this.menus.toast({ icon: 'ℹ️', text: 'Ads unavailable right now' }); return; }
     const ui = document.getElementById('ui'); ui.style.pointerEvents = 'none'; const ok = await Platform.rewarded(() => this.audio.setForceMute(true)); ui.style.pointerEvents = ''; this.audio.setForceMute(Platform.muteAudioSetting());
-    if (ok) cb(); else this.menus.toast({ icon: '📺', text: 'Ad not available — try again later' });
+    if (ok) cb(); else if (Platform.name !== 'poki') this.menus.toast({ icon: '📺', text: 'Ad not available — try again later' });
   }
   pause() { if (this.state !== 'race') return; this.state = 'paused'; this.input.setEnabled(false); this.audio.engineSet(0); Platform.gameplayStop(); this.menus.pause(); }
   resume() { if (this.state !== 'paused') return; this.menus.modalEl?.remove(); this.menus.modalEl = null; this.state = 'race'; this.input.setEnabled(true); this.last = performance.now(); Platform.gameplayStart(); }

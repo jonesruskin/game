@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// STEALSTORM cover art generator. Usage: covers.html?w=1920&h=1080&text=1
+import { drawHero } from '../src/game/render.js';
+import { HERO } from '../src/data/heroes.js';
+import { SKINS } from '../src/data/cosmetics.js';
+import { ABILITIES } from '../src/data/abilities.js';
+const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
+const cv = document.getElementById('c'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
+let seed = 7; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const TAU = Math.PI * 2; const land = W / H > 1.3, port = H / W > 1.2;
+const u = Math.min(W, H) / 100;
+// sky
+let g = x.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, Math.max(W, H) * 0.8); g.addColorStop(0, '#6a2bd1'); g.addColorStop(0.45, '#2a0f55'); g.addColorStop(1, '#0a0418'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+// storm clouds
+x.filter = `blur(${u * 2.2}px)`;
+for (let i = 0; i < 60; i++) { x.fillStyle = `rgba(${20 + R() * 30},${8 + R() * 10},${50 + R() * 40},${0.5 + R() * 0.4})`; x.beginPath(); x.arc(R() * W, R() * H * 0.45, u * (6 + R() * 14), 0, TAU); x.fill(); }
+x.filter = 'none';
+// lightning
+const bolt = (x0, y0, x1, y1, w) => { const pts = [[x0, y0]]; for (let i = 1; i < 10; i++) { const t = i / 10; pts.push([x0 + (x1 - x0) * t + (R() - 0.5) * u * 8, y0 + (y1 - y0) * t]); } pts.push([x1, y1]); for (const [lw, c, a] of [[w * 4, '#c77dff', 0.35], [w * 1.6, '#e0aaff', 0.9], [w * 0.6, '#fff', 1]]) { x.globalAlpha = a; x.strokeStyle = c; x.lineWidth = lw; x.lineJoin = 'round'; x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.stroke(); } x.globalAlpha = 1; };
+bolt(W * 0.12, 0, W * 0.2, H * 0.55, u * 0.6); bolt(W * 0.88, 0, W * 0.8, H * 0.5, u * 0.5); if (land) { bolt(W * 0.32, 0, W * 0.27, H * 0.35, u * 0.35); bolt(W * 0.7, 0, W * 0.74, H * 0.32, u * 0.35); }
+// arena ground + storm ring
+const cy = H * (!TEXT ? 0.64 : port ? 0.64 : 0.72);
+g = x.createRadialGradient(W / 2, cy + u * 10, 0, W / 2, cy + u * 10, W * 0.7); g.addColorStop(0, '#2b5a52'); g.addColorStop(0.6, '#173033'); g.addColorStop(1, 'rgba(10,4,24,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(W / 2, cy + u * 14, W * 0.75, u * 30, 0, 0, TAU); x.fill();
+x.strokeStyle = '#e0aaff'; x.lineWidth = u * 1.2; x.shadowColor = '#c77dff'; x.shadowBlur = u * 4; x.beginPath(); x.ellipse(W / 2, cy + u * 14, W * 0.62, u * 22, 0, Math.PI * 1.02, Math.PI * 1.98, true); x.stroke(); x.shadowBlur = 0;
+// heroes lineup (big, readable characters — covers must pop at thumbnail size)
+const base = land ? H * 0.0068 : W * (port ? 0.0092 : 0.0068); const BR = 26 * base * 1.15; // Blaze radius in px
+const skin = (id) => SKINS.find((k) => k.id === id);
+const lineup = land
+  ? [['whisper', 'whisper_synth', -2.85, -0.55, 0.62, 0.4], ['rime', 'rime_galaxy', 2.85, -0.55, 0.62, 2.6], ['volt', 'volt_galaxy', -1.6, -0.25, 0.82, 0.2], ['bastion', 'bastion_midas', 1.6, -0.25, 0.82, 2.9], ['blaze', 'blaze_default', 0, 0.15, 1.15, -0.5]]
+  : [['volt', 'volt_galaxy', -1.25, -0.45, 0.72, 0.2], ['bastion', 'bastion_midas', 1.25, -0.45, 0.72, 2.9], ['blaze', 'blaze_default', 0, 0.2, 1.15, -0.5]];
+for (const [h, sk, dx, dy, sc, aim] of lineup) {
+  const hx = W / 2 + dx * BR, hy = cy + dy * BR; const k = base * sc;
+  x.save(); x.translate(hx, hy); x.scale(k, k);
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.ellipse(0, 24, 26, 9, 0, 0, TAU); x.fill();
+  drawHero(x, HERO[h], skin(sk), 0, 0, aim, 1.3 + dx, { r: 26 }); x.restore();
+}
+// ability orbs flying into Blaze — the "steal" moment
+const orbs = land ? [['fire_wall', -1.35, -1.75], ['chain_lightning', 1.35, -1.75], ['black_hole', 0, -2.1]] : [['fire_wall', -1.15, -1.75], ['chain_lightning', 1.15, -1.75], ['black_hole', 0, -2.35]];
+for (const [id, dx, dy] of orbs) {
+  const a = ABILITIES[id]; const ox = W / 2 + dx * BR, oy = cy + dy * BR; const r = BR * 0.3;
+  x.strokeStyle = a.color; x.globalAlpha = 0.55; x.lineWidth = r * 0.14; x.setLineDash([r * 0.35, r * 0.3]); x.beginPath(); x.moveTo(ox, oy); x.quadraticCurveTo(ox * 0.6 + W / 2 * 0.4, oy + BR * 0.6, W / 2, cy - BR * 0.6); x.stroke(); x.setLineDash([]); x.globalAlpha = 1;
+  x.globalAlpha = 0.22; x.fillStyle = a.color; x.beginPath(); x.moveTo(ox - r * 0.7, oy); x.lineTo(ox - r * 0.2, oy - r * 5); x.lineTo(ox + r * 0.2, oy - r * 5); x.lineTo(ox + r * 0.7, oy); x.fill(); x.globalAlpha = 1;
+  x.shadowColor = a.color; x.shadowBlur = r * 1.4; x.fillStyle = a.color; x.strokeStyle = '#ffd60a'; x.lineWidth = r * 0.16; x.beginPath(); x.arc(ox, oy, r, 0, TAU); x.fill(); x.stroke(); x.shadowBlur = 0;
+  x.font = `${r * 1.1}px sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(a.icon, ox, oy + r * 0.05);
+}
+// sparkles
+for (let i = 0; i < 70; i++) { x.fillStyle = ['#ffd60a', '#e0aaff', '#fff'][i % 3]; x.globalAlpha = 0.4 + R() * 0.6; const sz = u * (0.2 + R() * 0.5); x.fillRect(R() * W, R() * H, sz, sz); } x.globalAlpha = 1;
+// title (CrazyGames allows only the game title)
+if (TEXT) {
+  let fs = land ? H * 0.17 : W * 0.2; const ty = land ? H * 0.13 : port ? H * 0.12 : H * 0.12;
+  x.save(); x.translate(W / 2, ty); x.transform(1, 0, -0.12, 1, 0, 0); x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const a = 'STEAL', b = 'STORM'; const fit = (W * 0.9) / x.measureText(a + b).width; if (fit < 1) { fs *= fit; x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`; } const wa = x.measureText(a).width, wb = x.measureText(b).width; const tot = wa + wb; const sx = -tot / 2;
+  const part = (txt, px, fill, shade) => { x.textAlign = 'left'; x.lineJoin = 'round'; x.fillStyle = shade; x.fillText(txt, px, fs * 0.07); x.strokeStyle = '#0b0420'; x.lineWidth = fs * 0.12; x.strokeText(txt, px, 0); x.fillStyle = fill; x.fillText(txt, px, 0); };
+  x.shadowColor = 'rgba(199,125,255,.8)'; x.shadowBlur = fs * 0.35; part(a, sx, '#ffffff', '#6a2bd1'); x.shadowColor = 'rgba(255,214,10,.7)'; part(b, sx + wa, '#ffd60a', '#c1121f'); x.restore();
+}
+// vignette
+g = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+window.coverReady = true;
+</script></body></html>

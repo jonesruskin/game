@@ -551,6 +551,7 @@ export class HuntRenderer {
     ctx.rotate(-a); ctx.fillStyle = sk.crown || '#ffd60a'; ctx.strokeStyle = '#0b1320'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-10, -22); ctx.lineTo(-10, -32); ctx.lineTo(-5, -26); ctx.lineTo(0, -35); ctx.lineTo(5, -26); ctx.lineTo(10, -32); ctx.lineTo(10, -22); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
+    if (g.cover) return;
     // hp ring
     ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(q.x, q.y, 32, 0, TAU); ctx.stroke();
     ctx.strokeStyle = q.hp / q.maxHp > 0.35 ? '#7CFC9A' : '#ff4d6d'; ctx.beginPath(); ctx.arc(q.x, q.y, 32, -Math.PI / 2, -Math.PI / 2 + TAU * (q.hp / q.maxHp)); ctx.stroke();
@@ -563,8 +564,9 @@ export class HuntRenderer {
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, r * 0.9 + bob, r, r * 0.35, 0, 0, TAU); ctx.fill();
     // weapon
     ctx.save(); ctx.rotate(h.aim); ctx.fillStyle = '#0b1320'; ctx.fillRect(r * 0.5, -6, r * 1.3, 12); ctx.fillStyle = H.color2; ctx.fillRect(r * 0.55, -4, r * 1.2, 8); ctx.restore();
-    ctx.lineWidth = 4; ctx.strokeStyle = '#0b1320'; ctx.fillStyle = h.hitT > 0 ? '#fff' : H.color;
+    ctx.lineWidth = 4; ctx.strokeStyle = '#0b1320'; ctx.fillStyle = H.color;
     ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); ctx.stroke();
+    if (h.hitT > 0) { ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.arc(0, 0, r - 2, 0, TAU); ctx.fill(); }
     ctx.save(); ctx.clip(); ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(0, r * 0.9, r, 0, TAU); ctx.fill(); ctx.restore();
     const ex = Math.cos(h.aim) * 5, ey = Math.sin(h.aim) * 4;
     switch (H.look) {
