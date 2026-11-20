@@ -1,0 +1,37 @@
+# ⛈️ STEALSTORM
+**KO rivals. Steal their powers. Survive the storm.**
+
+A 3-minute browser battle royale where every knockout drops your victim's abilities as glowing orbs. Grab them to swap into your kit. Grab a duplicate to **upgrade** it (Lv1 → Lv3). Every match your build turns into something new.
+
+- 🎮 **Play locally:** `python3 -m http.server 8080`, then open http://localhost:8080
+- 📦 **Build portal packages:** `node tools/build.mjs` creates `dist/stealstorm-{crazygames,poki,web}.zip`
+- ⚖️ **Size:** about 75 KB zipped. Zero image or audio files: all art is drawn in code and all sound is synthesized. It loads instantly.
+
+## Why it hooks players (design pillars)
+| Borrowed magic | How Stealstorm does it |
+|---|---|
+| **Clash of Clans:** steady progress | Trophy Road (heroes unlock by playing), ranks Bronze → Stormlord, account levels, hero mastery, 30-tier Storm Pass, daily quests, 7-day login streak, achievements |
+| **League of Legends:** hero variety | 8 heroes, each with a unique weapon, passive and ultimate. Their Q/E kits (16 abilities + 6 rare "wild" abilities from crates) **mix across heroes mid-match**, giving hundreds of combinations |
+| **PUBG:** competition + loot | 12-player last-one-standing, shrinking storm, crates, bushes for stealth, a bounty crown on the KO leader, kill feed, streak announcer ("TRIPLE HEIST!") |
+| **New: the Steal** | Kills are *loot*. Abilities flow around the map, and a Lv3 power on an enemy (shown as ◆ pips) makes them a target |
+
+## Fair monetization (skill decides, never money)
+- **Cosmetics only:** 48 skins, 10 trails, 7 KO effects (show-off moments when you KO someone), emotes, titles.
+- **Heroes can never be bought.** They unlock on the Trophy Road.
+- **No loot boxes.** Everything is a direct purchase. This keeps it legal in Belgium and the Netherlands and fits portal rules.
+- **Storm Pass premium** (450 gems): exclusive Galaxy skins and more. Free players earn gems too.
+- **Ads (optional rewarded):** double match gold, a daily gift bonus, a quest reroll. Midgame ads only after a match, never in a player's first 2 matches, and at least 3 minutes apart.
+
+## Code map
+```
+src/main.js            app state machine, game loop (fixed 60 Hz, consistent at 144/165 Hz)
+src/platform.js        CrazyGames v3 / Poki v2 / standalone adapters (ads, cloud save, purchase hook)
+src/save.js            profile, economy, quests, pass, trophy road, achievements
+src/game/match.js      battle royale simulation (damage, KOs, orbs, storm, projectiles, zones)
+src/game/bot.js        human-like bots (skill scales with trophies)
+src/game/render.js     procedural canvas art for heroes, map and effects
+src/data/*.js          heroes, abilities, cosmetics, progression (tune balance here)
+src/ui/*.js            HUD + lobby/shop/pass/quests/locker screens
+tools/build.mjs        per-portal zip builder
+```
+See **LAUNCH.md** for the submission checklist and money plan.

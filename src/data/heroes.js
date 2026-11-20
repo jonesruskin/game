@@ -1,0 +1,78 @@
+// Hero roster. Identity = weapon + passive + ultimate (never stealable).
+// Q/E abilities are the hero's STARTING kit — those get stolen and traded in-match.
+export const HEROES = [
+  {
+    id: 'blaze', name: 'Blaze', title: 'The Wildfire', role: 'Mage', color: '#ff6b35', color2: '#ffd23f', look: 'flame',
+    hp: 115, speed: 270, unlock: 0,
+    weapon: { name: 'Ember Bolt', kind: 'fire', dmg: 22, rate: 0.45, speed: 860, range: 620, r: 9, count: 1, spread: 0, burn: true },
+    passive: { id: 'kindle', name: 'Kindle', desc: 'Basic attacks set enemies ablaze, burning for extra damage.' },
+    ult: { id: 'meteor', name: 'Meteor', desc: 'Call down a meteor on a target area after a short delay.' },
+    kit: ['fire_wall', 'flame_dash'],
+    lore: 'Burned down three training dojos. On purpose.',
+  },
+  {
+    id: 'volt', name: 'Volt', title: 'The Live Wire', role: 'Skirmisher', color: '#3ad1ff', color2: '#f8f32b', look: 'bolt',
+    hp: 100, speed: 310, unlock: 0,
+    weapon: { name: 'Shock Darts', kind: 'shock', dmg: 8, rate: 0.14, speed: 1050, range: 480, r: 6, count: 1, spread: 0.06 },
+    passive: { id: 'momentum', name: 'Momentum', desc: 'Gain +30% speed for 2s after using any ability.' },
+    ult: { id: 'overcharge', name: 'Overcharge', desc: '5s of hyper speed and double fire rate.' },
+    kit: ['chain_lightning', 'blink'],
+    lore: 'Drinks batteries. Doctors are concerned.',
+  },
+  {
+    id: 'bastion', name: 'Bastion', title: 'The Iron Wall', role: 'Tank', color: '#8a9bb5', color2: '#ffb703', look: 'helm',
+    hp: 140, speed: 240, unlock: 30,
+    weapon: { name: 'Scrap Cannon', kind: 'slug', dmg: 6.5, rate: 0.8, speed: 880, range: 380, r: 7, count: 5, spread: 0.36 },
+    passive: { id: 'bulwark', name: 'Bulwark', desc: 'Regenerate a 30-point shield after 4s without taking damage.' },
+    ult: { id: 'fortress', name: 'Fortress', desc: 'Project a dome that blocks all enemy projectiles for 3.5s.' },
+    kit: ['shield_bash', 'barrier'],
+    lore: 'Was a vending machine in a past life. Still accepts coins.',
+  },
+  {
+    id: 'thorn', name: 'Thorn', title: 'The Overgrowth', role: 'Controller', color: '#5cdb5c', color2: '#ff7eb6', look: 'leaf',
+    hp: 110, speed: 260, unlock: 80,
+    weapon: { name: 'Seed Burst', kind: 'seed', dmg: 9.5, rate: 0.55, speed: 760, range: 520, r: 7, count: 3, spread: 0.26 },
+    passive: { id: 'lifebloom', name: 'Lifebloom', desc: 'Out-of-combat regeneration starts sooner and heals twice as fast.' },
+    ult: { id: 'overgrowth', name: 'Overgrowth', desc: 'Erupt a giant jungle that roots-slows and shreds enemies while healing you.' },
+    kit: ['root_seeds', 'heal_bloom'],
+    lore: 'Talks to plants. The plants talk back. Mostly trash talk.',
+  },
+  {
+    id: 'whisper', name: 'Whisper', title: 'The Unseen', role: 'Sniper', color: '#9b5de5', color2: '#f15bb5', look: 'hood',
+    hp: 90, speed: 280, unlock: 150,
+    weapon: { name: 'Longshot', kind: 'snipe', dmg: 43, rate: 1.05, speed: 1550, range: 1000, r: 7, count: 1, spread: 0 },
+    passive: { id: 'ambush', name: 'Ambush', desc: 'Shots fired from a bush or while invisible deal +50% damage.' },
+    ult: { id: 'deadeye', name: 'Deadeye', desc: 'Reveal every enemy and make your next 3 shots pierce for double damage.' },
+    kit: ['smoke_bomb', 'grapple'],
+    lore: 'Nobody has ever seen her blink. Or arrive.',
+  },
+  {
+    id: 'rime', name: 'Rime', title: 'The Frostbite', role: 'Mage', color: '#a0e7ff', color2: '#4361ee', look: 'crown',
+    hp: 120, speed: 260, unlock: 250,
+    weapon: { name: 'Ice Shard', kind: 'ice', dmg: 18, rate: 0.4, speed: 920, range: 560, r: 8, count: 1, spread: 0, slow: 0.25 },
+    passive: { id: 'frostbite', name: 'Frostbite', desc: 'Slowed enemies take 20% more damage from you.' },
+    ult: { id: 'blizzard', name: 'Blizzard', desc: 'Become the eye of a freezing storm that slows and shreds nearby enemies.' },
+    kit: ['frost_nova', 'ice_wall'],
+    lore: 'Refuses to say "cool". Says it anyway.',
+  },
+  {
+    id: 'rift', name: 'Rift', title: 'The Trickster', role: 'Assassin', color: '#ff4d6d', color2: '#2ec4b6', look: 'mask',
+    hp: 115, speed: 285, unlock: 400,
+    weapon: { name: 'Riftblade', kind: 'blade', dmg: 18, rate: 0.65, speed: 900, range: 440, r: 11, count: 1, spread: 0, boomerang: true },
+    passive: { id: 'slippery', name: 'Slippery', desc: 'Every KO instantly resets your ability cooldowns.' },
+    ult: { id: 'mirror_army', name: 'Mirror Army', desc: 'Summon 3 mirror clones that hunt and fire at enemies for 6s.' },
+    kit: ['decoy', 'rewind'],
+    lore: 'There are at least four of them. Probably.',
+  },
+  {
+    id: 'nova', name: 'Nova', title: 'The Gunslinger', role: 'Marksman', color: '#ffbe0b', color2: '#fb5607', look: 'hat',
+    hp: 105, speed: 275, unlock: 600,
+    weapon: { name: 'Ricochet Six', kind: 'bullet', dmg: 17, rate: 0.26, speed: 1120, range: 680, r: 6, count: 1, spread: 0.03, bounce: 1 },
+    passive: { id: 'ricochet', name: 'Ricochet', desc: 'Bullets bounce off walls once — bank shots around cover.' },
+    ult: { id: 'bullet_storm', name: 'Bullet Storm', desc: 'Spin and unload a spiral of bullets in every direction.' },
+    kit: ['sentry', 'grenade'],
+    lore: 'Fastest draw in the storm. Slowest at paperwork.',
+  },
+];
+export const HERO = Object.fromEntries(HEROES.map((h) => [h.id, h]));
+export const ULT_COST = 330; // damage dealt to fully charge ultimate
