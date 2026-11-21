@@ -1,9 +1,10 @@
-# 🚀 Upload Guide: all 3 games
+# 🚀 Upload Guide: all 4 games
 | Game | Guide | Build zips | Store assets | Recommended first platform |
 |---|---|---|---|---|
 | ⛈️ Stealstorm | this file (below) | `dist/` | `store/` | CrazyGames |
 | 🐜 Hordemind | [`hordemind/UPLOAD.md`](hordemind/UPLOAD.md) | `hordemind/dist/` | `hordemind/store/` | **Poki** (then CrazyGames if declined) |
 | 🏎️ Driftline | [`driftline/UPLOAD.md`](driftline/UPLOAD.md) | `driftline/dist/` | `driftline/store/` | CrazyGames |
+| 🔥 Emberkeep | [`emberkeep/UPLOAD.md`](emberkeep/UPLOAD.md) | `emberkeep/dist/` | `emberkeep/store/` | **Poki** (then CrazyGames if declined) |
 
 **Before you start (one time, ~15 minutes):**
 1. Create free developer accounts at **developer.crazygames.com** and **developers.poki.com**. Neither charges upload fees, and neither publishes a limit on how many games you can submit.

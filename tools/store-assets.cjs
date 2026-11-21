@@ -8,6 +8,7 @@ const ROOT = path.resolve(__dirname, '..');
 const GAMES = {
   stealstorm: { dir: '', key: 'stealstorm_profile_v1', profile: { tutorialDone: true, stats: { matches: 10 }, settings: { sfx: 0, music: 0 } } },
   hordemind: { dir: 'hordemind', key: 'hordemind_profile_v1', profile: { tutorialDone: true, hive: { brood: 10, vats: 10, forge: 4, chitin: 4, royal: 5, pit: 0 }, stats: { hunts: 10 }, settings: { sfx: 0, music: 0 } } },
+  emberkeep: { dir: 'emberkeep', key: 'emberkeep_profile_v1', profile: { tutorialDone: true, coins: 0, deck: ['flame', 'storm', 'stone', 'void', 'arc'], cards: { flame: 3, frost: 3, storm: 3, stone: 3, gold: 2, venom: 2, sun: 2, void: 2, arc: 3 }, workshop: { wispDmg: 8, speed: 5, crit: 5, hp: 15, regen: 10, embers: 15, startEmbers: 10, nova: 2 }, lab: { levels: { autoSummon: 1, autoMerge: 1, autoPower: 1, speed2: 1 }, active: [] }, login: { last: 99999999, streak: 1, pending: false }, settings: { sfx: 0, music: 0 } } },
   driftline: { dir: 'driftline', key: 'driftline_profile_v1', profile: { tutorialDone: true, car: 'wraith', equip: { paint: 'p_synth', decal: 'd_bolt', glow: 'g_cyan', smoke: 's_pink' }, owned: { p_synth: true, d_bolt: true, g_cyan: true, s_pink: true, p_red: true, d_none: true, g_none: true, s_white: true }, stats: { races: 10 }, settings: { sfx: 0, music: 0 } } },
 };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
@@ -43,6 +44,13 @@ const DRIVERS = {
     });
     return { preroll: 18 * 30 };
   },
+  async emberkeep(pg) {
+    await pg.evaluate(() => {
+      const a = window.__app; a.loop = () => {}; a.startRun(); const r = a.run; r.auto = { summon: true, merge: true, power: true };
+      window.__step = (render) => { for (let i = 0; i < 2; i++) { if (a.run) { a.run.update(1 / 60); if (a.run.hp < a.run.maxHp * 0.5) a.run.hp = a.run.maxHp * 0.5; } } if (render && a.run) { a.renderer.draw(a.run, 1 / 30, { ...a.ui, theme: a.theme, skin: a.skin }); a.hud.update(1 / 30); } };
+    });
+    return { preroll: 400 * 30 }; // ~wave 20: thick waves, a full board of merged wisps
+  },
   async driftline(pg) {
     await pg.evaluate(async () => {
       const a = window.__app; a.loop = () => {}; a.startRace({ mode: 'quick', seed: 412, name: 'Boulevard 88' });
@@ -58,7 +66,7 @@ async function video(b, base, name, g, w, h, outDir, coverPng, shots) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [g.key, JSON.stringify(g.profile)]);
   const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
-  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && window.__app.state === 'lobby', null, { timeout: 20000 });
+  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && ['lobby', 'home'].includes(window.__app.state), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
   const { preroll } = await DRIVERS[name](pg);
   await pg.evaluate((n) => { for (let i = 0; i < n; i++) window.__step(i > n - 3); if (window.__stage) window.__stage(); }, preroll);

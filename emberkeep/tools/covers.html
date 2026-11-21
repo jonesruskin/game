@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// EMBERKEEP cover art generator. Usage: covers.html?w=1920&h=1080&text=1
+import { drawWisp, drawEmber, drawShadow } from '../src/render.js';
+import { EMBER_SKINS, ENEMIES } from '../src/data.js';
+const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
+const cv = document.getElementById('c'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
+let seed = 9; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const TAU = Math.PI * 2; const land = W / H > 1.3, port = H / W > 1.2; const u = Math.min(W, H) / 100;
+// night sky
+let g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05030c'); g.addColorStop(1, '#120a1c'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+for (let i = 0; i < 220; i++) { x.fillStyle = '#fff'; x.globalAlpha = R() * 0.7; const s = R() * u * 0.25 + 0.8; x.fillRect(R() * W, R() * H, s, s); } x.globalAlpha = 1;
+const CX = W / 2, CY = H * (!TEXT ? 0.52 : port ? 0.6 : land ? 0.6 : 0.6);
+const S = (land ? H / 620 : W / (port ? 560 : 600)); // world → px scale
+x.save(); x.translate(CX, CY); x.scale(S, S);
+// warm light pool
+g = x.createRadialGradient(0, 0, 40, 0, 0, 420); g.addColorStop(0, 'rgba(255,170,90,.38)'); g.addColorStop(0.6, 'rgba(255,120,60,.1)'); g.addColorStop(1, 'rgba(255,120,60,0)'); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 420, 0, TAU); x.fill();
+// shadows creeping in from the dark
+const foes = [];
+for (let i = 0; i < (land ? 26 : 18); i++) { const a = R() * TAU; const r = 300 + R() * (land ? 420 : 260); const types = ['grunt', 'grunt', 'runner', 'brute', 'ghost', 'swarm']; const t = types[Math.floor(R() * types.length)]; foes.push({ x: Math.cos(a) * r * (land ? 1.5 : 1), y: Math.sin(a) * r * 0.8, E: ENEMIES[t], r: ENEMIES[t].r * 1.6, hp: 1, maxHp: 1, slowMag: 0, poison: [], wob: R() * 6, phased: false, hitT: 0 }); }
+foes.push({ x: land ? 430 : 0, y: land ? -150 : -330, E: ENEMIES.boss, r: 52, hp: 1, maxHp: 1, slowMag: 0, poison: [], wob: 1, phased: false, hitT: 0 });
+for (const f of foes) drawShadow(x, f, 1);
+// hex sockets + a ring of powerful wisps
+const ring = [['flame', 6], ['storm', 7], ['void', 5], ['frost', 6], ['arc', 7], ['stone', 5], ['venom', 6], ['sun', 4]];
+for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU - Math.PI / 2; const px = Math.cos(a) * 165, py = Math.sin(a) * 165;
+  x.fillStyle = 'rgba(30,22,44,.8)'; x.strokeStyle = 'rgba(255,190,110,.35)'; x.lineWidth = 2; x.beginPath(); for (let k = 0; k < 6; k++) { const b = (k / 6) * TAU + Math.PI / 6; x.lineTo(px + Math.cos(b) * 44, py + Math.sin(b) * 44); } x.closePath(); x.fill(); x.stroke(); }
+// beams from wisps to foes (action!)
+const beam = (x1, y1, x2, y2, c) => { for (const [w, col, a] of [[10, c, 0.35], [4, c, 0.9], [1.5, '#fff', 1]]) { x.globalAlpha = a; x.strokeStyle = col; x.lineWidth = w; x.beginPath(); x.moveTo(x1, y1); const mx = (x1 + x2) / 2 + (R() - 0.5) * 30, my = (y1 + y2) / 2 + (R() - 0.5) * 30; x.quadraticCurveTo(mx, my, x2, y2); x.stroke(); } x.globalAlpha = 1; };
+const near = foes.slice().sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+const colors = { flame: '#ff7b2e', storm: '#f9f871', void: '#b388ff', frost: '#7fdbff', arc: '#ff70a6', stone: '#c2a383', venom: '#9ef01a', sun: '#ffbe0b' };
+ring.forEach(([t], i) => { if (t === 'sun') return; const a = (i / 8) * TAU - Math.PI / 2; const px = Math.cos(a) * 165, py = Math.sin(a) * 165; const f = near.slice().sort((A, B) => Math.hypot(A.x - px, A.y - py) - Math.hypot(B.x - px, B.y - py))[0]; beam(px, py, f.x, f.y, colors[t]); });
+ring.forEach(([t, l], i) => { const a = (i / 8) * TAU - Math.PI / 2; drawWisp(x, t, l, Math.cos(a) * 165, Math.sin(a) * 165, 1 + i, { noBob: true, r: 34 }); });
+// the Ember
+drawEmber(x, 0, 0, 60, 1.2, EMBER_SKINS[0]);
+// sparks
+for (let i = 0; i < 90; i++) { const a = R() * TAU, r = R() * 260; x.fillStyle = ['#ffd23f', '#ff7b2e', '#fff3b0'][i % 3]; x.globalAlpha = 0.4 + R() * 0.6; x.fillRect(Math.cos(a) * r, Math.sin(a) * r - R() * 60, 3, 3); } x.globalAlpha = 1;
+x.restore();
+if (TEXT) {
+  let fs = land ? H * 0.17 : W * 0.2; const ty = land ? H * 0.13 : H * 0.11;
+  x.save(); x.translate(W / 2, ty); x.transform(1, 0, -0.12, 1, 0, 0); x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`;
+  const a = 'EMBER', b = 'KEEP'; const fit = (W * 0.9) / x.measureText(a + b).width; if (fit < 1) { fs *= fit; x.font = `italic 900 ${fs}px 'Trebuchet MS', 'Arial Black', sans-serif`; }
+  const wa = x.measureText(a).width, wb = x.measureText(b).width; const sx = -(wa + wb) / 2; x.textBaseline = 'middle'; x.textAlign = 'left'; x.lineJoin = 'round';
+  const part = (t, px, fill, shade, glow) => { x.shadowColor = glow; x.shadowBlur = fs * 0.4; x.fillStyle = shade; x.fillText(t, px, fs * 0.07); x.shadowBlur = 0; x.strokeStyle = '#0a0612'; x.lineWidth = fs * 0.12; x.strokeText(t, px, 0); const gg = x.createLinearGradient(0, -fs / 2, 0, fs / 2); gg.addColorStop(0, '#fff3b0'); gg.addColorStop(1, fill); x.fillStyle = gg; x.fillText(t, px, 0); };
+  part(a, sx, '#ffd9a0', '#7a3b12', 'rgba(255,170,90,.8)'); part(b, sx + wa, '#ff8c32', '#9a3412', 'rgba(255,120,50,.9)'); x.restore();
+}
+g = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.75); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.6)'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+window.coverReady = true;
+</script></body></html>
