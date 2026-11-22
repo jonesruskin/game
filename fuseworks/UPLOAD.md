@@ -8,8 +8,8 @@ Everything you need is in this folder. You don't need to build anything.
 ## 📦 What to upload (file map)
 | What the portal asks for | File | Spec |
 |---|---|---|
-| Game build (CrazyGames) | `fuseworks/dist/fuseworks-crazygames.zip` | ~130 KB, `index.html` at the zip root, CrazyGames SDK v3 |
-| Game build (Poki) | `fuseworks/dist/fuseworks-poki.zip` | ~130 KB, Poki SDK v2 |
+| Game build (CrazyGames) | `fuseworks/dist/fuseworks-crazygames.zip` | ~140 KB, `index.html` at the zip root, CrazyGames SDK v3 |
+| Game build (Poki) | `fuseworks/dist/fuseworks-poki.zip` | ~140 KB, Poki SDK v2 |
 | Game build (itch.io / own site) | `fuseworks/dist/fuseworks-web.zip` | No SDK, no ads |
 | Landscape cover | `fuseworks/store/cover-landscape-1920x1080.png` | 1920×1080, title only, no borders |
 | Portrait cover | `fuseworks/store/cover-portrait-800x1200.png` | 800×1200 |

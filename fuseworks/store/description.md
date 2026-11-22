@@ -39,7 +39,7 @@ Easy to start (just tap a firework), deep enough to break: every run is a new bu
 Fireworks and festival crowds only. No violence, no blood, no chat, no personal data, no gambling, and nothing for sale. Packs are bought only with in-game money earned by playing. Suitable for all ages (PEGI 3).
 
 ## Tech facts
-- Engine: vanilla JavaScript + WebGL 2 (HDR bloom, water reflections), about 130 KB zipped including fonts
+- Engine: vanilla JavaScript + WebGL 2 (HDR bloom, water reflections), about 140 KB zipped including fonts
 - Orientation: landscape **and** portrait (adaptive layout)
 - Devices: desktop and mobile
 - Languages: English

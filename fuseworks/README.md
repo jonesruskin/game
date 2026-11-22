@@ -6,7 +6,7 @@ A fireworks chain-reaction roguelike for web portals. Light one firework, chain 
 - 🎮 **Play locally:** from the repo root run `python3 -m http.server 8080`, then open http://localhost:8080/fuseworks/
 - 📦 **Build portal packages:** `node tools/build.mjs` (inside `fuseworks/`) creates `dist/fuseworks-{crazygames,poki,web}.zip`
 - 📤 **Upload guide:** [UPLOAD.md](UPLOAD.md) · **Store assets:** [`store/`](store/) · **Why it works:** [DESIGN.md](DESIGN.md)
-- ⚖️ **Size:** ~130 KB zipped including two OFL fonts. Every visual is procedural (WebGL 2 with HDR bloom and water reflections), and every sound is synthesized live (WebAudio: booms with city echo, crackle, rising chain melody, applause, generative music).
+- ⚖️ **Size:** ~140 KB zipped including two OFL fonts. Every visual is procedural (WebGL 2 with HDR bloom and water reflections), and every sound is synthesized live (WebAudio: booms with city echo, crackle, rising chain melody, applause, generative music).
 
 ## How to play
 1. **Tap a firework to light it.** It bursts and lights every firework inside its reach, which light theirs…

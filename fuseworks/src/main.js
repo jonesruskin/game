@@ -58,7 +58,8 @@ class App {
     const theme = Save.p.equip.theme; const bd = paintBackdrop(theme, W, H, waterY, dpr * this.R.renderScale); this.R.setBackground(bd.color, bd.mask); this.theme = bd.theme;
     this.fitView();
   }
-  fieldDims() { const a = clamp(this.F.w / this.F.h, 0.6, document.body.classList.contains('compact') ? 2 : 1.6); const Ww = Math.sqrt(FIELD_AREA * a); return { W: Math.round(Ww), H: Math.round(FIELD_AREA / Ww) }; }
+  // the Daily Show uses one field shape on every device, so every player gets identical skies
+  fieldDims() { const a = this.run && this.run.daily ? 1.15 : clamp(this.F.w / this.F.h, 0.6, document.body.classList.contains('compact') ? 2 : 1.6); const Ww = Math.sqrt(FIELD_AREA * a); return { W: Math.round(Ww), H: Math.round(FIELD_AREA / Ww) }; }
   fitView() {
     const a = this.run && this.run.act; let Ww, Hw, F = this.F;
     if (a) { Ww = a.W; Hw = a.H; } else { const s = Math.min(this.W, this.H) / 900; this.view = { ox: 0, oy: 0, s }; this.scene.W = this.W / s; this.scene.H = this.waterY / s; this.setToUV(); return; }
@@ -235,6 +236,7 @@ class App {
     const run = this.run; this.ui.show(''); this.ui.modal('');
     if (run.phase === 'act' && run.act) { this.state = 'act'; this.phase = 'idle'; this.fitView(); this.shownScore = run.act.score; this.ui.disp.score = run.act.score; this.ui.buildHud(); run.act.sky.shells.forEach((s, i) => (s.bornT = this.scene.time + 0.3 + i * 0.04)); this.audio.setKey(run.night); this.audio.setMood(run.act.boss ? 'boss' : 'play'); Platform.gameplayStart(); }
     else if (run.phase === 'shop' || run.phase === 'pack') { this.ui.buildHud(); this.state = 'shop'; document.body.classList.add('inshop'); this.ui.shop(run); if (run.phase === 'pack') this.ui.pack(run); this.audio.setMood('shop'); }
+    else if (run.phase === 'cleared' && run.act) { this.state = 'act'; this.phase = 'done'; this.fitView(); this.shownScore = run.act.score; this.ui.disp.score = run.act.score; this.ui.buildHud(); this.cashout(); }
     else if (run.phase === 'won') { this.ui.buildHud(); this.toShop(); }
     else if (run.phase === 'over') { this.ui.buildHud(); this.finish(false); }
     else { this.ui.buildHud(); this.startAct(); }
