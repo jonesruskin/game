@@ -28,6 +28,11 @@ export function buildAtlas() {
   add('person', 28, 56, (g, w, h) => { g.beginPath(); g.arc(w / 2, 9, 7.5, 0, TAU); g.fill(); g.beginPath(); g.moveTo(2, h); g.quadraticCurveTo(1, 19, w / 2, 18); g.quadraticCurveTo(w - 1, 19, w - 2, h); g.fill(); });
   add('person_up', 28, 56, (g, w, h) => { g.beginPath(); g.arc(w / 2, 13, 7.5, 0, TAU); g.fill(); g.beginPath(); g.moveTo(3, h); g.quadraticCurveTo(2, 23, w / 2, 22); g.quadraticCurveTo(w - 2, 23, w - 3, h); g.fill(); g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.moveTo(6, 26); g.lineTo(2, 4); g.moveTo(w - 6, 26); g.lineTo(w - 2, 4); g.stroke(); });
   add('mortar', 64, 96, (g, w, h) => { g.beginPath(); g.moveTo(16, 8); g.lineTo(48, 8); g.lineTo(44, 80); g.lineTo(20, 80); g.closePath(); g.fill(); g.fillRect(8, 78, 48, 14); g.globalCompositeOperation = 'destination-out'; g.fillRect(19, 22, 26, 4); g.fillRect(20, 44, 24, 4); });
+  // colour-blind markers (one shape per colour)
+  add('cb_crimson', 32, 32, (g) => { g.beginPath(); g.moveTo(16, 3); g.lineTo(29, 27); g.lineTo(3, 27); g.closePath(); g.fill(); });
+  add('cb_amber', 32, 32, (g) => g.fillRect(5, 5, 22, 22));
+  add('cb_azure', 32, 32, (g) => { g.beginPath(); g.arc(16, 16, 12, 0, TAU); g.fill(); });
+  add('cb_jade', 32, 32, (g) => { g.beginPath(); g.moveTo(16, 2); g.lineTo(30, 16); g.lineTo(16, 30); g.lineTo(2, 16); g.closePath(); g.fill(); });
   // shell glyphs (white strokes, 96px)
   const G = (draw) => (g, w, h) => { g.translate(w / 2, h / 2); g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 7; draw(g); };
   add('g_peony', 96, 96, G((g) => { g.beginPath(); g.arc(0, 0, 8, 0, TAU); g.fill(); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; g.beginPath(); g.moveTo(Math.cos(a) * 17, Math.sin(a) * 17); g.lineTo(Math.cos(a) * 28, Math.sin(a) * 28); g.stroke(); g.beginPath(); g.arc(Math.cos(a) * 37, Math.sin(a) * 37, 4.5, 0, TAU); g.fill(); } }));

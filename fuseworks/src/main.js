@@ -42,7 +42,7 @@ class App {
     requestAnimationFrame((t) => this.frame(t));
     window.__app = this;
   }
-  applySettings() { const s = Save.p.settings; this.audio.setVolumes(s.sfx, s.music); this.scene.setLowFx(s.lowFx); this.R.lowFx = s.lowFx; this.R.renderScale = s.lowFx ? 0.7 : 1; this.scene.burstStyle = Save.p.equip.burst; this.scene.trailStyle = Save.p.equip.trail; }
+  applySettings() { const s = Save.p.settings; this.audio.setVolumes(s.sfx, s.music); this.scene.setLowFx(s.lowFx); this.R.lowFx = s.lowFx; this.R.renderScale = s.lowFx ? 0.7 : 1; this.scene.burstStyle = Save.p.equip.burst; this.scene.trailStyle = Save.p.equip.trail; this.scene.cbMarks = !!s.cbMarks; }
   adsOn() { return Platform.adsAvailable; }
   // ------------------------------------------------------------------ layout
   layout(force) {
@@ -69,7 +69,7 @@ class App {
   launcherWorld() { const [x, y] = this.toWorld(this.W / 2 + (this.land ? this.F.x / 2 - 9 : 0), this.waterY - 6); return { x, y }; }
   // ------------------------------------------------------------------ input
   bindInput() {
-    const el = this.ov; el.style.touchAction = 'none';
+    const el = this.ov; el.style.touchAction = 'none'; addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('pointerdown', (e) => { this.audio.init(); this.down(e); });
     addEventListener('pointermove', (e) => this.move(e)); addEventListener('pointerup', (e) => this.up(e)); addEventListener('pointercancel', (e) => this.up(e, true));
     document.addEventListener('pointerdown', () => this.audio.init(), { once: false, capture: true });
@@ -179,7 +179,7 @@ class App {
     if (this.tut && this.tut.step === 'done2') { this.tut = null; Save.p.tutorialDone = true; Save.save(); }
     this.saveRun();
   }
-  cashout() { if (this.tut && this.tut.step === 'tap') this.tut.step = 'shop'; const run = this.run; const act = run.act; const res = run.cashOut(); this.lastCash = res; this.shownScore = 0; this.ui.disp.score = 0; Platform.gameplayStop(); this.ui.cashout(res, run, act); this.audio.setMood('shop'); res.lines.forEach((l, i) => setTimeout(() => this.audio.ui('coin'), 250 + i * 160)); this.saveRun(); }
+  cashout() { if (this.tut && this.tut.step === 'tap') this.tut.step = 'shop'; const run = this.run; const act = run.act; if (act.idx === 2) { for (let i = 0; i < 6; i++) setTimeout(() => this.scene.ambient(99, 99), 160 * i); this.audio.applause(3, 0.9); } const res = run.cashOut(); this.lastCash = res; this.shownScore = 0; this.ui.disp.score = 0; Platform.gameplayStop(); this.ui.cashout(res, run, act); this.audio.setMood('shop'); res.lines.forEach((l, i) => setTimeout(() => this.audio.ui('coin'), 250 + i * 160)); this.saveRun(); }
   toShop() {
     const run = this.run; this.ui.modal('');
     if (run.phase === 'won') { const w = Save.recordWin(run); this.saveRun(); const fin = { dust: w.dust, ach: w.ach, canDouble: false }; for (const a of w.ach) this.ui.achToast(a); this.state = 'over'; this.ui.over(run, fin, true); this.audio.applause(4, 1); this.scene.confetti(300); for (let i = 0; i < 8; i++) setTimeout(() => this.scene.ambient(99, 99), 220 * i); return; }
@@ -214,13 +214,13 @@ class App {
   tutLock(kind, s) { const t = this.tut; if (!t) return false; if (t.step === 'drag' && kind === 'light' && t.drag && false) return true; return false; }
   // ------------------------------------------------------------------ losing, reviving, finishing
   lose() {
-    const run = this.run, a = run.act; this.audio.ui('lose'); Platform.gameplayStop();
+    const run = this.run, a = run.act; this.audio.ui('lose'); Platform.gameplayStop(); this.saveRun(); // a lost run can't be reloaded to retry the last launch
     const close = a.score >= a.target * 0.5; if (!run.revived && !run.daily && run.night >= 3 && close && this.adsOn()) { this.state = 'revive'; this.ui.revive(); return; }
     this.finish(false);
   }
   async revive() { const ok = await this.withAd(() => Platform.rewarded(() => this.audio.suspend())); if (ok && this.run.revive()) { this.ui.modal(''); this.state = 'act'; this.phase = 'idle'; this.ui.banner('SECOND WIND', 'One more launch!', 'finale', 1.5); this.audio.fanfare(1); Platform.gameplayStart(); this.saveRun(); } else { this.ui.toast('Ad not available right now', 'warn'); this.finish(false); } }
   finish(won) {
-    const run = this.run; const fin = Save.finishRun(run, { won: won || run.won, daily: run.daily }); fin.canDouble = this.adsOn(); this.lastFin = fin; this.state = 'over'; this.audio.setMood('title');
+    const run = this.run; run.finished = true; const fin = Save.finishRun(run, { won: won || run.won, daily: run.daily }); fin.canDouble = this.adsOn(); this.lastFin = fin; this.state = 'over'; this.audio.setMood('title');
     this.ui.over(run, fin, false); for (const a of fin.ach) this.ui.achToast(a); if (this.tut) { this.tut = null; Save.p.tutorialDone = true; Save.save(); }
   }
   // ------------------------------------------------------------------ menus
@@ -276,11 +276,11 @@ class App {
       case 'reset': return this.ui.confirm('Erase all progress?', 'reset-ok');
       case 'reset-ok': Save.reset(); this.applySettings(); this.layout(); return this.toTitle();
       case 'close': if (this.settingsFrom === 'pause' && this.ui.modalEl.querySelector('.settings')) { this.settingsFrom = null; return this.ui.pause(); } if (this.helpFrom === 'pause' && this.ui.modalEl.querySelector('.help')) { this.helpFrom = null; return this.ui.pause(); } this.ui.modal(''); if (this.state === 'title') this.ui.title(); if (this.state === 'shop' && run) this.ui.shop(run); return;
-      case 'pause': if (this.phase === 'chain' || this.phase === 'rocket' || this.phase === 'tally') return; this.paused = true; return this.ui.pause();
-      case 'resume': this.paused = false; return this.ui.modal('');
+      case 'pause': if (this.phase === 'chain' || this.phase === 'rocket' || this.phase === 'tally') return; this.paused = true; Platform.gameplayStop(); return this.ui.pause();
+      case 'resume': this.paused = false; if (this.state === 'act') Platform.gameplayStart(); return this.ui.modal('');
       case 'abandon': return this.ui.confirm('Abandon this show? It counts as a loss.', 'abandon-ok');
       case 'abandon-ok': this.paused = false; this.ui.modal(''); if (run) { run.phase = 'over'; this.finish(false); } return;
-      case 'menu': this.paused = false; if (this.state === 'over') { p.run = null; Save.save(); } else this.saveRun(); return this.toTitle();
+      case 'menu': this.paused = false; if (this.state === 'over') { if (run && run.won && !run.finished) { run.finished = true; const fin = Save.finishRun(run, { won: true, daily: run.daily }); for (const a of fin.ach) this.ui.achToast(a); } p.run = null; Save.save(); } else this.saveRun(); return this.toTitle();
       case 'crate': if (run) this.ui.crate(run); return;
       case 'help': this.helpFrom = this.ui.modalEl.querySelector('.pause') ? 'pause' : null; return this.ui.help();
       case 'boss-info': return;

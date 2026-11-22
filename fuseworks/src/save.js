@@ -9,7 +9,7 @@ const fresh = () => ({
   v: 1, created: Date.now(), tutorialDone: false, dust: 0,
   stats: { runs: 0, wins: 0, acts: 0, finales: 0, longest: 0, bestLaunch: 0, bestNight: 1, bosses: 0, maxMoney: 0, maxCats: 0, maxFormula: 1, dailies: 0, maxStakeWin: -1, shells: 0, launches: 0 },
   ach: {}, unlocked: [], seen: {}, owned: { theme_harbor: true, trail_classic: true, burst_classic: true }, equip: { theme: 'theme_harbor', trail: 'trail_classic', burst: 'burst_classic' },
-  settings: { sfx: 0.8, music: 0.55, lowFx: false, reaches: true, fast: false }, run: null, daily: { day: 0, best: 0, done: false, night: 0 }, lastLauncher: 'classic', lastStake: 0, adDust: { day: 0, n: 0 },
+  settings: { sfx: 0.8, music: 0.55, lowFx: false, reaches: true, fast: false, cbMarks: false }, run: null, daily: { day: 0, best: 0, done: false, night: 0 }, lastLauncher: 'classic', lastStake: 0, adDust: { day: 0, n: 0 },
 });
 export const Save = {
   p: null,

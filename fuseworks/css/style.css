@@ -326,3 +326,11 @@ body.land .title .menu { bottom: 10vh; }
 .helpg { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; text-align: left; }
 .hrow { display: flex; gap: 10px; align-items: flex-start; background: rgba(0, 0, 0, .25); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
 .hrow > .ic { width: 28px; height: 28px; color: var(--m); flex: 0 0 auto; margin-top: 2px; } .hrow b { font-family: var(--disp); font-weight: 400; font-size: 16px; display: block; } .hrow span { font-size: 13px; color: #ddd2f7; line-height: 1.35; } .hrow span b { display: inline; font-family: Rubik; font-weight: 700; font-size: 13px; }
+.pips { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: 1px; }
+.pips i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+.pips i.done { background: #ffc04d; box-shadow: 0 0 6px rgba(255, 192, 77, .7); }
+.pips i.cur { background: #fff; box-shadow: 0 0 8px #fff; animation: breathe 1.4s ease-in-out infinite; }
+.pips i.boss { border-radius: 2px; transform: rotate(45deg) scale(.86); }
+.pips i.boss.cur { background: #ff5a86; box-shadow: 0 0 8px #ff5a86; }
+.shop-h .money { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.shop-h .money small { font-family: Rubik; font-size: 11px; font-weight: 600; color: #e8d38a; letter-spacing: 0; }

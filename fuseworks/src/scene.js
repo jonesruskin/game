@@ -152,6 +152,7 @@ export class Scene {
       if (E === 'lucky' && Math.sin(t * 3 + s.uid) > 0.7) R.push(x + r * 0.6, y - r * 0.6, 9, 9, t, 0.6, 1.4, 0.7, alpha, uv.flare, 1);
     }
     const gl = fog ? uv.g_fog : uv['g_' + s.type]; R.push(x, y, r * 0.66, r * 0.66, 0, 1, 1, 1, 0.95 * alpha, gl, 0);
+    if (this.cbMarks) { const mx = x - r * 0.72, my = y + r * 0.72; R.push(mx, my, r * 0.36, r * 0.36, 0, 0.06, 0.04, 0.12, alpha, uv['cb_' + s.color], 0); R.push(mx, my, r * 0.26, r * 0.26, 0, 1, 1, 1, alpha, uv['cb_' + s.color], 0); }
     // fuse spark
     const fx = x + r * 0.52, fy = y - r * 0.84; const fl = 0.6 + Math.random() * 0.6;
     R.push(fx, fy, 7 * fl, 7 * fl, 0, 1.6, 1.1, 0.5, alpha, uv.glow, 1); R.push(fx, fy, 2.4, 2.4, 0, 2, 1.8, 1.4, alpha, uv.dot, 1);

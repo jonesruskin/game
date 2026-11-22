@@ -25,7 +25,7 @@ export class Audio {
     this.crackBuf = c.createBuffer(1, sr * 2, sr); { const d = this.crackBuf.getChannelData(0); for (let k = 0; k < 220; k++) { const at = Math.floor(Math.random() * (d.length - 2000)); const len = 80 + Math.random() * 500; const amp = 0.3 + Math.random() * 0.7; for (let i = 0; i < len; i++) d[at + i] += (Math.random() * 2 - 1) * amp * Math.exp(-i / (len * 0.25)); } }
     this.applyVol(); this.startMusic();
   }
-  applyVol() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfx.gain.value = this.sfxVol * m; this.mus.gain.value = this.musVol * 0.5 * m; }
+  applyVol() { if (!this.ctx) return; const m = this.muted ? 0 : 1; this.sfx.gain.value = this.sfxVol * m; this.mus.gain.value = this.musVol * 0.24 * m; }
   setVolumes(sfx, mus) { this.sfxVol = sfx; this.musVol = mus; this.applyVol(); }
   setMuted(v) { this.muted = v; this.applyVol(); }
   suspend() { if (this.ctx && this.ctx.state === 'running') this.ctx.suspend(); }
@@ -64,11 +64,11 @@ export class Audio {
   tick(p = 0) { if (!this.ctx) return; const c = this.ctx, t = this.now; const o = this.osc('triangle', 520 * Math.pow(2, Math.min(p, 24) / 12), t, 0.06); const g = c.createGain(); this.env(g, t, 0.002, 0.06, 0.05); o.connect(g); this.out(g); }
   slam(power = 1) {
     if (!this.ctx) return; const c = this.ctx, t = this.now; this.boom(1.1 * power, 0, false);
-    const root = 48 + this.key; for (const iv of [0, 7, 12, 16, 19]) { for (const det of [-6, 6]) { const o = this.osc('sawtooth', mtof(root + iv), t, 0.9); o.detune.value = det; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(4000, t); lp.frequency.exponentialRampToValueAtTime(300, t + 0.7); const g = c.createGain(); this.env(g, t, 0.006, 0.05 * power, 0.75); o.connect(lp).connect(g); this.out(g, det / 30, 0.4); } }
+    const root = 48 + this.key; for (const iv of [0, 7, 12, 16, 19]) { for (const det of [-6, 6]) { const o = this.osc('sawtooth', mtof(root + iv), t, 0.9); o.detune.value = det; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(4000, t); lp.frequency.exponentialRampToValueAtTime(300, t + 0.7); const g = c.createGain(); this.env(g, t, 0.006, 0.068 * power, 0.75); o.connect(lp).connect(g); this.out(g, det / 30, 0.4); } }
   }
   fanfare(level = 1) {
     if (!this.ctx) return; const t = this.now; const root = 60 + this.key; const seq = [0, 4, 7, 12, 16, 19, 24].slice(0, 4 + Math.min(3, level));
-    seq.forEach((iv, k) => this.bell(mtof(root + iv), t + k * 0.075, 0.16, 1.1));
+    seq.forEach((iv, k) => this.bell(mtof(root + iv), t + k * 0.075, 0.21, 1.1));
     this.bell(mtof(root + 24), t + seq.length * 0.075 + 0.05, 0.12, 1.6); this.cymbal(t, 1.4); this.applause(1.6 + level, 0.6 + level * 0.15);
   }
   bell(f, t, v, dec) { const c = this.ctx; for (const [m, a] of [[1, 1], [2.76, 0.28], [5.4, 0.1]]) { const o = this.osc('sine', f * m, t, dec); const g = c.createGain(); this.env(g, t, 0.003, v * a, dec); o.connect(g); this.out(g, 0, 0.5); } }
@@ -76,7 +76,7 @@ export class Audio {
   applause(dur = 2, intensity = 0.7) {
     if (!this.ctx) return; const c = this.ctx, t0 = this.now + 0.1; const rate = 45 * intensity;
     const roar = this.noiseSrc(t0, dur + 0.6); const lp = c.createBiquadFilter(); lp.type = 'bandpass'; lp.frequency.value = 700; lp.Q.value = 0.5; const rg = c.createGain(); rg.gain.setValueAtTime(0.0001, t0); rg.gain.linearRampToValueAtTime(0.1 * intensity, t0 + 0.3); rg.gain.linearRampToValueAtTime(0.0001, t0 + dur + 0.5); roar.connect(lp).connect(rg); this.out(rg, 0, 0.3);
-    for (let i = 0; i < rate * dur; i++) { const t = t0 + Math.random() * dur * (0.6 + 0.4 * Math.random()); const n = this.noiseSrc(t, 0.03); const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 1800; bp.Q.value = 1.4; const g = c.createGain(); const fade = 1 - (t - t0) / (dur + 0.2); this.env(g, t, 0.001, 0.05 * intensity * Math.max(0.1, fade) * (0.5 + Math.random()), 0.02 + Math.random() * 0.02); n.connect(bp).connect(g); this.out(g, Math.random() * 1.6 - 0.8, 0.15); }
+    for (let i = 0; i < rate * dur; i++) { const t = t0 + Math.random() * dur * (0.6 + 0.4 * Math.random()); const n = this.noiseSrc(t, 0.03); const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 1800; bp.Q.value = 1.4; const g = c.createGain(); const fade = 1 - (t - t0) / (dur + 0.2); this.env(g, t, 0.001, 0.068 * intensity * Math.max(0.1, fade) * (0.5 + Math.random()), 0.02 + Math.random() * 0.02); n.connect(bp).connect(g); this.out(g, Math.random() * 1.6 - 0.8, 0.15); }
   }
   // ---------------------------------------------------------------- UI
   ui(kind) {
@@ -118,6 +118,6 @@ export class Audio {
     const pArp = mood === 'title' ? 0.32 : soft ? 0.22 : 0.12 + I * 0.4;
     if (Math.random() < pArp && beat % 2 === 0) { const n = ch[Math.floor(Math.random() * 4)] + (Math.random() < 0.5 ? 24 : 12); const f = mtof(root + n); const o = this.osc('sine', f, t, 0.5); const g = c.createGain(); this.env(g, t, 0.004, 0.035, 0.42); o.connect(g); this.out(g, Math.random() - 0.5, 0.6, 0, this.mus); }
   }
-  padChord(ch, t, dur, v) { const c = this.ctx; const root = 48 + this.key; for (const iv of ch) for (const det of [-8, 8]) { const o = this.osc('sawtooth', mtof(root + iv), t, dur + 0.6); o.detune.value = det; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650 + this.intensity * 900; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v * 0.5, t + 0.5); g.gain.linearRampToValueAtTime(v * 0.35, t + dur * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.5); o.connect(lp).connect(g); this.out(g, det / 20, 0.4, 0, this.mus); } }
+  padChord(ch, t, dur, v) { const c = this.ctx; const root = 48 + this.key; for (const iv of ch) for (const det of [-8, 8]) { const o = this.osc('sawtooth', mtof(root + iv), t, dur + 0.6); o.detune.value = det; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650 + this.intensity * 900; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v * 0.36, t + 0.5); g.gain.linearRampToValueAtTime(v * 0.26, t + dur * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.5); o.connect(lp).connect(g); this.out(g, det / 20, 0.4, 0, this.mus); } }
   epiano(f, t, v) { const c = this.ctx; const car = this.osc('sine', f, t, 1.2); const mod = this.osc('sine', f, t, 1.2); const mg = c.createGain(); mg.gain.setValueAtTime(f * 1.6, t); mg.gain.exponentialRampToValueAtTime(f * 0.05, t + 0.5); mod.connect(mg).connect(car.frequency); const g = c.createGain(); this.env(g, t, 0.006, v, 1.0); car.connect(g); this.out(g, 0, 0.35, 0, this.mus); }
 }

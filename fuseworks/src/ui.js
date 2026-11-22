@@ -83,7 +83,7 @@ export class UI {
     this.hud.innerHTML = `
       <div class="hud-top"><div class="cats" id="cats"></div><div class="slots" id="catSlots"></div><div class="charms" id="charms"></div></div>
       <div class="hud-side">
-        <div class="act-info"><div class="night">NIGHT <b id="hNight">1</b></div><div class="actname" id="hAct">OPENING</div><div class="boss" id="hBoss" data-act="boss-info"></div></div>
+        <div class="act-info"><div class="night">NIGHT <b id="hNight">1</b><span class="pips" id="hPips"></span></div><div class="actname" id="hAct">OPENING</div><div class="boss" id="hBoss" data-act="boss-info"></div></div>
         <div class="goal"><div class="target"><span class="lbl">TARGET</span><b id="hTarget">0</b></div><div class="score"><span class="lbl">SCORE</span><b id="hScore">0</b></div><div class="bar"><i id="hGhost" class="ghost"></i><i id="hBar"></i><s id="hFire"></s></div></div>
         <div class="calc" id="hCalc"><div class="box sp"><b id="hSp">0</b><span>SPARKS</span></div><div class="times">×</div><div class="box ht"><b id="hHt">0</b><span>HEAT</span></div></div>
         <div class="res"><div class="r launches" title="Launches left">${icon('rocket')}<b id="hL">4</b><span>LAUNCHES</span></div><div class="r moves" title="Moves left">${icon('hand')}<b id="hM">3</b><span>MOVES</span></div><div class="r money" title="Money"><i>$</i><b id="hMoney">4</b><span>MONEY</span></div></div>
@@ -104,7 +104,9 @@ export class UI {
   // st: { score, target, sp, ht, live, launches, moves, crate, hint, hintHtml }
   updateHud(dt, st) {
     const run = this.app.run; if (!run) return; const a = run.act;
-    this.setText('hNight', String(run.night)); this.setText('hAct', ACT_NAMES[a ? a.idx : Math.min(2, run.actIdx)].toUpperCase());
+    this.setText('hNight', run.endless || run.night > NIGHTS ? `${run.night} · ENDLESS` : `${run.night}/${NIGHTS}`); this.setText('hAct', ACT_NAMES[a ? a.idx : Math.min(2, run.actIdx)].toUpperCase());
+    const pk = run.actIdx + ':' + (a ? 1 : 0);
+    if (this.cache.pips !== pk) { this.cache.pips = pk; const cur = a ? a.idx : run.actIdx; document.getElementById('hPips').innerHTML = [0, 1, 2].map((i) => `<i class="${i < cur ? 'done' : i === cur ? 'cur' : ''}${i === 2 ? ' boss' : ''}"></i>`).join(''); }
     const bossId = (a && a.boss) || (!a && run.actIdx <= 2 ? run.bossFor(run.night).id : null);
     const bk = bossId + ':' + (a ? a.idx : 'x');
     if (this.cache.boss !== bk) { this.cache.boss = bk; const b = bossId ? BOSS[bossId] : null; const el = $('#hBoss'); const desc = a && a.boss === 'purist' && a.purist ? `${COLORS[a.purist].name} shells give no Sparks.` : b ? b.desc : ''; el.innerHTML = b ? `${icon(b.icon)}<span><b>${a && a.boss ? 'BOSS' : 'FINALE BOSS'}: ${esc(b.name)}</b><small>${esc(desc)}</small></span>` : ''; el.classList.toggle('live', !!(a && a.boss)); el.style.display = b ? '' : 'none'; }
@@ -150,7 +152,7 @@ export class UI {
   }
   cashout(res, run, act) {
     const lines = res.lines.map((l, i) => `<div class="ln" style="--i:${i}"><span>${esc(l.label)}</span><b class="t-m">+$${l.v}</b></div>`).join('');
-    this.modal(`<div class="burst-h">ACT CLEAR!</div><div class="sc">Scored <b>${fmt(act.score)}</b> of ${fmt(act.target)}${act.score >= act.target * 2 ? ` <em>×${(act.score / act.target).toFixed(1)}</em>` : ''}</div><div class="lines">${lines}</div><div class="tot" style="--i:${res.lines.length}">Total <b class="t-m">+$${res.total}</b></div>
+    this.modal(`<div class="burst-h">${act.idx === 2 ? `NIGHT ${act.night} CONQUERED!` : 'ACT CLEAR!'}</div><div class="sc">Scored <b>${fmt(act.score)}</b> of ${fmt(act.target)}${act.score >= act.target * 2 ? ` <em>×${(act.score / act.target).toFixed(1)}</em>` : ''}</div><div class="lines">${lines}</div><div class="tot" style="--i:${res.lines.length}">Total <b class="t-m">+$${res.total}</b></div>
       <button class="btn big primary" data-act="to-shop" style="--i:${res.lines.length + 1}">${res.won ? `${icon('trophy')}<span>Take a bow</span>` : `<span>To the Bazaar</span>${icon('play')}`}</button>`, 'cashout');
   }
   shop(run) {
@@ -158,7 +160,9 @@ export class UI {
     const bp = S.bp ? `<div class="card bp${run.money >= S.bp.cost ? '' : ' cant'}" data-kind="bp" data-id="${S.bp.id}" data-tip="1"><div class="ci"><div class="shine"></div><div class="medal">${icon(BP[S.bp.id].icon)}</div><div class="nm">${esc(BP[S.bp.id].name)}</div><div class="bpl">BLUEPRINT</div></div><div class="tag" data-act="buy-bp">$${S.bp.cost}</div></div>` : '';
     const packs = S.packs.map((p, i) => p.sold ? `<div class="card pack sold"><span>OPENED</span></div>` : `<div class="card pack pk-${p.kind}${run.money >= p.cost ? '' : ' cant'}" data-kind="pack" data-pk="${p.kind}" data-i="${i}" data-tip="1"><div class="ci"><div class="shine"></div><div class="medal">${icon(PACKS[p.kind].icon)}</div><div class="nm">${PACKS[p.kind].name}</div></div><div class="tag" data-act="buy-pack" data-i="${i}">$${p.cost}</div></div>`).join('');
     const next = run.phase === 'won' ? null : { n: run.night, a: run.actIdx }; const boss = next && next.a === 2 ? run.bossFor(next.n) : null;
-    this.show(`<div class="shop"><div class="shop-h"><h2>THE BAZAAR</h2><div class="money">$<b>${run.money}</b></div></div>
+    const intr = Math.max(0, Math.min(Math.floor(run.money / run.mods.interestPer), run.mods.interestCap));
+    const intrTxt = intr < run.mods.interestCap ? `interest +$${intr} · next at $${(intr + 1) * run.mods.interestPer}` : `interest +$${intr} (max)`;
+    this.show(`<div class="shop"><div class="shop-h"><h2>THE BAZAAR</h2><div class="money"><span>$<b>${run.money}</b></span><small>${intrTxt}</small></div></div>
       <div class="shop-body"><div class="col"><div class="lbl">Wares</div><div class="shop-row items">${items}${bp}</div></div><div class="col"><div class="lbl">Packs</div><div class="shop-row packs">${packs}</div></div></div>
       <div class="shop-f"><button class="btn" data-act="reroll" ${run.money < run.rerollCost() ? 'disabled' : ''}>${icon('refresh')}<span>Reroll</span><b class="t-m">$${run.rerollCost()}</b></button>
         <div class="next"><div class="nx-t">Next: Night ${next.n} · ${ACT_NAMES[next.a]}</div><div class="nx-g">Target <b>${fmt(run.target(next.n, next.a))}</b>${boss ? ` · <span class="bossn">${icon(boss.icon)}${esc(boss.name)}</span>` : ''}</div>${boss ? `<div class="nx-b">${esc(boss.desc)}</div>` : ''}</div>
@@ -198,7 +202,7 @@ export class UI {
   confirm(text, act) { this.modal(`<h2>${esc(text)}</h2><div class="btns"><button class="btn ghost" data-act="close">Cancel</button><button class="btn primary danger" data-act="${act}">Confirm</button></div>`, 'confirm'); }
   settings() {
     const s = Save.p.settings; const sl = (k, label, ic) => `<label class="set">${icon(ic)}<span>${label}</span><input type="range" min="0" max="1" step="0.05" value="${s[k]}" data-set="${k}"></label>`; const tg = (k, label, ic, help) => `<button class="set tog${s[k] ? ' on' : ''}" data-act="toggle" data-k="${k}">${icon(ic)}<span>${label}<small>${help}</small></span><i></i></button>`;
-    this.modal(`<h2>Settings</h2><div class="sets">${sl('sfx', 'Sound effects', 'speaker')}${sl('music', 'Music', 'note')}${tg('reaches', 'Show reaches on hover', 'eye', 'Preview where each firework reaches')}${tg('fast', 'Fast chains', 'fast', 'Chains play 1.6× faster')}${tg('lowFx', 'Low effects', 'bolt', 'Fewer particles, for older devices')}</div>
+    this.modal(`<h2>Settings</h2><div class="sets">${sl('sfx', 'Sound effects', 'speaker')}${sl('music', 'Music', 'note')}${tg('reaches', 'Show reaches on hover', 'eye', 'Preview where each firework reaches')}${tg('fast', 'Fast chains', 'fast', 'Chains play 1.6× faster')}${tg('lowFx', 'Low effects', 'bolt', 'Fewer particles, for older devices')}${tg('cbMarks', 'Colour-blind shapes', 'shield', '▲ Crimson · ■ Amber · ● Azure · ◆ Jade')}</div>
       <div class="btns"><button class="btn ghost danger sm" data-act="reset">Reset progress</button><button class="btn" data-act="help">${icon('info')}<span>How to play</span></button><button class="btn primary" data-act="close">Done</button></div><div class="credits">Fonts: Lilita One &amp; Rubik (SIL Open Font License). Everything else is procedural.</div>`, 'settings');
     this.modalEl.querySelectorAll('input[data-set]').forEach((el) => el.addEventListener('input', () => this.app.act('set', { k: el.dataset.set, v: +el.value })));
   }
