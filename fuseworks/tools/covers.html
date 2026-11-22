@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{position:fixed;left:0;top:0;display:block}
+@font-face{font-family:'Lilita One';src:url(../fonts/LilitaOne.woff2) format('woff2')}@font-face{font-family:'Rubik';src:url(../fonts/Rubik.woff2) format('woff2');font-weight:300 900}</style></head>
+<body><canvas id="gl"></canvas><canvas id="tx"></canvas>
+<script type="module">
+// FUSEWORKS cover/thumbnail generator — rendered with the game's own WebGL renderer + bloom.
+// Usage: covers.html?w=1920&h=1080&text=1
+import { Renderer, xfFor } from '../src/gl.js';
+import { buildAtlas, paintBackdrop } from '../src/atlas.js';
+import { Scene } from '../src/scene.js';
+const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
+const land = W / H > 1.3, port = H / W > 1.2;
+await document.fonts.load("80px 'Lilita One'");
+const cv = document.getElementById('gl'); cv.width = W; cv.height = H; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+const R = new Renderer(cv); const at = buildAtlas(); R.setAtlas(at.canvas); R.resize(W, H);
+const waterY = H * (port ? 0.9 : 0.88); const bd = paintBackdrop('theme_harbor', W, H, waterY, 1); R.setBackground(bd.color, bd.mask);
+const s = Math.min(W, H) / 820; const sc = new Scene(null); sc.W = W / s; sc.H = waterY / s; sc.toUV = (x, y) => [(x * s) / W, 1 - (y * s) / H];
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const cols = ['crimson', 'amber', 'azure', 'jade'];
+// the show: bursts at staggered ages so the sky is full of every stage of a firework
+const plan = [];
+const cx = sc.W / 2, top = TEXT ? sc.H * (land ? 0.5 : port ? 0.46 : 0.5) : sc.H * 0.42;
+const spread = land ? 1.15 : port ? 0.55 : 0.75;
+const types = ['peony', 'willow', 'palm', 'crossette', 'crown', 'ring', 'peony', 'glitter', 'peony', 'strobe', 'willow', 'peony', 'crown', 'crossette', 'peony', 'ring'];
+for (let i = 0; i < (land ? 16 : 13); i++) { const a = (i / 13) * Math.PI * 2 + rnd(); const r = 0.25 + rnd() * 0.75; plan.push({ x: cx + Math.cos(a) * sc.W * 0.42 * r * spread / (land ? 1 : 0.9), y: top + Math.sin(a) * sc.H * 0.28 * r - (land ? 0 : 20), type: types[i % types.length], color: cols[i % 4], age: 0.25 + rnd() * 1.1 }); }
+plan.sort((a, b) => b.age - a.age);
+let t = 0; const step = 1 / 60;
+for (const p of plan) { while (t < 1.5 - p.age) { sc.update(step); t += step; } sc.burst({ x: p.x, y: p.y, type: p.type, color: p.color, enh: null }, {}); }
+while (t < 1.5) { sc.update(step); t += step; }
+sc.flash[3] = 0.5; sc.flashPos = [0.5, 0.55]; sc.trauma = 0; sc.shakeX = sc.shakeY = 0;
+// a few shells waiting in the sky + a lit chain heading towards them
+const shells = []; const n = land ? 7 : 6;
+for (let i = 0; i < n; i++) { const a = (i / (n - 1)) * Math.PI; shells.push({ uid: i + 1, x: cx + Math.cos(a) * (land ? 330 : 200) * (port ? 0.85 : 1), y: sc.H * (TEXT ? 0.86 : 0.8) - Math.sin(a) * 70, type: ['peony', 'crown', 'willow', 'crossette', 'palm', 'ring', 'glitter'][i % 7], color: cols[(i + 1) % 4], state: 0, enh: i === 1 ? 'gilded' : i === 4 ? 'prism' : null, bornT: -9 }); }
+const sky = { ctx: { boss: null }, shells };
+R.begin(); R.group(xfFor(0, 0, 1, W, H)); sc.drawTwinkles(R, at.uv, W, waterY * 0.8);
+R.group(xfFor(0, 0, s, W, H)); sc.drawShells(R, at.uv, sky, { hover: null, selected: null, drag: null, preview: null, targets: [] }); sc.drawParticles(R, at.uv);
+R.group(xfFor(0, 0, 1, W, H)); sc.excite = 1; sc.time = 0.7; sc.drawCrowd(R, at.uv, W, waterY, Math.max(10, Math.min(W, H) / 64));
+R.render({ flash: [1, 0.8, 0.6, 0.45], flashPos: [0.5, 0.55], time: 1, bloom: 1.05, threshold: 0.7, waterY: 1 - waterY / H, aberration: 0, exposure: 1.08, waterTint: bd.theme.tint, globalFlash: 0, ambient: bd.theme.amb });
+// logo
+if (TEXT) {
+  const tx = document.getElementById('tx'); tx.width = W; tx.height = H; const g = tx.getContext('2d');
+  let fs = land ? H * 0.19 : W * 0.17; const ty = land ? H * 0.17 : port ? H * 0.13 : H * 0.15; g.font = `${fs}px 'Lilita One'`;
+  const a = 'FUSE', b = 'WORKS'; let wa = g.measureText(a).width, wb = g.measureText(b).width; const fit = (W * 0.9) / (wa + wb); if (fit < 1) { fs *= fit; g.font = `${fs}px 'Lilita One'`; wa = g.measureText(a).width; wb = g.measureText(b).width; }
+  const x0 = W / 2 - (wa + wb) / 2; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const part = (t, x, c0, c1, c2, sh) => { g.save(); g.shadowColor = 'rgba(255,120,60,.6)'; g.shadowBlur = fs * 0.35; g.fillStyle = sh; g.fillText(t, x, ty + fs * 0.07); g.restore(); g.fillStyle = sh; for (let k = 1; k <= 6; k++) g.fillText(t, x, ty + k * fs * 0.012); g.lineWidth = fs * 0.09; g.strokeStyle = '#1b0718'; g.strokeText(t, x, ty); const gr = g.createLinearGradient(0, ty - fs * 0.45, 0, ty + fs * 0.45); gr.addColorStop(0, c0); gr.addColorStop(0.5, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillText(t, x, ty); };
+  part(a, x0, '#fff7d1', '#ffd04d', '#ff8b2b', '#5a1f05'); part(b, x0 + wa, '#ffe0f0', '#ff5fa8', '#c42a7a', '#4a0b2c');
+  // tagline
+  const ts = fs * 0.2; g.font = `${ts}px 'Lilita One'`; g.textAlign = 'center'; g.lineWidth = ts * 0.22; g.strokeStyle = 'rgba(20,6,30,.9)'; const tag = 'ONE SPARK. A HUNDRED EXPLOSIONS.'; const tyy = ty + fs * 0.62; g.strokeText(tag, W / 2, tyy); g.fillStyle = '#ffe9c9'; g.fillText(tag, W / 2, tyy);
+  // fuse line with spark
+  const fw = Math.min(W * 0.62, (wa + wb) * 0.95); const fy = ty + fs * 0.43; g.fillStyle = '#6b4a2a'; for (let x = W / 2 - fw / 2; x < W / 2 + fw / 2; x += fs * 0.07) g.fillRect(x, fy, fs * 0.05, fs * 0.022);
+  const spx = W / 2 - fw / 2 + fw * 0.18; const gr = g.createRadialGradient(spx, fy, 0, spx, fy, fs * 0.16); gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, '#ffd23f'); gr.addColorStop(0.6, 'rgba(255,120,40,.5)'); gr.addColorStop(1, 'rgba(255,80,20,0)'); g.fillStyle = gr; g.fillRect(spx - fs * 0.16, fy - fs * 0.16, fs * 0.32, fs * 0.32);
+}
+window.coverReady = true;
+</script></body></html>

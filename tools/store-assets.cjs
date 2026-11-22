@@ -1,4 +1,4 @@
-// Generates every store asset for all three games into <game>/store/ :
+// Generates every store asset for every game into <game>/store/ :
 //   covers (CrazyGames 1920x1080 / 800x1200 / 800x800), Poki thumbnail (1024x1024, no text),
 //   gameplay screenshots, and silent preview videos (landscape 1920x1080 + portrait 1080x1620, ~18s, cover as first frame).
 // Requires: Playwright (with Chromium) and ffmpeg.   Run from repo root:  node tools/store-assets.cjs [game] [--no-video]
@@ -9,6 +9,7 @@ const GAMES = {
   stealstorm: { dir: '', key: 'stealstorm_profile_v1', profile: { tutorialDone: true, stats: { matches: 10 }, settings: { sfx: 0, music: 0 } } },
   hordemind: { dir: 'hordemind', key: 'hordemind_profile_v1', profile: { tutorialDone: true, hive: { brood: 10, vats: 10, forge: 4, chitin: 4, royal: 5, pit: 0 }, stats: { hunts: 10 }, settings: { sfx: 0, music: 0 } } },
   emberkeep: { dir: 'emberkeep', key: 'emberkeep_profile_v1', profile: { tutorialDone: true, coins: 0, deck: ['flame', 'storm', 'stone', 'void', 'arc'], cards: { flame: 3, frost: 3, storm: 3, stone: 3, gold: 2, venom: 2, sun: 2, void: 2, arc: 3 }, workshop: { wispDmg: 8, speed: 5, crit: 5, hp: 15, regen: 10, embers: 15, startEmbers: 10, nova: 2 }, lab: { levels: { autoSummon: 1, autoMerge: 1, autoPower: 1, speed2: 1 }, active: [] }, login: { last: 99999999, streak: 1, pending: false }, settings: { sfx: 0, music: 0 } } },
+  fuseworks: { dir: 'fuseworks', key: 'fuseworks_profile_v1', profile: { tutorialDone: true, settings: { sfx: 0, music: 0, lowFx: false, reaches: true, fast: false } } },
   driftline: { dir: 'driftline', key: 'driftline_profile_v1', profile: { tutorialDone: true, car: 'wraith', equip: { paint: 'p_synth', decal: 'd_bolt', glow: 'g_cyan', smoke: 's_pink' }, owned: { p_synth: true, d_bolt: true, g_cyan: true, s_pink: true, p_red: true, d_none: true, g_none: true, s_white: true }, stats: { races: 10 }, settings: { sfx: 0, music: 0 } } },
 };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
@@ -51,6 +52,29 @@ const DRIVERS = {
     });
     return { preroll: 400 * 30 }; // ~wave 20: thick waves, a full board of merged wisps
   },
+  async fuseworks(pg) {
+    // scripted, real gameplay: preview a reach → one big chain → TARGET! → GRAND FINALE → ACT CLEAR → the Bazaar
+    await pg.evaluate(() => {
+      const a = window.__app; a.frame = () => {}; a.newRun({}); const r = a.run; r.night = 3; r.actIdx = 1;
+      for (const id of ['spark_plug', 'peony_patch', 'echo', 'marshal', 'long_fuse']) r.addCatalyst(id);
+      r.formulas.peony = 3; r.formulas.willow = 2; r.money = 14; r.charms.push({ id: 'gild' }); r.act = null; r.phase = 'preact'; a.startAct();
+      const sky = r.act.sky; const al = sky.shells.filter((s) => s.state === 0); const cols = 5, sp = 150; const rows = Math.ceil(al.length / cols);
+      al.forEach((s, i) => { const c = i % cols, rr = Math.floor(i / cols); s.x = sky.W / 2 + (c - (cols - 1) / 2) * sp + (rr % 2 ? sp / 2 : 0) - sp / 4 + (Math.sin(i * 7.3) * 18); s.y = sky.H * 0.5 + (rr - (rows - 1) / 2) * sp * 0.86 + Math.cos(i * 3.1) * 16; });
+      const starter = al[Math.floor(al.length / 2)]; let f = 0, armed = false;
+      window.__step = (render) => {
+        for (let i = 0; i < 2; i++) {
+          f++; const act = a.run.act;
+          if (f === 95) a.u.hover = starter;
+          if (f === 150) { a.u.hover = null; a.light(starter); }
+          if (act && act.current && !armed && act.current.chain >= Math.round(al.length * 0.55)) { armed = true; act.target = Math.max(1, Math.round((a.shownScore + a.live) * 1.04 / 100) * 100); }
+          if (f === 800) { const b = document.querySelector('[data-act=to-shop]'); if (b) b.click(); }
+          a.step(1 / 60);
+        }
+        if (render) a.render(1 / 30);
+      };
+    });
+    return { preroll: 1 * 30, shots: [102, 140, 430] };
+  },
   async driftline(pg) {
     await pg.evaluate(async () => {
       const a = window.__app; a.loop = () => {}; a.startRace({ mode: 'quick', seed: 412, name: 'Boulevard 88' });
@@ -66,9 +90,9 @@ async function video(b, base, name, g, w, h, outDir, coverPng, shots) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [g.key, JSON.stringify(g.profile)]);
   const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
-  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && ['lobby', 'home'].includes(window.__app.state), null, { timeout: 20000 });
+  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && ['lobby', 'home', 'title'].includes(window.__app.state), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
-  const { preroll } = await DRIVERS[name](pg);
+  const { preroll, shots: dshots } = await DRIVERS[name](pg); if (dshots && shots) shots = dshots;
   await pg.evaluate((n) => { for (let i = 0; i < n; i++) window.__step(i > n - 3); if (window.__stage) window.__stage(); }, preroll);
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'frames-'));
   const FRAMES = 17 * 30;

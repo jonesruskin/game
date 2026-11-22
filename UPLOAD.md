@@ -1,10 +1,11 @@
-# 🚀 Upload Guide: all 4 games
+# 🚀 Upload Guide: all 5 games
 | Game | Guide | Build zips | Store assets | Recommended first platform |
 |---|---|---|---|---|
 | ⛈️ Stealstorm | this file (below) | `dist/` | `store/` | CrazyGames |
 | 🐜 Hordemind | [`hordemind/UPLOAD.md`](hordemind/UPLOAD.md) | `hordemind/dist/` | `hordemind/store/` | **Poki** (then CrazyGames if declined) |
 | 🏎️ Driftline | [`driftline/UPLOAD.md`](driftline/UPLOAD.md) | `driftline/dist/` | `driftline/store/` | CrazyGames |
 | 🔥 Emberkeep | [`emberkeep/UPLOAD.md`](emberkeep/UPLOAD.md) | `emberkeep/dist/` | `emberkeep/store/` | **Poki** (then CrazyGames if declined) |
+| 🎆 Fuseworks | [`fuseworks/UPLOAD.md`](fuseworks/UPLOAD.md) | `fuseworks/dist/` | `fuseworks/store/` | **Poki** (strongest pitch; CrazyGames if declined) |
 
 **Before you start (one time, ~15 minutes):**
 1. Create free developer accounts at **developer.crazygames.com** and **developers.poki.com**. Neither charges upload fees, and neither publishes a limit on how many games you can submit.
@@ -12,7 +13,7 @@
 3. Download the files: on GitHub, open each `.zip` / `.png` / `.mp4` and click **Download raw file**, or clone the repo.
 4. Submit one game at a time and read the QA feedback. CrazyGames only accepts resubmissions with "clear improvements".
 
-**To regenerate assets** (only needed after visual changes): `node tools/store-assets.cjs` creates covers, thumbnails, screenshots and videos for all three games. It needs Playwright and ffmpeg.
+**To regenerate assets** (only needed after visual changes): `node tools/store-assets.cjs` creates covers, thumbnails, screenshots and videos for every game. It needs Playwright and ffmpeg.
 
 ---
 
