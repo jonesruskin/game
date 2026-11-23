@@ -8,6 +8,7 @@ import { allSteps } from '../data/objectives.js';
 import { mods, rates, accrue, canPay, pay, give, hqLevel, bStats } from './econ.js';
 import { uid } from './state.js';
 import { completeSpace, sp } from './space.js';
+import { completeSolar, sol, terraStage } from './solar.js';
 import { curve, round2, timeCurve } from '../util.js';
 
 export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
@@ -24,7 +25,7 @@ export const countOf = (s, base, b) => Object.values(s.bases[base].lots).filter(
 // can this building be placed on this lot? returns { ok, why }
 export function canBuild(s, base, lotId, b) {
   const d = BUILDINGS[b]; const lay = LAYOUTS[base]; const lotDef = lay.lots.find((l) => l.id === lotId); const m = mods(s); const hq = hqLevel(s, base);
-  if (!d || !lotDef) return { ok: false, why: 'Unknown' };
+  if (!d || !lotDef) return { ok: false, why: 'Unknown' }; if (!d.bases.includes(base)) return { ok: false, why: 'Cannot be built here' };
   if (!lotOpen(s, base, lotDef)) return { ok: false, why: `Opens at command level ${lotDef.hq}` };
   if (s.bases[base].lots[lotId] && s.bases[base].lots[lotId].b) return { ok: false, why: 'Lot occupied' };
   if ((d.lot || null) !== (lotDef.special || null)) return { ok: false, why: d.lot ? 'Needs its special lot' : 'Reserved lot' };
@@ -37,7 +38,7 @@ export function canBuild(s, base, lotId, b) {
   return { ok: true, cost, time: timeOf(b, 1, m) };
 }
 // unmet command-level prerequisites for taking building b to level L on this base
-export const reqsMissing = (s, base, b, L) => cmdReqs(b, L).filter(([rb, n]) => !Object.values(s.bases[base].lots).some((l) => l.b === rb && l.lvl >= n));
+export const reqsMissing = (s, base, b, L) => cmdReqs(b, L, base).filter(([rb, n]) => !Object.values(s.bases[base].lots).some((l) => l.b === rb && l.lvl >= n));
 // highest level a building may reach right now (colony hubs follow Mission Control back on Earth)
 export const levelCap = (s, base, b) => { const d = BUILDINGS[b]; if (d.lot === 'hq' && base !== 'earth') return Math.max(1, Math.min(d.max, hqLevel(s, 'earth') - 7)); return allowedLevel(d, hqLevel(s, base)); };
 export function canUpgrade(s, base, lotId) {
@@ -80,6 +81,7 @@ function complete(s, j) {
   s.jobs = s.jobs.filter((x) => x !== j);
   if (j.kind === 'build') { const lot = s.bases[j.base].lots[j.lot]; lot.lvl = j.to; if (j.from === 0) s.stats.built++; else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, lot: j.lot }; }
   if (j.kind === 'research') { s.tech[j.tech] = 1; s.stats.researched++; return { kind: 'research', tech: j.tech }; }
+  if (j.kind === 'ship' || j.kind === 'voyage' || j.kind === 'terra') return completeSolar(s, j);
   return completeSpace(s, j);
 }
 // advance the world to time t (handles offline gaps exactly). Returns notifications in order.
@@ -87,8 +89,11 @@ export function advance(s, t = Date.now()) {
   const out = []; let guard = 0;
   while (guard++ < 10000) {
     const next = s.jobs.reduce((a, j) => (j.end <= t && (!a || j.end < a.end) ? j : a), null);
-    const upTo = next ? Math.max(s.last, next.end) : t; accrue(s, rates(s), (upTo - s.last) / 1000); s.last = upTo;
-    if (!next) break; const n = complete(s, next); if (n) { n.t = next.end; out.push(n); }
+    const R = rates(s); let upTo = next ? Math.max(s.last, next.end) : t;
+    // growing colonies change production as they go: integrate them in steps of at most an hour
+    const growing = Object.values(R.col).some((c) => c.pop < c.house && c.grow > 0); const partial = growing && upTo - s.last > 3600000; if (partial) upTo = s.last + 3600000;
+    accrue(s, R, (upTo - s.last) / 1000); s.last = upTo;
+    if (partial) continue; if (!next) break; const n = complete(s, next); if (n) { n.t = next.end; out.push(n); }
   }
   s.last = t; return out;
 }
@@ -124,7 +129,15 @@ export function stepDone(s, st, R = rates(s)) {
     case 'rockets': return (s.stats.rocketsBuilt || 0) >= st.n;
     case 'sat': return sp(s).sats.some((x) => x.type === st.sat);
     case 'module': return (sp(s).modules[st.mod] || 0) >= st.lvl;
-    case 'hubLvl': return !!s.bases.moon && hqLevel(s, 'moon') >= st.lvl;
+    case 'hubLvl': return !!s.bases[st.base || 'moon'] && hqLevel(s, st.base || 'moon') >= st.lvl;
+    case 'survey': return !!sol(s).surveyed[st.body];
+    case 'site': return (sol(s).sites[st.body] || 0) >= (st.lvl || 1);
+    case 'sites': return Object.keys(sol(s).sites).length >= st.n;
+    case 'colony': return !!s.bases[st.body];
+    case 'pop': return !!s.bases[st.body] && (s.bases[st.body].pop || 0) >= st.n;
+    case 'terra': return terraStage(s, st.body) >= st.n;
+    case 'ship': return (sol(s).ships[st.ship] || 0) >= 1;
+    case 'buildOn': return !!s.bases[st.base] && Object.values(s.bases[st.base].lots).some((l) => l.b === st.b && l.lvl >= (st.lvl || 1));
   }
   return false;
 }

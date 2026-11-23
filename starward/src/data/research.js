@@ -6,6 +6,7 @@ import { capClamp } from './buildings.js';
 export const BRANCHES = {
   rocketry: { name: 'Rocketry', color: '#ff8a5b' }, engineering: { name: 'Engineering', color: '#b8c4d6' }, energy: { name: 'Energy', color: '#ffd166' },
   computing: { name: 'Computing', color: '#6ee7ff' }, economy: { name: 'Economy', color: '#7cf29a' }, life: { name: 'Life Sciences', color: '#ff9bd2' }, astro: { name: 'Astronomy', color: '#b892ff' },
+  planetary: { name: 'Planetary', color: '#ff7a59' },
 };
 export const TECH = {
   // ---- Rocketry ----
@@ -64,11 +65,40 @@ export const TECH = {
   lunarHabitats: { name: 'Lunar Habitats', branch: 'life', tier: 7, req: ['isru'], effect: {}, unlocks: 'Habitat Dome, Lunar Lab', desc: 'Regolith-shielded domes where people can live for years.' },
   massDrivers: { name: 'Mass Drivers', branch: 'engineering', tier: 7, req: ['isru', 'spacePower'], effect: {}, unlocks: 'Mass Driver', desc: 'Electromagnetic rails that fling cargo off the Moon without a drop of fuel.' },
   lowGravity: { name: 'Low-Gravity Industry', branch: 'engineering', tier: 7, req: ['isru'], effect: { mult: { metal: 0.15 } }, desc: 'Smelt, cast and print in one-sixth gravity. Metal output +15%.' },
+  // ---- Part 3: the Solar System ----
+  planetaryProbes: { name: 'Planetary Probes', branch: 'planetary', tier: 7, req: ['deepSpace', 'telescopes'], effect: {}, unlocks: 'Survey probes to any world', desc: 'Radioisotope power, autonomous navigation and patience: robotic eyes on every planet.' },
+  nuclearThermal: { name: 'Nuclear Thermal Propulsion', branch: 'rocketry', tier: 7, req: ['heavy', 'fission'], effect: {}, unlocks: 'Hermes transfer ships', desc: 'A reactor heats hydrogen to 2,500 °C. Twice the efficiency of chemistry: the inner Solar System opens up.' },
+  orbitalShipyard: { name: 'Orbital Shipyards', branch: 'engineering', tier: 7, req: ['spaceStation', 'robotics'], effect: {}, unlocks: 'Shipyard station module', desc: 'Build ships too big to launch, in orbit where they will fly.' },
+  marsDirect: { name: 'Mars Direct', branch: 'planetary', tier: 8, req: ['nuclearThermal', 'isru'], effect: {}, unlocks: 'Mars colony, colony reactors, Phobos Depot', desc: 'Make the return fuel on Mars from its own air. Robert Zubrin\'s plan, finally flown.' },
+  asteroidMining: { name: 'Asteroid Mining', branch: 'planetary', tier: 8, req: ['nuclearThermal', 'robotics'], effect: {}, unlocks: 'Mining claims in the belt', desc: 'Grapple, bag and digest a mountain. One metal asteroid outweighs every mine on Earth.' },
+  spaceAgriculture: { name: 'Space Agriculture', branch: 'life', tier: 8, req: ['closedLoop', 'lunarHabitats'], effect: {}, unlocks: 'Greenhouses (colonists grow)', desc: 'Hydroponics, LED light and Martian soil washed of perchlorates. Colonies that feed themselves can grow.' },
+  fusionPower: { name: 'Fusion Power', branch: 'energy', tier: 8, req: ['he3Mining', 'breeder'], effect: { gen: 0.1 }, unlocks: 'Fusion Plant', desc: 'Deuterium–helium-3 fusion: almost no neutrons, almost no waste, power without end. Energy +10%.' },
+  aerostats: { name: 'Aerostat Habitats', branch: 'planetary', tier: 8, req: ['planetaryProbes', 'composites'], effect: {}, unlocks: 'Venus cloud city', desc: 'Breathable air is a lifting gas in Venus\'s heavy CO₂. A city can simply float.' },
+  colonyShips: { name: 'Colony Ships', branch: 'life', tier: 9, req: ['marsDirect', 'spaceAgriculture'], effect: {}, unlocks: 'Ares colony transports', desc: 'Spin gravity, radiation shelters and room for families: mass emigration begins.' },
+  beltSettlement: { name: 'Belt Settlement', branch: 'planetary', tier: 10, req: ['asteroidMining', 'colonyShips'], effect: {}, unlocks: 'Ceres colony, Mining Control', desc: 'Ceres has water, gravity enough to stand in, and every asteroid within reach. The belt gets a capital.' },
+  planetaryEngineering: { name: 'Planetary Engineering', branch: 'planetary', tier: 9, req: ['marsDirect', 'spacePower'], effect: {}, unlocks: 'Terraforming stages 1-2, Atmosphere Processor', desc: 'Change a whole world\'s climate on purpose. Start with mirrors and greenhouse gases.' },
+  solarFurnace: { name: 'Helios Concentrators', branch: 'energy', tier: 9, req: ['spacePower', 'planetaryProbes'], effect: { gen: 0.05 }, unlocks: 'Mercury Helios Array', desc: 'Mercury gets seven times Earth\'s sunlight. Build where the light is. Energy +5%.' },
+  radiationShielding: { name: 'Radiation Shielding', branch: 'life', tier: 10, req: ['colonyShips', 'medicine'], effect: {}, unlocks: 'Jovian moon outposts', desc: 'Water walls, magnetic bubbles and radiation-hardened medicine for Jupiter\'s killing belts.' },
+  fusionDrive: { name: 'Fusion Drive', branch: 'rocketry', tier: 10, req: ['fusionPower', 'nuclearThermal'], effect: {}, unlocks: 'Daedalus torch ships', desc: 'Fusion exhaust at thousands of kilometres per second: thrust the whole way, Jupiter in hours.' },
+  gasGiantScoops: { name: 'Atmospheric Scoops', branch: 'energy', tier: 11, req: ['fusionDrive', 'he3Mining'], effect: {}, unlocks: 'He-3 scoops on Jupiter and Saturn, Enceladus', desc: 'Dive into a gas giant at 60 km/s, gulp helium-3, climb back out. Repeat forever.' },
+  cometCapture: { name: 'Comet Capture', branch: 'planetary', tier: 10, req: ['planetaryEngineering', 'asteroidMining'], effect: {}, unlocks: 'Terraforming stage 3', desc: 'Tiny pushes, applied decades early, steer an ice comet onto a chosen spot on Mars.' },
+  magnetosphere: { name: 'Planetary Magnetic Shield', branch: 'planetary', tier: 10, req: ['planetaryEngineering', 'fusionPower'], effect: {}, unlocks: 'Terraforming stage 4', desc: 'A 1-2 tesla dipole at Mars–Sun L1 shades the planet from the solar wind (NASA, 2017).' },
+  xenobiology: { name: 'Xenobiology', branch: 'life', tier: 11, req: ['radiationShielding', 'ai'], effect: {}, unlocks: 'Europa Deep Probe', desc: 'How to recognise life that isn\'t ours, and how not to kill it by accident.' },
+  cryoHabitats: { name: 'Cryogenic Habitats', branch: 'planetary', tier: 11, req: ['fusionDrive', 'beltSettlement'], effect: {}, unlocks: 'Titan colony, Hydrocarbon Refinery', desc: 'Insulated settlements for −180 °C, heated by fusion, under an orange sky.' },
+  hydrosphere: { name: 'Ocean Engineering', branch: 'planetary', tier: 11, req: ['cometCapture', 'magnetosphere'], effect: {}, unlocks: 'Terraforming stage 5', desc: 'Melt the permafrost, fill the northern basin: an ocean for Mars.' },
+  spaceElevator: { name: 'Space Elevator', branch: 'engineering', tier: 11, req: ['alloys', 'orbitalShipyard', 'fusionPower'], effect: {}, unlocks: 'Space Elevator', desc: 'A carbon-nanotube ribbon from the equator to geostationary orbit. Climb to space by train.' },
+  extremophiles: { name: 'Engineered Extremophiles', branch: 'life', tier: 12, req: ['xenobiology', 'hydrosphere'], effect: {}, unlocks: 'Terraforming stage 6', desc: 'Lichens and algae rewritten to thrive in cold, thin, radiation-soaked air.' },
+  advancedFusion: { name: 'Antimatter-Catalysed Fusion', branch: 'rocketry', tier: 12, req: ['fusionDrive', 'cryoHabitats'], effect: {}, unlocks: 'Odyssey cruisers, the outer planets', desc: 'A few micrograms of antiprotons ignite fusion hotter than any magnet can hold.' },
+  ecopoiesis: { name: 'Ecopoiesis', branch: 'life', tier: 13, req: ['extremophiles'], effect: {}, unlocks: 'Terraforming stage 7', desc: 'Not engineering a planet: gardening one. Forests, soil and a breathable sky.' },
 };
-// science 60·3.6^(T-1), credits 200·3.2^(T-1), clamped under the storage guaranteed at the tech's Mission Control gate
-export const techCost = (t) => { if (t.cost) return t.cost; const T = t.tier, h = t.hq || Math.max(1, T); return { science: capClamp(Math.round(60 * Math.pow(3.6, T - 1) / 10) * 10, h, 'science'), credits: capClamp(Math.round(200 * Math.pow(3.2, T - 1) / 10) * 10, h, 'credits') }; };
+// science 60·3.6^(T-1) and credits 200·3.2^(T-1) up to tier 8, then ×2 / ×1.9 per tier (tracks the empire's
+// income instead of exploding); clamped under the storage guaranteed at the tech's Mission Control gate
+const tierCurve = (b, g, g2, T) => b * Math.pow(g, Math.min(T, 8) - 1) * Math.pow(g2, Math.max(0, T - 8));
+export const techCost = (t) => { if (t.cost) return t.cost; const T = t.tier, h = t.hq || Math.max(1, T); return { science: capClamp(Math.round(tierCurve(60, 3.6, 2, T) / 10) * 10, h, 'science'), credits: capClamp(Math.round(tierCurve(200, 3.2, 1.9, T) / 10) * 10, h, 'credits') }; };
 // Mission Control gates: the spaceflight programme follows the size of the agency (Clash-style town-hall gating)
-const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, deepSpace: 6, spaceStation: 6, heavy: 7, reusable: 7, closedLoop: 7, constellations: 7, lunarLanders: 8, spacePower: 8, isru: 9, he3Mining: 9, lowGravity: 9, lunarHabitats: 10, massDrivers: 10 };
+const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, deepSpace: 6, spaceStation: 6, heavy: 7, reusable: 7, closedLoop: 7, constellations: 7, lunarLanders: 8, spacePower: 8, isru: 9, he3Mining: 9, lowGravity: 9, lunarHabitats: 10, massDrivers: 10,
+  planetaryProbes: 10, nuclearThermal: 10, orbitalShipyard: 10, marsDirect: 10, spaceAgriculture: 10, asteroidMining: 11, fusionPower: 11, aerostats: 11, colonyShips: 11, planetaryEngineering: 11,
+  beltSettlement: 12, solarFurnace: 12, radiationShielding: 12, fusionDrive: 12, gasGiantScoops: 12, cometCapture: 12, magnetosphere: 12, xenobiology: 13, cryoHabitats: 13, hydrosphere: 13, spaceElevator: 13, extremophiles: 13, advancedFusion: 13, ecopoiesis: 14 };
 for (const k in HQ_GATE) if (TECH[k]) TECH[k].hq = HQ_GATE[k];
 // tier 1 ≈ 1 min, 3 ≈ 1 h, 5 ≈ 12 h, 6 ≈ 1 day, 7 ≈ 2 days, 8 ≈ 4 days, 9+ a week or more (before speed bonuses)
 export const techTime = (t) => t.time || Math.round(ladder(3 + 3.6 * (t.tier - 1)));

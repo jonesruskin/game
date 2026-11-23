@@ -7,10 +7,12 @@ import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, CATS, cmdReqs } fro
 import { TECH, BRANCHES, techCost, techTime } from '../data/research.js';
 import { LAYOUTS } from '../data/layouts.js';
 import { CHAPTERS } from '../data/objectives.js';
+import { BODIES } from '../data/solar.js';
 import * as G from '../core/game.js';
 import { ART } from '../render/art.js';
 import { TW, TH } from '../render/iso.js';
 import { LaunchUI } from './launch.js';
+import { SystemUI } from './system.js';
 import * as SP from '../core/space.js';
 
 const THUMBS = {};
@@ -24,18 +26,22 @@ export const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML
 const costHTML = (cost, s) => Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 
 export class UI {
-  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); }
+  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); this.sys = new SystemUI(this); }
   get s() { return this.app.s; }
   init() {
     $('#hud').innerHTML = `<div class="topbar"><div class="res" id="resBar"></div><div class="topr"><div class="chip dm" id="dmChip" title="Dark Matter">${icon('dm')}<b id="dmVal">0</b></div><button class="ibtn" data-a="settings" title="Settings">${icon('cog')}</button></div></div>
-      <div class="side"><div class="crews" id="crews"></div><button class="rslot" id="rslot" data-a="research"></button><div class="obj" id="obj"></div></div>
-      <nav class="nav"><button data-tab="earth" class="on">${icon('earth')}<span>Earth</span></button><button data-tab="moon" class="gone">${icon('moon')}<span>Moon</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="map" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
+      <div class="side"><div class="crews" id="crews"></div><div class="colline" id="colline"></div><button class="rslot" id="rslot" data-a="research"></button><div class="obj" id="obj"></div></div>
+      <div class="basepick" id="basepick"></div><nav class="nav"><button data-tab="bases" class="on" id="baseTab">${icon('earth')}<span>Earth</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="system" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
     $('#hud').addEventListener('click', (e) => this.click(e)); $('#panel').addEventListener('click', (e) => this.click(e)); $('#overlay').addEventListener('click', (e) => this.click(e)); $('#modal').addEventListener('click', (e) => this.click(e));
     this.hud(true); this.side(true);
   }
   // ---------------- per frame ----------------
-  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); this.panelLive(); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
+  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); if (this.app.scene === 'system') this.sys.live(); else this.panelLive(); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
   // taps in the orbit view open the matching part of Launch Control
+  // the base picker above the nav (Earth, the Moon and every colony)
+  bases() { const s = this.s, el = $('#basepick'); if (el.classList.contains('on')) { el.className = 'basepick'; return; }
+    const R = this.app.R; el.innerHTML = Object.keys(s.bases).map((id) => { const B = s.bases[id]; const c = R.col[id]; const jobs = s.jobs.filter((j) => j.kind === 'build' && j.base === id).length; return `<button data-tab="${id}" class="${this.app.scene === id ? 'on' : ''}">${icon(id === 'earth' ? 'earth' : id === 'moon' ? 'moon' : 'base')}<span><b>${esc(B.name)}</b><i>${id === 'earth' ? 'Earth' : esc(BODIES[B.body].name)}${c ? ` · ${Math.floor(B.pop)} colonists` : ''}${jobs ? ` · ${jobs} building` : ''}</i></span></button>`; }).join(''); el.className = 'basepick on'; }
+  selectBody(id) { this.sel = null; this.app.bv.sel = null; this.app.system.sel = id; this.sys.open(id); if (id) { this.app.audio.play('tap'); this.app.system.focus(id); } }
   orbitPick(p) { if (!p) return; this.app.audio.play('tap'); if (p.kind === 'sat' || p.kind === 'slot') this.app.setView('launch', 'sats'); else if (p.kind === 'station') this.app.setView('launch', 'station'); else if (p.kind === 'moon') { if (this.s.bases.moon) this.app.setView('moon'); else this.app.setView('launch', 'missions'); } }
   hud(force) {
     const s = this.s, R = this.app.R; const bar = $('#resBar'); const show = RES_ORDER.filter((r) => RES[r].start || (s.res[r] || 0) > 0);
@@ -45,19 +51,22 @@ export class UI {
       const v = s.res[r] || 0, cap = R.cap[r]; el.querySelector('b').textContent = fmt(v); el.querySelector('.rate').textContent = R.prod[r] ? `+${fmt(R.prod[r])}/h` : ''; el.querySelector('.bar span').style.width = (cap === Infinity ? 0 : clamp(v / cap) * 100) + '%'; el.classList.toggle('full', cap !== Infinity && v >= cap * 0.999); el.title = `${RES[r].name}: ${fmt(v)} / ${fmt(cap)} · ${fmt(R.prod[r])} per hour\n${RES[r].desc}`; }
     $('#dmVal').textContent = fmt(s.res.dm || 0);
     const ready = Object.keys(TECH).filter((id) => G.canResearch(s, id).ok).length; const b = $('#bRes'); b.textContent = ready && G.slotsBusy(s) < G.slotsTotal(s, R.m) ? '!' : ''; b.style.display = b.textContent ? '' : 'none';
-    const pad = SP.padLevel(s) > 0; $('.nav [data-tab=launch]').classList.toggle('soon', !pad && !s.tech.rocketry); $('.nav [data-tab=orbit]').classList.toggle('soon', !pad); $('.nav [data-tab=moon]').classList.toggle('gone', !s.bases.moon);
+    const pad = SP.padLevel(s) > 0; $('.nav [data-tab=launch]').classList.toggle('soon', !pad && !s.tech.rocketry); $('.nav [data-tab=orbit]').classList.toggle('soon', !pad); $('.nav [data-tab=system]').classList.toggle('soon', !pad);
     const lb = $('#bLaunch'); const idle = pad && SP.launchesBusy(s) < SP.launchSlots(s) && Object.values(SP.sp(s).rockets).some((n) => n > 0); lb.textContent = idle ? '!' : ''; lb.style.display = idle ? '' : 'none';
   }
   side() {
     const s = this.s, R = this.app.R; const tot = G.crewsTotal(s, R.m), busy = G.crewsBusy(s);
     setHTML($('#crews'), `<span class="lbl">${icon('crew', 'xs')} Crews</span>${Array.from({ length: tot }, (_, k) => `<i class="${k < busy ? 'busy' : ''}"></i>`).join('')}<span class="n">${tot - busy} free</span>`);
+    const cb = this.app.scene; const cl = $('#colline'); const C = R.col[cb];
+    if (C && s.bases[cb]) { cl.style.display = ''; setHTML(cl, `${icon('crew', 'xs')} <b>${Math.floor(s.bases[cb].pop)}</b><i>/ ${fmt(C.house)} colonists</i><em class="${C.staff < 0.999 ? 'bad' : ''}">${Math.round(C.staff * 100)}% jobs filled</em><span>+${C.grow.toFixed(1)}/h</span>`); } else cl.style.display = 'none';
+    const bt = $('#baseTab'); const bn = s.bases[this.app.base]; if (bt && bn) setHTML(bt, `${icon(this.app.base === 'earth' ? 'earth' : this.app.base === 'moon' ? 'moon' : 'base')}<span>${esc(this.app.base === 'earth' ? 'Earth' : BODIES[bn.body].name)}${Object.keys(s.bases).length > 1 ? ' ▴' : ''}</span>`);
     const rj = s.jobs.find((j) => j.kind === 'research'); const rs = $('#rslot');
     if (rj) { const p = clamp((Date.now() - rj.start) / (rj.end - rj.start)); rs.innerHTML = `${icon('research', 'xs')}<span><b>${esc(TECH[rj.tech].name)}</b><i>${fmtTime((rj.end - Date.now()) / 1000)}</i></span><em style="width:${p * 100}%"></em>`; rs.classList.remove('idle'); }
     else { rs.innerHTML = `${icon('research', 'xs')}<span><b>Lab idle</b><i>${G.slotsTotal(s, R.m) ? 'Start a research project' : ''}</i></span>`; rs.classList.add('idle'); }
     const st = G.currentStep(s); const o = $('#obj');
     if (!st) { setHTML(o, `<b class="ch">Programme complete</b><p>More chapters arrive with the next missions.</p>`); return; }
     const ch = CHAPTERS.find((c) => c.steps.includes(CHAPTERS.flatMap((x) => x.steps).find((x) => x.id === st.id))); const done = G.stepDone(s, st, R);
-    let prog = ''; if (st.kind === 'rate') prog = `<i class="pg">${fmt(R.prod[st.res])} / ${fmt(st.n)} per hour</i>`; if (st.kind === 'energy') prog = `<i class="pg">${fmt(R.gen - R.draw)} / ${st.n} spare</i>`;
+    let prog = ''; if (st.kind === 'rate') prog = `<i class="pg">${fmt(R.prod[st.res])} / ${fmt(st.n)} per hour</i>`; if (st.kind === 'energy') prog = `<i class="pg">${fmt(R.gen - R.draw)} / ${st.n} spare</i>`; if (st.kind === 'pop' && s.bases[st.body]) prog = `<i class="pg">${Math.floor(s.bases[st.body].pop)} / ${st.n} colonists</i>`; if (st.kind === 'sites') prog = `<i class="pg">${Object.keys((s.solar && s.solar.sites) || {}).length} / ${st.n}</i>`; if (st.kind === 'terra') prog = `<i class="pg">stage ${(s.solar && s.solar.terra[st.body]) || 0} / ${st.n}</i>`;
     setHTML(o, `<b class="ch">${esc(ch ? ch.name : '')}</b><p>${icon('target', 'xs')} ${esc(st.text)}</p>${prog}<div class="rw">${Object.entries(st.reward).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}</div>${done ? `<button class="claim" data-a="claim">${icon('check', 'xs')} Claim reward</button>` : ''}`);
     o.classList.toggle('done', done);
   }
@@ -87,7 +96,10 @@ export class UI {
     if (a.draw) rows.push([`${icon('energy', 'xs')} Energy used`, `−${fmt(a.draw)}`, n && `−${fmt(n.draw)}`]);
     if (a.speed) rows.push([`${icon('research', 'xs')} Research speed`, `+${Math.round(a.speed * 100)}%`, n && `+${Math.round(n.speed * 100)}%`]);
     if (b === 'hq') { const lots = (l) => LAYOUTS.earth.lots.filter((x) => x.hq <= l).length; rows.push([`${icon('base', 'xs')} Building lots`, lots(L), n && lots(next)], [`${icon('crew', 'xs')} Engineering crews`, crewsFromHq(L), n && crewsFromHq(next)], [`${icon('up', 'xs')} Max building level`, L * 2, n && next * 2]); }
-    if (b === 'hub') { const lots = (l) => LAYOUTS.moon.lots.filter((x) => x.hq <= l).length; rows.push([`${icon('base', 'xs')} Lunar lots`, lots(L), n && lots(next)], [`${icon('up', 'xs')} Max lunar building level`, L * 2, n && next * 2]); }
+    if (a.house) rows.push([`${icon('crew', 'xs')} Houses colonists`, fmt(a.house), n && fmt(n.house)]);
+    if (a.jobs) rows.push([`${icon('crew', 'xs')} Workers needed`, a.jobs, n && n.jobs]);
+    if (a.grow) rows.push([`${icon('crew', 'xs')} Colonist growth`, `+${a.grow.toFixed(1)}/h`, n && `+${n.grow.toFixed(1)}/h`]);
+    if (b === 'hub') { const lots = (l) => LAYOUTS.moon.lots.filter((x) => x.hq <= l).length; rows.push([`${icon('base', 'xs')} Colony lots`, lots(L), n && lots(next)], [`${icon('up', 'xs')} Max building level here`, L * 2, n && next * 2]); }
     if (b === 'launch') rows.push([`${icon('rocket', 'xs')} Simultaneous launches`, 1 + (L >= 10) + (L >= 18), n && 1 + (next >= 10) + (next >= 18)]);
     if (b === 'launch') rows.push([`${icon('rocket', 'xs')} Largest rocket class`, Math.min(9, Math.ceil(L / 2)), n && Math.min(9, Math.ceil(next / 2))]);
     return `<table class="stats">${rows.map(([k, v, w]) => `<tr><td>${k}</td><td>${v}</td>${n ? `<td class="nx">${w !== v ? '→ ' + w : ''}</td>` : ''}</tr>`).join('')}</table>`;
@@ -104,7 +116,7 @@ export class UI {
     }
     const cu = G.canUpgrade(s, this.app.base, this.sel); const next = st.lvl + 1;
     h += this.statRows(st.b, st.lvl, next <= d.max ? next : null, R.m);
-    let reqH = ''; const reqs = cmdReqs(st.b, next); if (reqs.length && next <= d.max) { const miss = G.reqsMissing(s, this.app.base, st.b, next); reqH = `<div class="reqs"><b>Before level ${next}</b>${reqs.map(([b, n]) => { const ok = !miss.some(([x]) => x === b); return `<span class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'lock', 'xs')} ${esc(BUILDINGS[b].name)} level ${n}</span>`; }).join('')}</div>`; }
+    let reqH = ''; const reqs = cmdReqs(st.b, next, this.app.base); if (reqs.length && next <= d.max) { const miss = G.reqsMissing(s, this.app.base, st.b, next); reqH = `<div class="reqs"><b>Before level ${next}</b>${reqs.map(([b, n]) => { const ok = !miss.some(([x]) => x === b); return `<span class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'lock', 'xs')} ${esc(BUILDINGS[b].name)} level ${n}</span>`; }).join('')}</div>`; }
     if (G.canDemolish(s, this.app.base, this.sel)) h += `<button class="btn ghost small demo" data-a="demolish">Demolish to free the lot (no refund)</button>`;
     if (cu.max) h += `<div class="maxed">${icon('star', 'xs')} Maximum level</div>`;
     else { const cost = G.costOf(st.b, next, R.m); const time = G.timeOf(st.b, next, R.m); const block = cu.hq || cu.crews;
@@ -160,9 +172,9 @@ export class UI {
   // ---------------- clicks ----------------
   click(e) {
     const t = e.target.closest('[data-a],[data-tab]'); if (!t) return; const A = this.app, s = this.s; A.audio.unlock();
-    if (t.dataset.tab) { const v = t.dataset.tab; if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Research Rocketry Fundamentals to open Launch Control' : v === 'orbit' ? 'Build the Launch Complex to watch your orbit fill up' : 'The Star Map opens with interplanetary travel (coming in a future update)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
-    const a = t.dataset.a; if (this.app.view === 'launch' && this.launch.click(t)) return;
-    if (a === 'deselect') this.select(null);
+    if (t.dataset.tab) { const v = t.dataset.tab; $('#basepick').className = 'basepick'; if (v === 'bases') { if (Object.keys(s.bases).length > 1 && (this.app.scene === 'earth' || this.app.scene === 'moon' || s.bases[this.app.scene])) { this.app.audio.play('tap'); this.bases(); return; } A.setView(Object.keys(s.bases).length > 1 ? A.base : 'earth'); return; } if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Research Rocketry Fundamentals to open Launch Control' : v === 'orbit' ? 'Build the Launch Complex to watch your orbit fill up' : 'The Star Map opens with interplanetary travel (coming in a future update)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
+    const a = t.dataset.a; if (this.launch.click(t)) return; if (this.sys.click(t)) return;
+    if (a === 'deselect') { if (this.app.scene === 'system') this.selectBody(null); else this.select(null); }
     if (a === 'build') { const r = G.startBuild(s, A.base, this.sel, t.dataset.b); if (r.ok) { A.audio.play('build'); this.toast(`Construction started: ${BUILDINGS[t.dataset.b].name}`, 'good'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'upgrade') { const r = G.startUpgrade(s, A.base, this.sel); if (r.ok) { A.audio.play('build'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'finish') { const r = G.speedup(s, t.dataset.job); if (r.ok) { A.audio.play('dm'); A.changed(); } else { this.toast(`${r.why}: need ${r.need} dark matter`, 'bad'); A.audio.play('deny'); } this.panelKey = ''; }
@@ -184,6 +196,6 @@ export class UI {
   closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; }
   settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label>
     <div class="set">Day / night<div class="chips">${[['auto', 'Local time'], ['day', 'Always day'], ['night', 'Always night']].map(([v, n]) => `<button class="chip2 ${st.dayNight === v ? 'on' : ''}" data-a="day" data-v="${v}">${n}</button>`).join('')}</div></div>
-    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.2 · Part 2 of the campaign: Orbit &amp; Moon.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
+    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.3 · Part 3 of the campaign: the Solar System.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
     $$('#modal [data-set]').forEach((el) => el.addEventListener('input', () => { st[el.dataset.set] = +el.value; this.app.applySettings(); })); }
 }

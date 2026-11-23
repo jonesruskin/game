@@ -43,5 +43,48 @@ export const CHAPTERS = [
       { id: 'q7', text: 'Upgrade the Colony Hub to level 3', kind: 'hubLvl', lvl: 3, reward: { dm: 40, credits: 300000 } },
     ],
   },
+  {
+    id: 'ch4', name: 'Chapter 4 · The Red Planet', intro: 'Six months away by chemical rocket, weeks by nuclear. Mars is waiting, cold and red and almost habitable.',
+    steps: [
+      { id: 'r1', text: 'Research Planetary Probes', kind: 'tech', id2: 'planetaryProbes', reward: { science: 150000, dm: 20 } },
+      { id: 'r2', text: 'Survey Mars with a probe (open the Star Map)', kind: 'survey', body: 'mars', reward: { credits: 400000, dm: 15 } },
+      { id: 'r3', text: 'Research Nuclear Thermal Propulsion', kind: 'tech', id2: 'nuclearThermal', reward: { fuel: 300000, dm: 15 } },
+      { id: 'r4', text: 'Research Orbital Shipyards', kind: 'tech', id2: 'orbitalShipyard', reward: { metal: 400000, dm: 15 } },
+      { id: 'r5', text: 'Launch the Orbital Shipyard station module', kind: 'module', mod: 'yard', lvl: 1, reward: { credits: 600000, dm: 20 } },
+      { id: 'r6', text: 'Build a Hermes transfer ship (Launch Control → Fleet)', kind: 'ship', ship: 'hermes', reward: { fuel: 500000, dm: 20 } },
+      { id: 'r7', text: 'Research Mars Direct', kind: 'tech', id2: 'marsDirect', reward: { science: 400000, dm: 20 } },
+      { id: 'r8', text: 'Found Bradbury Landing on Mars', kind: 'colony', body: 'mars', reward: { dm: 80, metal: 1500000 } },
+      { id: 'r9', text: 'Build a Greenhouse on Mars', kind: 'buildOn', base: 'mars', b: 'greenhouse', reward: { credits: 1000000, dm: 20 } },
+      { id: 'r10', text: 'Reach 60 colonists on Mars', kind: 'pop', body: 'mars', n: 60, reward: { dm: 40, science: 800000 } },
+    ],
+  },
+  {
+    id: 'ch5', name: 'Chapter 5 · The Belt', intro: 'Between Mars and Jupiter drift a million worlds of metal and ice. Whoever learns to mine them owns the future.',
+    steps: [
+      { id: 's1', text: 'Build the Phobos Depot above Mars', kind: 'site', body: 'phobos', reward: { fuel: 1000000, dm: 20 } },
+      { id: 's2', text: 'Research Asteroid Mining', kind: 'tech', id2: 'asteroidMining', reward: { credits: 1500000, dm: 20 } },
+      { id: 's3', text: 'Open a mining claim on the metal asteroid Psyche', kind: 'site', body: 'psyche', reward: { rare: 1500, dm: 30 } },
+      { id: 's4', text: 'Float the Cytherea Aerostat over Venus', kind: 'site', body: 'venus', reward: { science: 1500000, dm: 30 } },
+      { id: 's5', text: 'Build an Ares colony transport', kind: 'ship', ship: 'ares', reward: { credits: 2000000, dm: 25 } },
+      { id: 's6', text: 'Found Occator Station on Ceres', kind: 'colony', body: 'ceres', reward: { dm: 80, rare: 3000 } },
+      { id: 's7', text: 'Complete the first terraforming stage on Mars', kind: 'terra', body: 'mars', n: 1, reward: { dm: 50, credits: 4000000 } },
+      { id: 's8', text: 'Run five outposts or claims across the Solar System', kind: 'sites', n: 5, reward: { dm: 40, metal: 5000000 } },
+      { id: 's9', text: 'Upgrade the Mars Colony Hub to level 4', kind: 'hubLvl', base: 'mars', lvl: 4, reward: { dm: 60, credits: 6000000 } },
+    ],
+  },
+  {
+    id: 'ch6', name: 'Chapter 6 · Giants and Ice', intro: 'Fusion fire opens the outer system: gas giants full of helium-3, moons hiding oceans, and something at the very edge.',
+    steps: [
+      { id: 'u1', text: 'Research the Fusion Drive', kind: 'tech', id2: 'fusionDrive', reward: { he3: 2000, dm: 30 } },
+      { id: 'u2', text: 'Build a Daedalus torch ship', kind: 'ship', ship: 'daedalus', reward: { credits: 8000000, dm: 30 } },
+      { id: 'u3', text: 'Build the Jovian He-3 Scoop', kind: 'site', body: 'jupiter', reward: { he3: 4000, dm: 40 } },
+      { id: 'u4', text: 'Send the Europa Deep Probe under the ice', kind: 'site', body: 'europa', reward: { science: 6000000, dm: 60 } },
+      { id: 'u5', text: 'Found Kraken Shore on Titan', kind: 'colony', body: 'titan', reward: { dm: 80, fuel: 6000000 } },
+      { id: 'u6', text: 'Bombard Mars with comets (terraforming stage 3)', kind: 'terra', body: 'mars', n: 3, reward: { dm: 80, credits: 15000000 } },
+      { id: 'u7', text: 'Build an Odyssey cruiser', kind: 'ship', ship: 'odyssey', reward: { dm: 60, rare: 10000 } },
+      { id: 'u8', text: 'Raise Tombaugh Station on Pluto', kind: 'site', body: 'pluto', reward: { dm: 100, science: 20000000 } },
+      { id: 'u9', text: 'Give Mars liquid oceans (terraforming stage 5)', kind: 'terra', body: 'mars', n: 5, reward: { dm: 200, credits: 50000000 } },
+    ],
+  },
 ];
 export const allSteps = () => CHAPTERS.flatMap((c) => c.steps.map((s) => ({ ...s, ch: c.id })));

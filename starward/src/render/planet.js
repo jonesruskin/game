@@ -82,10 +82,34 @@ void main(){ vec2 uv = (v_q*0.5+0.5)*u_res + u_off; vec3 col = vec3(0.004,0.006,
   for (int k=0;k<3;k++){ float sc = float(k)*1.7+1.0; vec2 g = floor(uv/ (3.0*sc)); vec3 h = hash3(vec3(g, float(k)*13.0)); if (h.x > 0.985 - float(k)*0.004){ vec2 c = (g+h.yz)*3.0*sc; float d = length(uv-c); float tw = 0.7+0.3*sin(u_time*(1.0+h.y*3.0)+h.z*20.0); col += vec3(0.8+0.2*h.y, 0.85, 1.0-0.2*h.z)*smoothstep(1.4, 0.0, d)*tw*(1.0-float(k)*0.25); } }
   o = vec4(col, 1.0); }`;
 
-// planet presets (Part 3 adds the rest of the Solar System)
+// planet presets: every world of the Solar System
 export const WORLDS = {
   earth: { p0: [0.02, 1.0, 0.16, 1.0], p1: [0.42, 1.0, 0.0, 0.0], p2: [0.0, 0.5, 0.0, 1.2], deep: '#0b2a5c', shallow: '#1f6aa5', low: '#3f7a3a', high: '#9c8a5c', peak: '#e8e2d6', atm: '#5aa0ff', cloud: '#ffffff', seed: 1.0 },
   moon: { p0: [-9, 0.6, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#5f5d5a', high: '#9c9993', peak: '#cfccc6', atm: '#000000', cloud: '#ffffff', seed: 4.0 },
+  mercury: { p0: [-9, 0.8, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#5e5a56', high: '#8f8a84', peak: '#bdb7ae', atm: '#000000', cloud: '#ffffff', seed: 7 },
+  venus: { p0: [-9, 0.5, 0.0, 0.0], p1: [1.0, 0.9, 0.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#a0784a', high: '#c9a06a', peak: '#e0c08a', atm: '#ffd59a', cloud: '#ecd6a2', seed: 3.0 },
+  mars: { p0: [-9, 1.0, 0.09, 0.0], p1: [0.06, 0.35, 0.35, 0.0], p2: [0.0, 0.5, 0.0, 1.1], deep: '#14385e', shallow: '#2a6a9a', low: '#a4502e', high: '#c27a4a', peak: '#e2b48c', atm: '#e8a87c', cloud: '#fff2e4', seed: 5.0 },
+  phobos: { p0: [-9, 1.4, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#4a4440', high: '#6e6660', peak: '#8a817a', atm: '#000000', cloud: '#ffffff', seed: 11 },
+  vesta: { p0: [-9, 1.2, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#6a645c', high: '#958d82', peak: '#c2b9ac', atm: '#000000', cloud: '#ffffff', seed: 12 },
+  ceres: { p0: [-9, 0.8, 0.0, 0.0], p1: [0.0, 0.0, 0.9, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#3e3b37', high: '#55514b', peak: '#8a847a', atm: '#000000', cloud: '#ffffff', seed: 13 },
+  pallas: { p0: [-9, 1.1, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#5e5a57', high: '#85807b', peak: '#aaa49d', atm: '#000000', cloud: '#ffffff', seed: 14 },
+  psyche: { p0: [-9, 1.0, 0.0, 0.0], p1: [0.0, 0.0, 0.7, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#6d6f74', high: '#9fa2a8', peak: '#d4d7dc', atm: '#000000', cloud: '#ffffff', seed: 15 },
+  hygiea: { p0: [-9, 0.9, 0.0, 0.0], p1: [0.0, 0.0, 0.8, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#38352f', high: '#4f4b44', peak: '#6e6a62', atm: '#000000', cloud: '#ffffff', seed: 16 },
+  eros: { p0: [-9, 1.5, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#7a6650', high: '#9c8668', peak: '#bba683', atm: '#000000', cloud: '#ffffff', seed: 17 },
+  bennu: { p0: [-9, 1.6, 0.0, 0.0], p1: [0.0, 0.0, 0.6, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#3a3734', high: '#57524c', peak: '#7a746c', atm: '#000000', cloud: '#ffffff', seed: 18 },
+  jupiter: { p0: [-9, 0.0, 0.0, 0.0], p1: [0.0, 0.6, 0.0, 7.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#b5532f', shallow: '#000000', low: '#c9a27c', high: '#efe0c8', peak: '#a0623a', atm: '#e8c9a0', cloud: '#ffffff', seed: 21 },
+  io: { p0: [-9, 1.2, 0.0, 0.0], p1: [0.0, 0.0, 0.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#d9c45a', high: '#c9883a', peak: '#f5f0c8', atm: '#000000', cloud: '#ffffff', seed: 22 },
+  europa: { p0: [-9, 0.35, 0.0, 0.0], p1: [0.0, 0.0, 0.15, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#b7a48a', high: '#e2d8c6', peak: '#ffffff', atm: '#000000', cloud: '#ffffff', seed: 23 },
+  ganymede: { p0: [-9, 0.8, 0.12, 0.0], p1: [0.0, 0.0, 0.6, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#6f6658', high: '#a3988a', peak: '#d8d0c4', atm: '#000000', cloud: '#ffffff', seed: 24 },
+  callisto: { p0: [-9, 0.8, 0.0, 0.0], p1: [0.0, 0.0, 1.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#4a4138', high: '#6e6253', peak: '#c9bda8', atm: '#000000', cloud: '#ffffff', seed: 25 },
+  saturn: { p0: [-9, 0.0, 0.0, 0.0], p1: [0.0, 0.6, 0.0, 9.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#dcc596', shallow: '#000000', low: '#d8c08f', high: '#efe2bf', peak: '#c4a46a', atm: '#f0dcaa', cloud: '#ffffff', seed: 26 },
+  titan: { p0: [-9, 0.5, 0.0, 0.0], p1: [1.0, 1.3, 0.0, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#7a5a30', high: '#9a7040', peak: '#c08a50', atm: '#f0a050', cloud: '#d9963f', seed: 27.0 },
+  enceladus: { p0: [-9, 0.4, 0.0, 0.0], p1: [0.0, 0.0, 0.3, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#d9e4ee', high: '#f2f8fd', peak: '#ffffff', atm: '#000000', cloud: '#ffffff', seed: 28 },
+  uranus: { p0: [-9, 0.0, 0.0, 0.0], p1: [0.0, 0.6, 0.0, 2.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#a6dce4', shallow: '#000000', low: '#9fd8e0', high: '#b8e8ee', peak: '#8cc8d4', atm: '#c8f4ff', cloud: '#ffffff', seed: 29 },
+  titania: { p0: [-9, 1.0, 0.0, 0.0], p1: [0.0, 0.0, 0.9, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#7a7470', high: '#a09a94', peak: '#c8c2bc', atm: '#000000', cloud: '#ffffff', seed: 30 },
+  neptune: { p0: [-9, 0.0, 0.0, 0.0], p1: [0.0, 0.6, 0.0, 3.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#1e3a8a', shallow: '#000000', low: '#3a6ed8', high: '#5a8ef0', peak: '#2a4ea8', atm: '#7ab0ff', cloud: '#ffffff', seed: 31 },
+  triton: { p0: [-9, 0.6, 0.45, 0.0], p1: [0.0, 0.0, 0.25, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#b99a90', high: '#e2cfc6', peak: '#f5ece6', atm: '#000000', cloud: '#ffffff', seed: 32 },
+  pluto: { p0: [-9, 0.7, 0.3, 0.0], p1: [0.0, 0.0, 0.3, 0.0], p2: [0.0, 0.5, 0.0, 1.0], deep: '#000000', shallow: '#000000', low: '#7a5a42', high: '#c9b49c', peak: '#f2eadf', atm: '#000000', cloud: '#ffffff', seed: 33 },
 };
 const hex = (c) => { const n = parseInt(c.replace('#', ''), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
 export class Space3D {

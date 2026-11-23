@@ -221,6 +221,59 @@ export const ART = {
     fx.push({ k: 'pod', ax: a[0], ay: a[1], bx: b[0], by: b[1] }); box(c, 0.2, 1.4, 0.5, 0.45, 10, '#c9cdd2');
     return 60 + T * 10;
   },
+  // ---------------- Part 3 ----------------
+  greenhouse(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#8f8c88'); const n = 2 + (T >= 3 ? 1 : 0);
+    for (let k = 0; k < n; k++) { const j = 0.25 + k * (1.5 / n); const len = 1.5; const h = 9 + T * 2;
+      const b = box(c, 0.25, j, len, 1.5 / n - 0.12, h, '#9fd8ff', 0, { top: 'rgba(200,240,255,0.55)', left: 'rgba(120,190,230,0.7)', right: 'rgba(80,150,200,0.75)', edge: 'rgba(255,255,255,0.45)' });
+      for (let r = 0; r < 4; r++) { const [x1, y1] = P(0.35 + r * 0.35, j + 0.08, h - 1), [x2, y2] = P(0.35 + r * 0.35, j + 1.5 / n - 0.2, h - 1); c.strokeStyle = '#3f8a3a'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+      grid(c, b.left, 1, 3, 'rgba(255,120,220,0.35)', 0.2, lights); }
+    const t = cyl(c, 1.75, 0.45, 0.2, 14 + T * 2, '#e6eaf0', 0, { bands: '#6ee7ff', nb: 2 }); void t;
+    return 24 + T * 3;
+  },
+  reactor(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#8d8a86');
+    for (let k = 0; k < 3 + T; k++) { const i = 0.25 + k * 0.28; const a = P(i, 1.65, 0), b = P(i, 1.65, 16 + T * 3); const a2 = P(i, 1.05, 0); c.fillStyle = '#c9ced6'; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(a2[0], a2[1]); c.lineTo(a2[0], a2[1] - 16 - T * 3); c.lineTo(b[0], b[1]); c.closePath(); c.fill(); c.strokeStyle = 'rgba(0,0,0,0.2)'; c.lineWidth = 0.6; c.stroke(); }
+    const r = cyl(c, 1.2, 0.75, 0.45, 12 + T * 3, '#b9bec6', 0, { bands: '#e8b04a', nb: 2 }); fx.push({ k: 'glow', x: r.x, y: r.top, col: '110,231,255' }); lights.push({ x: r.x, y: r.top + 6, r: 4, k: 1 });
+    poly(c, diamond(1.0, 0.55, 0.4, 0.4, 12 + T * 3), '#e8b04a');
+    return 30 + T * 4;
+  },
+  terraformer(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#8e8a84');
+    const b = box(c, 0.2, 0.9, 1.2, 0.85, 16 + T * 3, '#c9cdd2'); grid(c, b.left, 2, 4, '#ffb36a', 0.25, lights); grid(c, b.right, 2, 3, '#ffb36a', 0.25, lights);
+    for (const [i, j, h] of [[1.55, 0.55, 46 + T * 10], [1.1, 0.4, 36 + T * 8]]) { const st = cyl(c, i, j, 0.18, h, '#dfe3e8', 0, { bands: RED, nb: 3 }); fx.push({ k: 'vent', x: st.x, y: st.top }); }
+    return 70 + T * 10;
+  },
+  beltControl(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#7f7c78');
+    const [hx, hy] = P(1.35, 1.35, 0); c.strokeStyle = 'rgba(255,209,102,0.85)'; c.lineWidth = 1.5; c.beginPath(); c.ellipse(hx, hy, 18, 9, 0, 0, 7); c.stroke(); c.fillStyle = 'rgba(255,209,102,0.85)'; c.font = '700 9px Oxanium, sans-serif'; c.textAlign = 'center'; c.fillText('H', hx, hy + 3);
+    const tw = cyl(c, 0.6, 0.6, 0.22, 30 + T * 6, '#e6eaf0', 0, { bands: '#6ee7ff', nb: 3 }); const cab = box(c, 0.32, 0.32, 0.56, 0.56, 8, '#3f78b5', 30 + T * 6); grid(c, cab.left, 1, 3, '#9fd2ff', 0.2, lights); void tw;
+    fx.push({ k: 'dish', x: P(0.6, 0.6, 38 + T * 6)[0], y: P(0.6, 0.6, 38 + T * 6)[1] - 4, r: 12, sp: 0.5 }); fx.push({ k: 'beacon', x: P(1.35, 1.35, 0)[0], y: P(1.35, 1.35, 0)[1] - 1, col: '#ffd166' });
+    return 50 + T * 6;
+  },
+  methane(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#7a6650');
+    for (const [i, j] of [[0.55, 0.55], [1.35, 0.55], ...(T >= 2 ? [[0.55, 1.35]] : [])]) { const [x, y] = P(i, j, 0); const r = 13 + T; c.fillStyle = '#9aa2ad'; c.fillRect(x - r * 0.6, y - r, 2, r); c.fillRect(x + r * 0.6 - 2, y - r, 2, r); const g = c.createRadialGradient(x - r * 0.4, y - r * 1.6, 1, x, y - r * 1.2, r * 1.2); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#a7afb9'); c.fillStyle = g; c.beginPath(); c.arc(x, y - r * 1.2, r, 0, 7); c.fill(); }
+    const fl = cyl(c, 1.6, 1.6, 0.08, 40 + T * 8, '#c9ced6'); fx.push({ k: 'flare', x: fl.x, y: fl.top });
+    c.strokeStyle = '#e8b04a'; c.lineWidth = 2; const a = P(0.55, 0.9, 4), b = P(1.6, 1.6, 4); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+    return 48 + T * 8;
+  },
+  fusion(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, CONC);
+    const b = box(c, 0.2, 0.2, 1.6, 1.6, 12 + T * 2, '#dfe3e8'); grid(c, b.left, 1, 5, '#b892ff', 0.25, lights); grid(c, b.right, 1, 5, '#b892ff', 0.25, lights);
+    const [x, y] = P(1.0, 1.0, 12 + T * 2); const rx = 28 + T * 3, ry = 14 + T * 1.5;
+    c.lineWidth = 9; const g = c.createLinearGradient(x - rx, 0, x + rx, 0); g.addColorStop(0, '#9aa2ad'); g.addColorStop(0.4, '#eef1f5'); g.addColorStop(1, '#6b7380'); c.strokeStyle = g; c.beginPath(); c.ellipse(x, y - 8, rx, ry, 0, 0, 7); c.stroke();
+    c.lineWidth = 2; c.strokeStyle = 'rgba(184,146,255,0.9)'; c.beginPath(); c.ellipse(x, y - 8, rx, ry, 0, 0, 7); c.stroke();
+    fx.push({ k: 'glow', x, y: y - 8, col: '184,146,255' }); fx.push({ k: 'beacon', x: x + rx, y: y - 14, col: '#b892ff' });
+    return 40 + T * 4;
+  },
+  elevator(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#a9aeb6');
+    const b = box(c, 0.25, 0.25, 1.5, 1.5, 10 + T * 2, '#e6eaf0'); grid(c, b.left, 1, 4, GLASS, 0.25, lights); grid(c, b.right, 1, 4, GLASS, 0.25, lights);
+    const [x, y] = P(1.0, 1.0, 10 + T * 2); for (const [dx, dy] of [[-16, -2], [16, -2], [0, 8]]) { c.strokeStyle = '#59626f'; c.lineWidth = 2; c.beginPath(); c.moveTo(x + dx, y + dy); c.lineTo(x, y - 30); c.stroke(); }
+    cyl(c, 1.0, 1.0, 0.3, 10, '#c9ced6', 10 + T * 2 + 14); fx.push({ k: 'climber', x, y: y - 30 });
+    return 60 + T * 2;
+  },
 };
 // construction scaffold drawn over a building under construction
 export function scaffold(c, S, h, t) {

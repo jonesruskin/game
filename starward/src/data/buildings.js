@@ -74,44 +74,80 @@ export const BUILDINGS = {
   },
   // ---------------- the Moon ----------------
   hub: {
-    name: 'Colony Hub', icon: 'hub', size: 3, bases: ['moon'], unique: true, lot: 'hq', max: 20, cat: 'core',
-    cost: { credits: [60000, 2.05], metal: [80000, 2.05], fuel: [20000, 2.05] }, time: [7.5, 9.3, 'ln'], prod: { science: [200, 1.2] }, cap: { he3: [600, 1.55], metal: [20000, 1.5], fuel: [15000, 1.5] }, gen: [40, 1.2],
+    name: 'Colony Hub', icon: 'hub', size: 3, bases: ['moon', 'mars', 'ceres', 'titan'], unique: true, lot: 'hq', max: 20, cat: 'core',
+    cost: { credits: [60000, 2.05], metal: [80000, 2.05], fuel: [20000, 2.05] }, time: [7.5, 9.3, 'ln'], prod: { science: [200, 1.2] }, cap: { he3: [600, 1.55], metal: [20000, 1.5], fuel: [15000, 1.5], rare: [500, 1.5] }, gen: [40, 1.2], house: [20, 1.22],
     desc: 'Command, life support and the airlock everyone passes through. Raising it opens more lots and higher building levels.',
   },
   regolith: {
-    name: 'Regolith Mine', icon: 'regolith', size: 2, bases: ['moon'], max: 25, cat: 'production', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    name: 'Regolith Mine', icon: 'regolith', size: 2, bases: ['moon', 'mars', 'ceres'], jobs: [6, 1.08], max: 25, cat: 'production', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
     cost: { credits: [18000, 1.74], metal: [12000, 1.74] }, time: [8, 1.95], prod: { metal: [3200, 1.24] }, draw: [6, 1.14],
-    desc: 'Robotic excavators scrape the lunar soil; furnaces pull out iron, aluminium and titanium.',
+    desc: 'Robotic excavators scrape the soil; furnaces pull out iron, aluminium and titanium.',
   },
   ice: {
-    name: 'Polar Ice Mine', icon: 'ice', size: 2, bases: ['moon'], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
+    name: 'Ice Mine', icon: 'ice', size: 2, bases: ['moon', 'mars', 'ceres', 'titan'], jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
     cost: { credits: [22000, 1.74], metal: [16000, 1.74] }, time: [8.5, 1.95], prod: { fuel: [2200, 1.24] }, draw: [7, 1.14],
-    desc: 'Ice from permanently shadowed craters, split into hydrogen and oxygen. Cheap fuel, no gravity well.',
+    desc: 'Buried ice, melted and split into hydrogen and oxygen. Fuel made where it is needed, outside Earth\'s deep gravity well.',
   },
   he3x: {
-    name: 'He-3 Extractor', icon: 'he3x', size: 2, bases: ['moon'], max: 25, cat: 'production', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'he3Mining' },
+    name: 'He-3 Extractor', icon: 'he3x', size: 2, bases: ['moon'], jobs: [8, 1.08], max: 25, cat: 'production', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'he3Mining' },
     cost: { credits: [60000, 1.77], metal: [50000, 1.77], fuel: [10000, 1.72] }, time: [10, 1.95], prod: { he3: [24, 1.24] }, draw: [12, 1.15],
     desc: 'Roasts regolith to release helium-3, a fusion fuel almost absent on Earth.',
   },
   lsolar: {
-    name: 'Lunar Solar Array', icon: 'lsolar', size: 2, bases: ['moon'], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    name: 'Solar Array', icon: 'lsolar', size: 2, bases: ['moon', 'mars', 'ceres'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
     cost: { credits: [12000, 1.72], metal: [14000, 1.72] }, time: [7.5, 1.95], gen: [45, 1.24],
-    desc: 'No clouds and no air. Ridge-top arrays at the poles see the Sun almost all the time.',
+    desc: 'Ridge-top photovoltaic arrays. Superb on the Moon; weaker on Mars (43% of Earth\'s sunlight) and Ceres (13%).',
   },
   dome: {
-    name: 'Habitat Dome', icon: 'dome', size: 2, bases: ['moon'], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'lunarHabitats' },
+    name: 'Habitat Dome', icon: 'dome', size: 2, bases: ['moon', 'mars', 'ceres', 'titan'], house: [40, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'lunarHabitats' },
     cost: { credits: [40000, 1.77], metal: [45000, 1.77] }, time: [11, 1.95], prod: { credits: [2600, 1.24] }, cap: { he3: [300, 1.45] }, draw: [6, 1.14],
-    desc: 'A garden under glass for colonists and the first lunar tourists. They pay well for the view.',
+    desc: 'Homes under glass and regolith for colonists, and a garden the tourists pay well to see. Houses colonists.',
   },
   llab: {
-    name: 'Lunar Laboratory', icon: 'llab', size: 2, bases: ['moon'], unique: true, max: 20, cat: 'science', req: { tech: 'lunarHabitats' },
+    name: 'Colony Laboratory', icon: 'llab', size: 2, bases: ['moon', 'mars', 'ceres', 'titan'], jobs: [10, 1.08], unique: true, max: 20, cat: 'science', req: { tech: 'lunarHabitats' },
     cost: { credits: [50000, 1.82], metal: [40000, 1.82] }, time: [11.5, 1.95], prod: { science: [900, 1.24] }, draw: [8, 1.14], speed: 0.03,
-    desc: 'Far-side radio telescopes and vacuum labs. Science, plus 3% faster research per level.',
+    desc: 'Field science where the samples are: vacuum labs, radio telescopes, geology. Science, plus 3% faster research per level.',
   },
   massDriver: {
-    name: 'Mass Driver', icon: 'massDriver', size: 2, bases: ['moon'], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'massDrivers' },
+    name: 'Mass Driver', icon: 'massDriver', size: 2, bases: ['moon'], jobs: [8, 1.08], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'massDrivers' },
     cost: { credits: [120000, 1.87], metal: [150000, 1.87] }, time: [13, 1.95], prod: { credits: [4000, 1.24] }, draw: [25, 1.16], fuelCut: 0.03,
     desc: 'A kilometre of magnetic rail. Sells lunar metal to orbit and cuts mission fuel by 3% per level.',
+  },
+  // ---------------- Part 3: colonies across the Solar System ----------------
+  greenhouse: {
+    name: 'Greenhouse', icon: 'greenhouse', size: 2, bases: ['moon', 'mars', 'ceres', 'titan'], max: 20, cat: 'core', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], req: { tech: 'spaceAgriculture' }, jobs: [4, 1.06],
+    cost: { credits: [90000, 1.77], metal: [70000, 1.77] }, time: [11, 1.95], grow: [1.5, 1.2], draw: [8, 1.14],
+    desc: 'Hydroponic racks under LED light. A colony that feeds itself grows: more colonists every hour.',
+  },
+  reactor: {
+    name: 'Colony Reactor', icon: 'reactor', size: 2, bases: ['moon', 'mars', 'ceres', 'titan'], max: 25, cat: 'power', count: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], req: { tech: 'marsDirect' }, jobs: [3, 1.05],
+    cost: { credits: [80000, 1.74], metal: [90000, 1.74] }, time: [10, 1.95], gen: [90, 1.24],
+    desc: 'A compact fission reactor buried in the regolith. Steady power through dust storms, long nights and Titan\'s gloom.',
+  },
+  terraformer: {
+    name: 'Atmosphere Processor', icon: 'terraformer', size: 2, bases: ['mars'], unique: true, max: 20, cat: 'science', req: { tech: 'planetaryEngineering' }, jobs: [12, 1.08],
+    cost: { credits: [400000, 1.8], metal: [350000, 1.8] }, time: [13, 1.95], prod: { science: [3000, 1.24] }, draw: [30, 1.16], terra: 0.04,
+    desc: 'Cracks carbonates and vents greenhouse gases into the sky. Terraforming stages run 4% faster per level.',
+  },
+  beltControl: {
+    name: 'Mining Control', icon: 'beltControl', size: 2, bases: ['ceres'], unique: true, max: 20, cat: 'production', req: { tech: 'beltSettlement' }, jobs: [10, 1.08],
+    cost: { credits: [500000, 1.8], metal: [300000, 1.8] }, time: [12, 1.95], prod: { rare: [10, 1.24] }, cap: { rare: [2000, 1.5] }, draw: [20, 1.15], claims: 0.05,
+    desc: 'Traffic control for a thousand mining tugs. Every asteroid claim produces 5% more per level; refines rare elements.',
+  },
+  methane: {
+    name: 'Hydrocarbon Refinery', icon: 'methane', size: 2, bases: ['titan'], max: 25, cat: 'production', count: [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], req: { tech: 'cryoHabitats' }, jobs: [8, 1.08],
+    cost: { credits: [300000, 1.74], metal: [250000, 1.74] }, time: [11, 1.95], prod: { fuel: [6000, 1.24] }, draw: [18, 1.15],
+    desc: 'Pumps liquid methane straight out of Kraken Mare. Titan sits on more hydrocarbons than all of Earth\'s oil and gas.',
+  },
+  fusion: {
+    name: 'Fusion Plant', icon: 'fusion', size: 2, bases: ['earth', 'moon', 'mars', 'ceres', 'titan'], max: 25, cat: 'power', count: [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4], req: { tech: 'fusionPower' }, jobs: [6, 1.06],
+    cost: { credits: [600000, 1.74], metal: [500000, 1.74], he3: [150, 1.6] }, time: [12, 1.95], gen: [700, 1.24],
+    desc: 'A tokamak burning deuterium and helium-3. Enormous, clean power, if you can keep it fuelled with He-3.',
+  },
+  elevator: {
+    name: 'Space Elevator', icon: 'elevator', size: 2, bases: ['earth'], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'spaceElevator' },
+    cost: { credits: [5000000, 1.8], metal: [4000000, 1.8], rare: [3000, 1.6] }, time: [16, 1.95], prod: { credits: [20000, 1.24] }, draw: [60, 1.16], liftCut: 0.03,
+    desc: 'A ribbon from the equator to geostationary orbit. Climbers carry cargo up for the price of electricity: rockets and missions cost 3% less per level.',
   },
 };
 // command level → building lots open (Earth)
@@ -123,13 +159,14 @@ export const allowedCount = (def, hq) => (def.unique ? 1 : def.count ? def.count
 export function capRef(h, r) { const v = (d, L) => (d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.max(1, L) - 1) : 0); return v(BUILDINGS.hq, h) + v(BUILDINGS.depot, 2 * h - 4) + (r === 'science' ? v(BUILDINGS.research, 2 * h - 4) : 0); }
 export const capClamp = (n, h, r) => { const c = capRef(h, r); return c > 0 ? Math.min(n, Math.floor(c * 0.85 / 100) * 100) : n; };
 // Mission Control level at which building b's level L first becomes possible
-export const unlockHq = (b, L) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };
+export const unlockHq = (b, L) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; if (!d.bases.includes('earth') && !d.bases.includes('moon')) return Math.ceil(L / 2) + 10; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };
 // command-building prerequisites: grow the whole base before the next command level (two levels below its cap)
-export function cmdReqs(b, L) {
+export function cmdReqs(b, L, base) {
   const r = []; const n = 2 * L - 4;
   if (b === 'hq') { if (L >= 3) r.push(['research', n], ['depot', n]); if (L >= 4) r.push(['mine', n], ['office', n]); if (L >= 5) r.push(['launch', n - 2], ['refinery', n - 2]); if (L >= 6) r.push(['vab', n - 4], ['solar', n]); if (L >= 7) r.push(['tracking', n - 4]); if (L >= 8) r.push(['academy', n - 6]); }
-  if (b === 'hub') { if (L >= 2) r.push(['regolith', 2 * L - 2], ['lsolar', 2 * L - 2]); if (L >= 3) r.push(['ice', 2 * L - 3], ['he3x', 2 * L - 4]); if (L >= 4) r.push(['dome', 2 * L - 6], ['llab', 2 * L - 6]); }
-  return r.filter(([, lv]) => lv > 0);
+  if (b === 'hub' && (!base || base === 'moon')) { if (L >= 2) r.push(['regolith', 2 * L - 2], ['lsolar', 2 * L - 2]); if (L >= 3) r.push(['ice', 2 * L - 3], ['he3x', 2 * L - 4]); if (L >= 4) r.push(['dome', 2 * L - 6], ['llab', 2 * L - 6]); }
+  else if (b === 'hub') { const main = { mars: 'regolith', ceres: 'ice', titan: 'ice' }[base]; if (L >= 2) r.push([main, 2 * L - 2], ['dome', 2 * L - 2]); if (L >= 3) r.push(['reactor', 2 * L - 3], ['greenhouse', 2 * L - 4]); if (L >= 4) r.push(['llab', 2 * L - 6]); }
+  return r.filter(([, lv]) => lv > 0).map(([rb, lv]) => [rb, Math.min(lv, BUILDINGS[rb].max)]); // never ask for more than a building's maximum
 }
 export const crewsFromHq = (hq) => 2 + (hq >= 5 ? 1 : 0) + (hq >= 10 ? 1 : 0) + (hq >= 15 ? 1 : 0);
 export const CATS = { core: 'Command', production: 'Production', power: 'Power', storage: 'Storage', science: 'Science', spaceflight: 'Spaceflight', defense: 'Defense' };

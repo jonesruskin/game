@@ -6,6 +6,8 @@ import { ROCKETS, ROCKET_ORDER, SATS, MODULES, MISSIONS, ORBITS } from '../data/
 import { TECH } from '../data/research.js';
 import * as S from '../core/space.js';
 import { rates } from '../core/econ.js';
+import { SHIPS, SHIP_ORDER } from '../data/solar.js';
+import * as SO from '../core/solar.js';
 
 const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 const rw = (c) => Object.entries(c || {}).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}+${fmt(n)}</span>`).join('');
@@ -16,18 +18,18 @@ export class LaunchUI {
   get app() { return this.ui.app; } get s() { return this.app.s; }
   open(tab) { if (tab) this.tab = tab; const el = $('#overlay'); el.className = 'on launch'; this.render(); }
   render() {
-    const el = $('#overlay'); const s = this.s; const tabs = [['missions', 'Missions', 'flag'], ['sats', 'Satellites', 'target'], ['station', 'Station', 'base'], ['hangar', 'Hangar', 'rocket']];
+    const el = $('#overlay'); const s = this.s; const tabs = [['missions', 'Missions', 'flag'], ['sats', 'Satellites', 'target'], ['station', 'Station', 'base'], ['hangar', 'Hangar', 'rocket'], ...(s.tech.orbitalShipyard || s.tech.nuclearThermal ? [['fleet', 'Fleet', 'orbit']] : [])];
     const scroll = el.querySelector('.lc-body') ? el.querySelector('.lc-body').scrollTop : 0;
     let h = `<div class="ovh"><h1>${icon('rocket')} Launch Control</h1><span class="muted" id="lcInfo"></span><button class="ibtn" data-a="closeov">${icon('x')}</button></div>
       <div class="lc-tabs">${tabs.map(([k, n, ic]) => `<button class="${this.tab === k ? 'on' : ''}" data-a="lctab" data-tab2="${k}">${icon(ic, 'xs')} ${n}</button>`).join('')}</div><div class="lc-flights" id="lcFlights"></div><div class="lc-body">`;
     if (!S.padLevel(s)) h += `<div class="empty">${icon('lock')} Build the <b>Launch Complex</b> on the launch site to fly missions.${s.tech.rocketry ? '' : ' Research <b>Rocketry Fundamentals</b> first.'}</div>`;
-    else if (this.tab === 'missions') h += this.missions(); else if (this.tab === 'sats') h += this.sats(); else if (this.tab === 'station') h += this.station(); else h += this.hangar();
+    else if (this.tab === 'missions') h += this.missions(); else if (this.tab === 'sats') h += this.sats(); else if (this.tab === 'station') h += this.station(); else if (this.tab === 'fleet') h += this.fleet(); else h += this.hangar();
     el.innerHTML = h + '</div>'; const b = el.querySelector('.lc-body'); if (b) b.scrollTop = scroll; this.live();
   }
   live() {
     const s = this.s; const info = $('#lcInfo'); if (!info) return; info.textContent = `Pad ${S.launchesBusy(s)}/${S.launchSlots(s)} busy · largest rocket class ${S.maxClass(s)}`;
-    const fl = s.jobs.filter((j) => j.kind === 'mission' || j.kind === 'rocket'); const F = $('#lcFlights'); const key = fl.map((j) => j.id).join();
-    if (F.__k !== key) { F.__k = key; F.innerHTML = fl.map((j) => `<div class="fl" data-j="${j.id}"><span>${icon(j.kind === 'rocket' ? 'cog' : 'rocket', 'xs')} ${esc(j.kind === 'rocket' ? 'Assembling ' + ROCKETS[j.rocket].name : j.name)}</span><b></b><i></i><button class="mini" data-a="finish" data-job="${j.id}" title="Finish now with dark matter">${icon('dm', 'xs')}</button></div>`).join(''); }
+    const fl = s.jobs.filter((j) => j.kind === 'mission' || j.kind === 'rocket' || j.kind === 'ship' || j.kind === 'voyage'); const F = $('#lcFlights'); const key = fl.map((j) => j.id).join();
+    if (F.__k !== key) { F.__k = key; F.innerHTML = fl.map((j) => `<div class="fl" data-j="${j.id}"><span>${icon(j.kind === 'rocket' || j.kind === 'ship' ? 'cog' : 'rocket', 'xs')} ${esc(j.kind === 'rocket' ? 'Assembling ' + ROCKETS[j.rocket].name : j.kind === 'ship' ? 'Building ' + SHIPS[j.ship].name : j.kind === 'voyage' ? SHIPS[j.ship].name + ': ' + j.name : j.name)}</span><b></b><i></i><button class="mini" data-a="finish" data-job="${j.id}" title="Finish now with dark matter">${icon('dm', 'xs')}</button></div>`).join(''); }
     for (const j of fl) { const el = F.querySelector(`[data-j="${j.id}"]`); if (!el) continue; el.querySelector('b').textContent = fmtTime((j.end - Date.now()) / 1000); el.querySelector('i').style.width = clamp((Date.now() - j.start) / (j.end - j.start)) * 100 + '%'; }
     $$('#overlay .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n));
   }
@@ -72,6 +74,14 @@ export class LaunchUI {
       h += this.card(`${esc(r.name)} <small>· ${esc(r.role)}</small>`, `<span class="tag ${own ? 'ok' : ''}">${own} in hangar</span>`, body, act, miss.length ? 'locked' : ''); }
     h += '</div>'; setTimeout(() => this.drawRockets(), 0); return h;
   }
+  fleet() {
+    const s = this.s; const Y = SO.yardLevel(s); let h = `<p class="muted">Interplanetary ships are built at the Orbital Shipyard and come home after every voyage. ${Y ? `Shipyard level ${Y}.` : 'Launch the <b>Orbital Shipyard</b> station module first (Station tab).'} Send them out from the <b>Star Map</b>.</p><div class="lc-grid">`;
+    for (const id of SHIP_ORDER) { const d = SHIPS[id]; const c = SO.canBuildShip(s, id); const own = SO.sol(s).ships[id] || 0, free = SO.shipsFree(s, id); const miss = d.req.filter((t) => !s.tech[t]);
+      const body = `<p class="desc">${esc(d.desc)}</p><table class="stats small"><tr><td>Drive class</td><td>${d.cls} · reaches ${['', 'the inner system and the belt', 'Jupiter and Saturn', 'the whole Solar System'][d.cls]}</td></tr><tr><td>Speed</td><td>×${d.speed}</td></tr>${d.carries ? `<tr><td>Colonists</td><td>${d.carries}</td></tr>` : ''}<tr><td>Needs</td><td>Shipyard ${d.yard}</td></tr></table>`;
+      const act = miss.length ? `<p class="why">${icon('lock', 'xs')} Research ${esc(miss.map((t) => TECH[t].name).join(', '))}</p>` : `<div class="lc-a"><div class="costs">${cost(d.cost, s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(SO.shipTime(s, id))}</span></div>${c.ok ? '' : `<p class="why">${esc(c.why)}</p>`}<button class="btn gold" data-a="buildShip" data-ship="${id}" ${c.ok ? '' : 'disabled'}>${icon('cog', 'xs')} Build</button></div>`;
+      h += this.card(`${esc(d.name)} <small>· ${esc(d.role)}</small>`, `<span class="tag ${own ? 'ok' : ''}">${own ? `${free}/${own} docked` : 'none'}</span>`, body, act, miss.length ? 'locked' : ''); }
+    return h + '</div>';
+  }
   drawRockets() { $$('canvas.rkc').forEach((cv) => { const r = ROCKETS[cv.dataset.rk]; const c = cv.getContext('2d'); const k = 100 / 118; const h = r.h * k, w = r.w * k; const x = 20, y = 112; c.clearRect(0, 0, 40, 120);
     const g = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0); g.addColorStop(0, '#c9d0d8'); g.addColorStop(0.4, '#ffffff'); g.addColorStop(1, '#7d8794'); c.fillStyle = g; c.fillRect(x - w / 2, y - h, w, h); c.fillStyle = r.band; c.fillRect(x - w / 2, y - h * 0.3, w, 3); c.fillStyle = '#20252c'; c.fillRect(x - w / 2, y - h * 0.62, w, 2);
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(x - w / 2, y - h); c.quadraticCurveTo(x, y - h - w * 2, x + w / 2, y - h); c.fill(); c.fillStyle = '#596270'; c.beginPath(); c.moveTo(x - w / 2, y - 6); c.lineTo(x - w / 2 - 4, y); c.lineTo(x - w / 2, y); c.fill(); c.beginPath(); c.moveTo(x + w / 2, y - 6); c.lineTo(x + w / 2 + 4, y); c.lineTo(x + w / 2, y); c.fill(); }); }
@@ -79,7 +89,8 @@ export class LaunchUI {
     const A = this.app, s = this.s; const a = t.dataset.a;
     if (a === 'lctab') { this.tab = t.dataset.tab2; A.audio.play('tap'); this.render(); return true; }
     if (a === 'buildRocket') { const r = S.startRocket(s, t.dataset.rk); if (r.ok) { A.audio.play('build'); this.ui.toast(`Assembling ${ROCKETS[t.dataset.rk].name}`, 'good'); A.changed(); } else this.ui.toast(r.why, 'bad'); this.render(); return true; }
-    if (a === 'launch') { const p = JSON.parse(t.dataset.p); const r = S.launch(s, p); if (r.ok) { A.changed(); A.launched(r); } else { this.ui.toast(r.why, 'bad'); A.audio.play('deny'); this.render(); } return true; }
+    if (a === 'buildShip') { const r = SO.startShip(s, t.dataset.ship); if (r.ok) { A.audio.play('build'); this.ui.toast(`The shipyard starts work on a ${SHIPS[t.dataset.ship].name}`, 'good'); A.changed(); } else this.ui.toast(r.why, 'bad'); this.render(); return true; }
+    if (a === 'launch') { const p = JSON.parse(t.dataset.p); const r = S.launch(s, p); if (r.ok) { A.changed(); A.launched(r); } else { this.ui.toast(r.why, 'bad'); A.audio.play('deny'); if (A.view === 'launch') this.render(); } return true; }
     return false;
   }
 }
