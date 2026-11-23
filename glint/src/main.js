@@ -11,7 +11,7 @@ import { UI } from './ui.js';
 import { apprenticeCut } from './workshop.js';
 import { rng, mMul, mRotX, mRotY, clamp } from './math.js';
 import { buildPoly } from './poly.js';
-import { SPECIES, variety, optics, RARITY, gemName } from './species.js';
+import { SPECIES, SPECIES_IDS, variety, optics, RARITY, gemName } from './species.js';
 import { TIERS, tierCuts, upVal, upNext, UPGRADES, rollRough, MYSTERY, REGIONS, EXPEDITIONS, expeditionCost, dealerStock, priceRough, repFor, meets, apprenticeCost, trainCost, apprenticeMax, apprenticeTime, APPRENTICE_NAMES, uid, roughEstimate } from './economy.js';
 import { roughCarat, stonePlanes, toGemSpace } from './stone.js';
 import { fmt$, dayNumber, $ } from './util.js';
@@ -41,11 +41,12 @@ class App {
     $('#boot').classList.add('gone'); setTimeout(() => $('#boot') && $('#boot').remove(), 700);
     Platform.loadingStop();
     if (!s.tut) this.ui.title(true); else { this.ui.title(false); if (away > 120) this.offlineReport(away); }
+    this.state = 'ready';
     requestAnimationFrame((t) => this.frame(t));
   }
   applySettings() { const st = this.save.settings; this.audio.setVolumes(st.sfx, st.music); const q = st.quality; this.R.bounces = q === 'low' ? 5 : 8; this.R.streaks = q !== 'low'; if (q === 'low') this.R.setScale(0.6); else if (q === 'high') this.R.setScale(1); }
   start() { // first interaction: audio unlock + gameplay start
-    this.audio.unlock(); Platform.gameplayStart();
+    this.audio.unlock(); if (!this.screen) Platform.gameplayStart(); this.started = true;
   }
   // ---------------- layout ----------------
   layout() {
@@ -58,7 +59,7 @@ class App {
     else { const pw = clamp(W * 0.3, 320, 400); const aw = W - pw - side; L = { W, H, port, gx: side + aw / 2, gy: top + (H - top) * 0.47, gr: Math.min(aw * 0.28, (H - top) * 0.3), panel: pw, side }; }
     L.top = top; this.benchL = L; this.bench.L = L;
     // shop
-    this.shopL = { W, H, port, top, bot: port ? nav + Math.round(H * 0.2) : 0, cases: TIERS[this.save.tier].cases };
+    this.shopL = { W, H, port, top, side, panelW: port ? 0 : 300, bot: port ? nav + Math.round(H * 0.2) : 0, cases: TIERS[this.save.tier].cases };
     this.paintScene();
     this.ui.layout();
   }
@@ -68,8 +69,8 @@ class App {
     this.R.setBackground(this.bgCanvas);
   }
   setView(v) { if (this.view === v && !this.screen) return; this.closeScreen(); if (this.view !== v) { this.view = v; this.paintScene(); this.audio.play('whoosh'); this.audio.setRain(v === 'bench'); } this.ui.nav(); this.ui.panel(); }
-  openScreen(id, arg) { this.screen = id; this.ui.screen(id, arg); this.ui.nav(); }
-  closeScreen() { if (!this.screen) return; this.screen = null; this.ui.screen(null); this.ui.nav(); }
+  openScreen(id, arg) { this.screen = id; this.ui.screen(id, arg); this.ui.nav(); Platform.gameplayStop(); }
+  closeScreen() { if (!this.screen) return; this.screen = null; this.ui.screen(null); this.ui.nav(); if (this.started) Platform.gameplayStart(); }
   // ---------------- input ----------------
   bindInput() {
     const el = this.ov; const pos = (e) => [e.clientX, e.clientY]; let id = null;
@@ -159,7 +160,7 @@ class App {
     this.discover(r); const k = g.sp + ':' + g.vid; const cx = s.codex[k]; cx.n++; const rec = g.value > cx.best; cx.best = Math.max(cx.best, g.value); cx.ct = Math.max(cx.ct, g.ct); g.record = rec && cx.n > 1;
     if (r.src === 'daily') { s.stats.dailies++; s.daily.done = true; s.daily.best = Math.max(s.daily.best, g.value); g.daily = dayNumber(); }
     s.gems.push(g); s.hall.push({ ...g }); s.hall.sort((a, b) => b.value - a.value); s.hall = s.hall.slice(0, 10);
-    if (g.value >= 1000 && g.cutG !== 'Poor') Platform.happytime();
+    if (g.cutG === 'Ideal' || g.record || (variety(g.sp, g.vid).rare || 0) >= 3) Platform.happytime();
     this.checkAch(); this.persist(); this.ui.certificate(g, true);
   }
   sellGem(g, price, how, caseIdx, silent) {
@@ -180,7 +181,7 @@ class App {
   matchingOrder(g) { return this.save.orders.find((o) => meets(o, g)) || null; }
   buyUpgrade(id) { const s = this.save; const n = upNext(s, id); if (!n) return; if (!this.spend(n.cost)) return; s.up[id] = (s.up[id] || 0) + 1; this.audio.play('fanfare'); this.ui.toast(`${UPGRADES[id].name}: ${n.label}`, 'good'); if (id === 'lights' || id === 'decor') { if (this.view === 'shop') this.paintScene(); } this.applySettings(); this.checkAch(); this.persist(); this.ui.refreshScreen(); }
   canTierUp() { const s = this.save; const n = TIERS[s.tier + 1]; return n && s.rep >= n.rep; }
-  tierUp() { const s = this.save; const n = TIERS[s.tier + 1]; if (!n || s.rep < n.rep) return; if (!this.spend(n.cost)) return; s.tier++; while (s.cases.length < n.cases) s.cases.push(null); this.shopL.cases = n.cases; this.restockDealer(); this.layout(); this.audio.play('fanfare'); this.ui.tierUp(s.tier); this.checkAch(); this.persist(); this.ui.refreshScreen(); }
+  tierUp() { const s = this.save; const n = TIERS[s.tier + 1]; if (!n || s.rep < n.rep) return; if (!this.spend(n.cost)) return; s.tier++; Platform.happytime(); while (s.cases.length < n.cases) s.cases.push(null); this.shopL.cases = n.cases; this.restockDealer(); this.layout(); this.audio.play('fanfare'); this.ui.tierUp(s.tier); this.checkAch(); this.persist(); this.ui.refreshScreen(); }
   // apprentices
   hire() { const s = this.save; if (s.staff.length >= apprenticeMax(s.tier)) return; const cost = apprenticeCost(s.staff.length); if (!this.spend(cost)) return; s.staff.push({ id: uid(), name: APPRENTICE_NAMES[s.staff.length % APPRENTICE_NAMES.length], skill: 1, job: null, t: 0, made: 0, auto: true }); this.audio.play('fanfare'); this.checkAch(); this.persist(); this.ui.refreshScreen(); }
   train(a) { const c = trainCost(a.skill); if (a.skill >= 10 || !this.spend(c)) return; a.skill++; this.audio.play('ting'); this.persist(); this.ui.refreshScreen(); }
@@ -199,6 +200,12 @@ class App {
     if (s.exped && now >= s.exped.end && !s.exped.done) { s.exped.done = true; this.ui.toast('Your expedition is back! Collect the haul in the Market.', 'good'); this.audio.play('fanfare'); this.ui.badges(); }
     if (s.auction && s.auction.live) this.ui.auctionTick && this.ui.auctionTick(dt);
     const d = dayNumber(); if (s.daily.day !== d) { s.daily = { day: d, done: false, best: 0 }; }
+  }
+  // auction house: one big lot every few minutes, bid against rival dealers
+  auctionLot() {
+    const s = this.save; if (s.tier < 2) return null;
+    if (!s.auction || !s.auction.lot || Date.now() > s.auction.next) { const R = rng((Date.now() / 60000) | 0); const pool = SPECIES_IDS.filter((x) => SPECIES[x].tier >= s.tier && SPECIES[x].tier <= s.tier + 2); const r = rollRough(R, { tier: Math.min(4, s.tier + 1), species: pool, luck: 2.6, big: true, clean: R.chance(0.5), src: 'auction' }); const est = roughEstimate(r, roughCarat(r)); s.auction = { lot: r, est: Math.round(est), next: Date.now() + 7 * 60000, done: false }; }
+    return s.auction;
   }
   startExpedition(region, e) { const s = this.save; if (s.exped) return; const cost = expeditionCost(s.tier, e); if (!this.spend(cost)) return; s.exped = { region: region.id, n: e.n, start: Date.now(), end: Date.now() + e.min * 60000, done: false }; this.audio.play('whoosh'); this.persist(); this.ui.refreshScreen(); }
   collectExpedition() { const s = this.save; const x = s.exped; if (!x || Date.now() < x.end) return; const reg = REGIONS.find((r) => r.id === x.region); const R = rng(x.start & 0x7fffffff); let got = 0;

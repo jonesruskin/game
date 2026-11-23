@@ -19,8 +19,8 @@ export function apprenticeCut(save, r, skill) {
   const win = 0.03; const mq = {}; for (const k of ['uP', 'uC', 'uT']) { const e = R.gauss() * (10.5 - skill) * 0.012; P[k] = 1 + e; mq[k] = clamp(1 - Math.abs(e) / win, 0, 1); }
   const st = stonePlanes(r, place, cut, P); const poly = buildPoly(st.planes, 8); const used = new Set(poly.faces.map((f) => f.pi)); const planes = st.planes.filter((_, i) => used.has(i));
   const polish = clamp(0.8 + skill * 0.02 + R.range(-0.04, 0.04), 0, 1);
-  const lp = lightPerf(planes, null, r.sp, cut, 12); const naturals = planes.filter((p) => p.stage === STAGE.ROUGH).length;
-  const meetAvg = (mq.uP + mq.uC + mq.uT) / 3; let score = lp.ratio * (0.9 + 0.1 * meetAvg) * (0.92 + 0.08 * polish); if (naturals) score *= Math.max(0.7, 1 - naturals * 0.04); if (score >= 0.975) score = 0.974;
+  const lp = lightPerf(planes, null, r.sp, cut, 12); let natA = 0, totA = 0; for (const f of poly.faces) { totA += f.area; if (st.planes[f.pi] && st.planes[f.pi].stage === STAGE.ROUGH) natA += f.area; } const natF = totA ? natA / totA : 0; const naturals = natF > 0.004 ? 1 : 0;
+  const meetAvg = (mq.uP + mq.uC + mq.uT) / 3; let score = lp.ratio * (0.9 + 0.1 * meetAvg) * (0.92 + 0.08 * polish); if (naturals) score *= clamp(1 - natF * 2.5, 0.7, 1); if (score >= 0.975) score = 0.974;
   const ct = caratOf(poly.volume * place.s ** 3, r.sp); const cl = clarityOf(st.inc, planes);
   const g = { id: uid(), sp: r.sp, vid: r.vid, tone: r.tone, cut, ct: +ct.toFixed(ct < 10 ? 2 : 1), clarity: cl.grade, score: +score.toFixed(3), polish, brill: lp.ratio, fire: lp.fire, leak: lp.leak, ext: lp.ext, naturals,
     rough: { seed: r.seed, sp: r.sp, size: r.size, clarity: r.clarity }, place: { m: place.m, t: place.t, s: place.s }, P, made: Date.now(), src: 'apprentice' };

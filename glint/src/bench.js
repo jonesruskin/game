@@ -138,7 +138,7 @@ export class Bench {
   }
   grindStart() { if (this.stage !== 'cut' || this.sub === 'girdle' || this.stageDone) return; this.grinding = true; this.hold = 0; this.app.ui.benchLive(this); }
   grindStop() {
-    if (!this.grinding) return; this.grinding = false; this.app.audio.grindOn(false); const sd = this.stageDef(); const u = this.P[sd.u]; const win = upVal(this.save, 'machine');
+    if (!this.grinding) return; this.grinding = false; this.app.audio.grindOn(false); this.rebuild(); const sd = this.stageDef(); const u = this.P[sd.u]; const win = upVal(this.save, 'machine');
     const err = u - 1;
     if (err >= -win) { // reached the meet
       const q = clamp(1 - Math.abs(err) / win, 0, 1); const perfect = Math.abs(err) <= win * 0.4; this.meetQ[sd.id] = err > win ? Math.max(0, 1 - err / (win * 4)) * 0.6 : q;
@@ -156,9 +156,9 @@ export class Bench {
   rebuild() {
     const P = this.P; const st = stonePlanes(this.r, this.place, this.cut, P, this.starts);
     // drop rough planes that no longer touch the solid (keeps the shader fast)
-    const poly = buildPoly(st.planes, 8); const used = new Set(poly.faces.map((f) => f.pi));
-    const planes = [], frost = [], tags = []; st.planes.forEach((p, i) => { if (!used.has(i)) return; planes.push(p); tags.push(p.stage); frost.push(p.stage === STAGE.ROUGH ? (p.tag % 100 === 1 || this.S.habit === 'pebble' ? 0.5 : 0.14) : this.facetFrost(p)); });
-    this.poly = buildPoly(planes, 8); this.stone = { planes, frost, inc: st.inc, ver: (this.stone ? this.stone.ver : 0) + 1 }; this.tags = tags; this.stInc = st.inc;
+    const poly = buildPoly(st.planes, 8); const used = new Set(poly.faces.map((f) => f.pi)); const remap = {};
+    const planes = [], frost = [], tags = []; st.planes.forEach((p, i) => { if (!used.has(i)) return; remap[i] = planes.length; planes.push(p); tags.push(p.stage); frost.push(p.stage === STAGE.ROUGH ? (p.tag % 100 === 1 || this.S.habit === 'pebble' ? 0.5 : 0.14) : this.facetFrost(p)); });
+    for (const f of poly.faces) f.pi = remap[f.pi]; for (const e of poly.edges) e[2] = remap[e[2]]; this.poly = poly; this.stone = { planes, frost, inc: st.inc, ver: (this.stone ? this.stone.ver : 0) + 1 }; this.tags = tags; this.stInc = st.inc;
     let m = 0; for (const v of this.poly.verts) m = Math.max(m, Math.hypot(v[0], v[1], v[2])); this.gemR = m;
   }
   facetFrost(p) { if (this.stage === 'polish' || this.stage === 'appraise') { const k = this.polishMap && this.polishMap[p.idx]; return k === undefined ? 0.5 : k; } return 0.48; }
@@ -169,7 +169,8 @@ export class Bench {
     if (upVal(this.save, 'polisher') >= 99) this.autoPolish = 1.2; this.app.ui.tutor('polish');
   }
   rub(px, py, dist) {
-    if (this.stage !== 'polish') return; const lvl = upVal(this.save, 'polisher'); const L = this.L; const rate = 0.0045 * lvl * dist;
+    if (this.stage !== 'polish') return; const lvl = upVal(this.save, 'polisher'); const L = this.L; const rate = 0.0011 * lvl * dist; const glob = 0.00024 * lvl * dist;
+    for (const k in this.polishMap) this.polishMap[k] = Math.max(0, this.polishMap[k] - glob);
     const hits = new Set(); for (const [ox, oy] of [[0, 0], [12, 0], [-12, 0], [0, 12], [0, -12], [9, 9], [-9, -9]]) { const h = this.pick(px + ox, py + oy); if (h >= 0) hits.add(h); }
     for (const i of hits) { const p = this.stone.planes[i]; if (p.idx === undefined) continue; this.polishMap[p.idx] = Math.max(0, this.polishMap[p.idx] - rate * (1 + Math.random())); }
     if (hits.size) { this.app.audio.polishOn(dist / 8); if (Math.random() < 0.3) this.sparks.push({ x: px, y: py, vx: (Math.random() - 0.5) * 80, vy: -Math.random() * 80, life: 0.5, t: 0, c: '#fff6d8', s: 1.6 }); }
@@ -196,7 +197,7 @@ export class Bench {
     const cl = clarityOf(this.stInc, final.planes.filter((p, i) => this.tags[i] !== STAGE.ROUGH));
     const mq = ['pav', 'crown', 'table'].map((k) => this.meetQ[k] ?? 0.5); const meetAvg = mq.reduce((a, b) => a + b, 0) / 3;
     let score = lp.ratio * (0.9 + 0.1 * meetAvg) * (0.92 + 0.08 * polish);
-    const naturals = this.tags.filter((t) => t === STAGE.ROUGH).length; if (naturals) score *= Math.max(0.7, 1 - naturals * 0.04);
+    let natA = 0, totA = 0; for (const f of this.poly.faces) { totA += f.area; if (this.tags[f.pi] === STAGE.ROUGH) natA += f.area; } const natF = totA ? natA / totA : 0; const naturals = natF > 0.004 ? Math.max(1, Math.round(natF * 100)) : 0; if (naturals) score *= clamp(1 - natF * 2.5, 0.7, 1);
     if (score >= 0.975 && Math.min(...mq) < 0.55) score = 0.974; // Ideal demands clean meets everywhere
     const g = { id: uid(), sp: this.r.sp, vid: this.r.vid, tone: this.r.tone, cut: this.cut, ct: +ct.toFixed(ct < 10 ? 2 : 1), clarity: cl.grade, score: +score.toFixed(3), polish, perfect: mq.filter((q) => q >= 0.999 || q > 0.6).length,
       brill: lp.ratio, fire: lp.fire, leak: lp.leak, ext: lp.ext, naturals,
@@ -225,9 +226,10 @@ export class Bench {
       else {
         this.stepCurve(this.grinding ? 2 : 7);
         if (this.grinding) {
-          const sd = this.stageDef(); this.hold += dt; const speed = 0.16 + Math.min(1.1, this.hold * 0.55) * 0.5; // starts gentle, accelerates while held
-          this.P[sd.u] = Math.min(1.35, (this.P[sd.u] || 0) + speed * dt); const u = this.P[sd.u];
-          A.audio.grindOn(true, 1, clamp((u - 0.6) / 0.45, 0, 1)); this.emitSparks(sd.id === 'pav' ? -1 : 1, 1); this.rebuild();
+          const sd = this.stageDef(); this.hold += dt; const u0 = this.P[sd.u] || 0;
+          const vmax = 0.38 + Math.min(1, this.hold) * 0.42; const slow = 0.13 + 0.87 * clamp((1 - u0) / 0.3, 0, 1); // fast at first, feathering into the meet
+          this.P[sd.u] = Math.min(1.35, u0 + vmax * slow * dt); const u = this.P[sd.u];
+          A.audio.grindOn(true, 1, clamp((u - 0.6) / 0.45, 0, 1)); this.emitSparks(sd.id === 'pav' ? -1 : 1, 1); this.gf = (this.gf || 0) + 1; if (this.gf % 2 === 0) this.rebuild();
           if (u >= 1.34) this.grindStop(); A.ui.benchLive(this);
         }
       }
@@ -243,8 +245,15 @@ export class Bench {
     for (let i = 0; i < 3; i++) this.sparks.push({ x, y, vx: (Math.random() - 0.3) * 420, vy: -Math.random() * 260 - 40, life: 0.25 + Math.random() * 0.35, t: 0, c: Math.random() < 0.5 ? '#ffd58a' : '#fff4e0', s: 1.2 + Math.random() * 1.5 });
   }
   // ---------------- drawing ----------------
+  showcase() {
+    const L = this.L, s = this.save; const best = s.hall[0]; let stone, o;
+    if (best) { stone = this.app.gemStone(best); o = optics(best.sp, best.vid, best.tone, 0.25); }
+    else { if (!this._show) { const pl = cutPlanes('round', { pav: 41.5, crown: 34, table: 0.56, uG: 1, uP: 1, uC: 1, uT: 1 }); this._show = { planes: pl, frost: pl.map(() => 0), inc: [], ver: 1, rb: 1.3, bound: 1.25 }; } stone = this._show; o = optics('sapphire', 'cornflower', 1, 0.25); }
+    return { stone, bound: stone.bound, x: L.gx, y: L.gy + L.gr * 0.12, r: L.gr * 0.78, rot: mMul(mRotX(1.02), mRotY(this.t * 0.35)), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: stone.rb || 1.3, light: 1 };
+  }
   gemDraw() {
-    if (!this.r || this.stage === 'empty' || (this.stage === 'crack' && !this.cracking)) return null;
+    if (!this.r || this.stage === 'empty') return this.stage === 'empty' ? this.showcase() : null;
+    if (this.stage === 'crack' && !this.cracking) return null;
     const L = this.L; const sh = this.shake * 8; const ox = (Math.random() - 0.5) * sh, oy = (Math.random() - 0.5) * sh;
     const o = this.opt; const plan = this.stage === 'plan' || this.stage === 'crack';
     const stone = plan ? (this.roughStone && this.roughStone.rid === this.r.id ? this.roughStone : (this.roughStone = { rid: this.r.id, planes: this.geom.planes, frost: roughFrost(this.geom, this.S), inc: this.geom.inc, ver: 1 })) : this.stone;

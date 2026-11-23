@@ -57,7 +57,7 @@ export class UI {
       cert: ['Your first gem!', 'Put it in a display case: customers in your shop will buy it.'],
       shop: ['Your shop', 'Customers browse your cases and buy what they love. Price tags set your markup: higher earns more but sells slower. Now head to the Market and buy more rough!'] };
     const t = T[step]; if (!t) { el.className = ''; return; }
-    el.className = 'on t-' + step; el.innerHTML = `<b>${t[0]}</b><p>${t[1]}</p>`;
+    el.style.visibility = ''; el.className = 'on t-' + step; el.innerHTML = `<b>${t[0]}</b><p>${t[1]}</p>`;
     if (step === 'shop') setTimeout(() => { if (this.s.tut === 1) { this.s.tut = 2; el.className = ''; this.app.persist(); } }, 9000);
   }
   // ---------------- title ----------------
@@ -199,6 +199,23 @@ export class UI {
     this.hagMax = h.c.wait;
   }
   hagTick() { const el = $('#hgPat'); if (el && this.hag) el.style.width = clamp(this.hag.c.wait / (this.hagMax || 1), 0, 1) * 100 + '%'; }
+  // ---------------- auction ----------------
+  aucNext() { const p = this.auc.price; const raw = Math.max(10, p * 0.08); const mag = Math.pow(10, Math.floor(Math.log10(raw))); const inc = Math.ceil(raw / mag) * mag; return Math.round((p + inc) / inc) * inc; }
+  aucJoin() { const A = this.app.auctionLot(); if (!A || A.done) return; const R = rng(parseInt(A.lot.id, 36) & 0xffff); const names = ['Mme. Vautrin', 'Mr. Osei', 'The Antwerp Syndicate', 'Count Lisowski'];
+    this.auc = { lot: A.lot.id, price: Math.round(A.est * 0.22), leader: 'the floor', t: 8, next: 1.2, log: ['Bidding opens.'], call: '', rivals: names.slice(0, 3).map((n) => ({ n, max: A.est * R.range(0.38, 0.78) })) };
+    this.app.audio.play('stamp'); this.app.save.auction.live = true; this.renderScreen(); }
+  aucBid() { const au = this.auc; if (!au) return; const p = this.aucNext(); if (this.s.money < p) { this.toast('Not enough money for that bid', 'bad'); this.app.audio.play('deny'); return; } au.price = p; au.leader = 'you'; au.t = Math.max(au.t, 6); au.call = ''; au.log.unshift(`You bid ${fmt$(p)}`); this.app.audio.play('buy'); this.aucDraw(); }
+  auctionTick(dt) {
+    const au = this.auc, S = this.s.auction; if (!au || !S || !S.live) return; au.t -= dt; au.next -= dt;
+    if (au.next <= 0) { au.next = 0.9 + Math.random() * 1.6; const p = this.aucNext(); const r = au.rivals.filter((x) => x.max >= p && au.leader !== x.n).sort(() => Math.random() - 0.5)[0]; if (r && Math.random() < 0.75) { au.price = p; au.leader = r.n; au.t = Math.max(au.t, 5 + Math.random() * 2); au.call = ''; au.log.unshift(`${r.n} bids ${fmt$(p)}`); this.app.audio.play('tap'); } }
+    const call = au.t < 1.2 ? 'Going twice…' : au.t < 2.8 ? 'Going once…' : ''; if (call !== au.call) { au.call = call; if (call) this.app.audio.play('soft'); }
+    if (au.t <= 0) { S.live = false; const won = au.leader === 'you'; this.app.audio.play('stamp');
+      if (won) { if (this.app.spend(au.price)) { const r = { ...S.lot, paid: au.price, known: true }; delete r.price; this.app.addRough(r); S.done = `SOLD to you for ${fmt$(au.price)}! The rough is in your vault.`; this.app.audio.play('fanfare'); } else S.done = 'You could not cover your bid. The lot went to the underbidder.'; }
+      else S.done = au.leader === 'the floor' ? 'No sale.' : `Sold to ${au.leader} for ${fmt$(au.price)}.`;
+      this.auc = null; this.app.persist(); if (this.app.screen === 'market') this.renderScreen(); return; }
+    this.aucDraw();
+  }
+  aucDraw() { const au = this.auc; if (!au) return; const e = (id) => document.getElementById(id); if (!e('aucPrice')) return; e('aucPrice').textContent = fmt$(au.price); e('aucLead').textContent = au.leader === 'you' ? 'You lead!' : au.leader + ' leads'; e('aucLead').className = au.leader === 'you' ? 'lead' : ''; e('aucClock').style.width = Math.max(0, (au.t / 8) * 100) + '%'; e('aucCall').textContent = au.call || ''; e('aucBid').textContent = 'Bid ' + fmt$(this.aucNext()); e('aucLog').innerHTML = au.log.slice(0, 5).map((x) => `<div>${esc(x)}</div>`).join(''); }
   // ---------------- certificate ----------------
   certificate(g, fresh) {
     const m = this.openModal('cert'); const V = variety(g.sp, g.vid); const no = (parseInt(g.id, 36) % 900000) + 100000;
@@ -206,7 +223,7 @@ export class UI {
     const row = (k, v) => `<div><i>${k}</i><b>${v}</b></div>`;
     m.innerHTML = `<div class="cert ${fresh ? 'fresh' : ''}"><div class="cert-in"><div class="c-head"><span>GLINT GEMMOLOGICAL LABORATORY</span><i>Report Nº ${no}</i></div>
       <div class="c-main"><div class="c-img"><img src="${this.app.thumb(g, 192)}"></div><div class="c-name"><h2>${esc(V.name)}</h2><p>${esc(CUTS[g.cut].name)} · ${fmtCt(g.ct)}</p></div></div>
-      <div class="c-grid">${row('Cut grade', g.cutG)}${row('Clarity', g.clarity)}${row('Colour', g.colorG)}${row('Polish', g.polishG)}${row('Brilliance', Math.round(clamp(g.brill, 0, 1) * 100) + '%')}${row('Fire', g.fire > 0.18 ? 'Blazing' : g.fire > 0.1 ? 'Lively' : 'Soft')}${row('Species', esc(SPECIES[g.sp].name))}${row('Origin', esc(SPECIES[g.sp].origin))}</div>
+      <div class="c-grid">${row('Cut grade', g.cutG)}${row('Clarity', g.clarity)}${row('Colour', g.colorG)}${row('Polish', g.polishG)}${row('Brilliance', Math.round(clamp(g.brill, 0, 1) * 100) + '%')}${row('Fire', g.fire > 0.09 ? 'Blazing' : g.fire > 0.05 ? 'Lively' : 'Soft')}${row('Species', esc(SPECIES[g.sp].name))}${row('Origin', esc(SPECIES[g.sp].origin))}</div>
       <div class="c-val"><i>Appraised value</i><b id="certVal">${fresh ? '$0' : fmt$(g.value)}</b></div>
       <div class="stamps">${stamps.map(([t, c], i) => `<span class="stamp ${c}" style="--d:${0.9 + i * 0.35}s">${t}</span>`).join('')}</div>
       <p class="c-fact">${esc(SPECIES[g.sp].fact)}</p></div>
@@ -247,7 +264,7 @@ export class UI {
   }
   tabs(id, list, cur) { this.scrTab = this.scrTab || {}; return `<div class="tabs">${list.map(([k, n]) => `<button class="${k === cur ? 'on' : ''}" data-tab2="${id}:${k}">${n}</button>`).join('')}</div>`; }
   marketHTML() {
-    const s = this.s; const tab = this.scrArg && ['dealer', 'mystery', 'exped'].includes(this.scrArg) ? this.scrArg : 'mystery'; let h = this.tabs('market', [['mystery', 'Mystery Rocks'], ['dealer', 'Rough Dealer'], ['exped', 'Expeditions']], tab) + '<div class="scr-body">';
+    const s = this.s; const tab = this.scrArg && ['dealer', 'mystery', 'exped', 'auction'].includes(this.scrArg) ? this.scrArg : 'mystery'; let h = this.tabs('market', [['mystery', 'Mystery Rocks'], ['dealer', 'Rough Dealer'], ['exped', 'Expeditions'], ['auction', 'Auction House']], tab) + '<div class="scr-body">';
     h += `<div class="cap">${icon('vault', 'xs')} Vault ${this.app.vaultUsed()} / ${this.app.vaultCap()}</div>`;
     if (tab === 'mystery') {
       h += `<p class="muted">Unknown rocks. Most hold common crystal; a lucky few hide treasures. Crack them at the bench.</p><div class="bins">`;
@@ -258,6 +275,15 @@ export class UI {
       h += `<p class="muted">Rough you can see before you buy. New stock in <b data-timer="${s.dealer.next}">${fmtTime((s.dealer.next - Date.now()) / 1000)}</b>.${upVal(s, 'loupe') >= 1 ? '' : ' Upgrade your Inclusion Scope to spot flaws.'}</p><div class="glist dealer">`;
       s.dealer.stock.forEach((r, i) => { const V = variety(r.sp, r.vid); const ct = roughCarat(r); h += `<div class="dcard ${r.sold ? 'sold' : ''}"><img src="${this.app.roughThumb(r)}"><b>${esc(V.name)}</b>${rareTag(V.rare)}<i>${fmtCt(ct)} · ${toneWord(r.tone)} · ${upVal(s, 'loupe') >= 1 ? (r.clarity < 0.25 ? 'clean' : r.clarity < 0.5 ? 'lightly included' : 'included') : 'clarity ?'}</i>${r.sold ? '<em>Sold</em>' : `<button class="gold" data-buyd="${i}">${fmt$(r.price)}</button>`}</div>`; });
       h += `</div>`;
+    } else if (tab === 'auction') {
+      const A = this.app.auctionLot();
+      if (!A) h += `<div class="locked-note">${icon('crown')} The Auction House admits dealers from the <b>Boutique</b> upward.</div>`;
+      else { const r = A.lot, V = variety(r.sp, r.vid), ct = roughCarat(r); const live = this.auc && this.auc.lot === r.id;
+        h += `<div class="auction"><div class="au-lot"><img src="${this.app.roughThumb(r, 160)}"><div><i class="muted small">LOT ${(parseInt(r.id, 36) % 900) + 100}</i><h2>${esc(V.name)} ${rareTag(V.rare)}</h2><p class="muted">${fmtCt(ct)} rough · ${toneWord(r.tone)} colour · ${r.clarity < 0.25 ? 'remarkably clean' : r.clarity < 0.5 ? 'lightly included' : 'included'}</p><p>Catalogue estimate: <b class="gold-t">${fmt$(A.est * 0.35)} – ${fmt$(A.est * 0.7)}</b></p></div></div>`;
+        if (A.done) h += `<p class="au-res">${esc(A.done)}</p><p class="muted">Next lot in <b data-timer="${A.next}">${fmtTime((A.next - Date.now()) / 1000)}</b></p>`;
+        else if (!live) h += `<button class="big gold" data-aucjoin="1">${icon('hand')} Join the bidding · opens at ${fmt$(Math.round(A.est * 0.22))}</button><p class="muted small">Rival dealers bid too. Every bid resets the hammer clock. Highest bid when the hammer falls wins.</p>`;
+        else { const au = this.auc; h += `<div class="au-live"><div class="au-cur"><i>Current bid</i><b id="aucPrice">${fmt$(au.price)}</b><span id="aucLead">${au.leader === 'you' ? 'You lead!' : esc(au.leader) + ' leads'}</span></div><div class="pbar lg"><span id="aucClock" style="width:${(au.t / 8) * 100}%"></span></div><div id="aucCall" class="au-call">${esc(au.call || '')}</div><button class="big gold" data-aucbid="1" id="aucBid">Bid ${fmt$(this.aucNext())}</button><div class="au-log" id="aucLog">${au.log.slice(0, 5).map((x) => `<div>${esc(x)}</div>`).join('')}</div></div>`; }
+        h += `</div>`; }
     } else if (tab === 'exped') {
       if (s.tier < 1) h += `<div class="locked-note">${icon('crown')} Expeditions open with the <b>Corner Shop</b>.</div>`;
       else if (s.exped) { const reg = REGIONS.find((r) => r.id === s.exped.region); const done = Date.now() >= s.exped.end; h += `<div class="exp-live"><h3>${icon('map')} ${esc(reg.name)}</h3><p>${s.exped.n} stones expected</p>${done ? `<button class="big gold" data-collect="1">Collect the haul</button>` : `<p>Back in <b data-timer="${s.exped.end}">${fmtTime((s.exped.end - Date.now()) / 1000)}</b></p>${Platform.adsAvailable ? `<button class="big ad" data-adrush="1">${icon('play')} Watch an ad: halve the remaining time</button>` : ''}`}</div>`; }
@@ -281,7 +307,7 @@ export class UI {
       for (const a of s.staff) h += `<div class="up staff"><span class="up-ic">${icon('clerk')}</span><div class="up-t"><b>${esc(a.name)}</b><i>Skill ${a.skill}/10 · ${a.made} gems cut</i><div class="pbar"><span data-staff="${a.id}"></span></div><p class="muted">${a.job ? 'Cutting ' + (a.job.known ? esc(gemName(a.job.sp, a.job.vid)) : 'a mystery rock') : s.roughs.length ? 'Picking up a stone…' : 'Waiting for rough in the vault'}</p></div>${a.skill < 10 ? `<button data-train="${a.id}" class="${s.money >= trainCost(a.skill) ? 'gold' : ''}"><small>Train</small>${fmt$(trainCost(a.skill))}</button>` : '<b class="maxed">MASTER</b>'}</div>`;
       if (s.staff.length < apprenticeMax(s.tier)) h += `<button class="big ${s.money >= apprenticeCost(s.staff.length) ? 'gold' : ''}" data-hire="1">${icon('plus')} Hire an apprentice · ${fmt$(apprenticeCost(s.staff.length))}</button>`; else if (s.tier < 4) h += `<p class="muted">Bigger premises allow more apprentices.</p>`; }
     if (tab === 'tier') { const T = TIERS[s.tier], N = TIERS[s.tier + 1]; h += `<div class="tierbox"><div class="tb-cur"><i>Current premises</i><h2>${esc(T.name)}</h2><p class="muted">${esc(T.blurb)}</p></div>`;
-      if (N) { const rp = Math.min(1, s.rep / N.rep); h += `<div class="tb-next"><i>Next</i><h2>${esc(N.name)}</h2><p class="muted">${esc(N.blurb)}</p><ul><li>${N.cases} display cases</li><li>Richer clients</li>${N.cuts.length ? `<li>${N.cuts.map((c) => esc(CUTS[c].name)).join(', ')} cuts</li>` : ''}<li>${SPECIES_IDS.filter((x) => SPECIES[x].tier === s.tier + 2).map((x) => esc(SPECIES[x].name)).join(', ')}</li></ul><div class="label">Reputation ${Math.floor(s.rep)} / ${N.rep}</div><div class="pbar big"><span style="width:${rp * 100}%"></span></div><button class="big ${this.app.canTierUp() && s.money >= N.cost ? 'gold' : ''}" data-tierup="1" ${this.app.canTierUp() ? '' : 'disabled'}>${this.app.canTierUp() ? `Move in · ${fmt$(N.cost)}` : `Need ${Math.ceil(N.rep - s.rep)} more reputation`}</button><p class="muted small">Earn reputation by selling well-cut gems from your cases and fulfilling commissions.</p></div>`; }
+      if (N) { const rp = Math.min(1, s.rep / N.rep); h += `<div class="tb-next"><i>Next</i><h2>${esc(N.name)}</h2><p class="muted">${esc(N.blurb)}</p><ul><li>${N.cases} display cases</li><li>Richer clients</li>${N.cuts.length ? `<li>${N.cuts.map((c) => esc(CUTS[c].name)).join(', ')} cuts</li>` : ''}<li>${SPECIES_IDS.filter((x) => SPECIES[x].tier === s.tier + 2).map((x) => esc(SPECIES[x].name)).join(', ')}</li></ul><div class="label">Reputation ${Math.floor(s.rep)} / ${N.rep}</div><div class="pbar lg"><span style="width:${rp * 100}%"></span></div><button class="big ${this.app.canTierUp() && s.money >= N.cost ? 'gold' : ''}" data-tierup="1" ${this.app.canTierUp() ? '' : 'disabled'}>${this.app.canTierUp() ? `Move in · ${fmt$(N.cost)}` : `Need ${Math.ceil(N.rep - s.rep)} more reputation`}</button><p class="muted small">Earn reputation by selling well-cut gems from your cases and fulfilling commissions.</p></div>`; }
       else h += `<p>You hold the Royal Warrant. Chase legendary stones and fill the Codex!</p>`; h += `</div>`; }
     return h + '</div>';
   }
@@ -301,6 +327,7 @@ export class UI {
     if (t.dataset.buyd !== undefined) { const r = A.buyDealer(+t.dataset.buyd); this.renderScreen(); if (r && A.bench.stage === 'empty') this.toast('Tap Bench to start cutting it', 'info'); }
     if (t.dataset.exp) { const [rid, i] = t.dataset.exp.split(':'); A.startExpedition(REGIONS.find((r) => r.id === rid), EXPEDITIONS[+i]); }
     if (t.dataset.collect) A.collectExpedition();
+    if (t.dataset.aucjoin) this.aucJoin(); if (t.dataset.aucbid) this.aucBid();
     if (t.dataset.adrush) A.rewarded(() => { const x = s.exped; if (x) { x.end = Date.now() + (x.end - Date.now()) / 2; A.persist(); this.renderScreen(); } });
     if (t.dataset.adgift) A.rewarded(() => { const d = dayNumber(); if (s.adGift.day !== d) s.adGift = { day: d, n: 0 }; s.adGift.n++; const b = MYSTERY[Math.min(s.tier, 1)]; const r = rollRough(rng((Math.random() * 1e9) | 0), { tier: b.tier, luck: b.luck, src: 'mystery', known: false }); r.paid = 0; A.addRough(r); this.toast('Free rock added to your vault', 'good'); A.persist(); this.renderScreen(); });
     if (t.dataset.vg) { const g = A.gemById(t.dataset.vg); if (g) { const m = this.openModal('gem'); m.innerHTML = `<div class="card">${s.cases.includes(g.id) ? this.gemActionsCase(g) : this.gemActions(g, false)}<button class="big ghost" data-m="close">Close</button></div>`; } }

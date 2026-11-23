@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{position:fixed;left:0;top:0;display:block}
+@font-face{font-family:'Limelight';src:url(../fonts/Limelight.woff2) format('woff2')}@font-face{font-family:'Jost';src:url(../fonts/Jost-500.woff2) format('woff2')}</style></head>
+<body><canvas id="gl"></canvas><canvas id="tx"></canvas>
+<script type="module">
+// GLINT cover / thumbnail generator, rendered with the game's own ray tracer.  covers.html?w=1920&h=1080&text=1
+import { Renderer } from '../src/gl.js';
+import { CUTS, cutPlanes } from '../src/cuts.js';
+import { optics } from '../src/species.js';
+import { makeRough } from '../src/habits.js';
+import { rng, mMul, mRotX, mRotY, mRotZ } from '../src/math.js';
+const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
+const land = W / H > 1.3, port = H / W > 1.2;
+await Promise.all([document.fonts.load("120px Limelight"), document.fonts.load("30px Jost")]);
+const R = new Renderer(document.getElementById('gl')); R.resize(W, H, 1);
+// background: black velvet with a warm pool of light and deco rays
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H; const c = bg.getContext('2d');
+const g0 = c.createRadialGradient(W / 2, H * 0.55, 10, W / 2, H * 0.5, Math.max(W, H) * 0.75); g0.addColorStop(0, '#3a1522'); g0.addColorStop(0.45, '#1a0910'); g0.addColorStop(1, '#050204'); c.fillStyle = g0; c.fillRect(0, 0, W, H);
+c.save(); c.translate(W / 2, H * (TEXT ? 0.58 : 0.5)); c.globalCompositeOperation = 'lighter';
+for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; c.rotate(Math.PI * 2 / 28); c.fillStyle = `rgba(214,176,106,${i % 2 ? 0.025 : 0.045})`; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.max(W, H), -40); c.lineTo(Math.max(W, H), 40); c.fill(); }
+c.restore();
+// velvet sheen folds
+for (let i = 0; i < 9; i++) { const y = H * (0.62 + i * 0.05); const gr = c.createLinearGradient(0, y - 30, 0, y + 30); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,200,210,0.025)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, y - 30, W, 60); }
+R.setBackground(bg);
+const S = Math.min(W, H);
+const gem = (cut, sp, vid, x, y, r, tilt, yaw, roll = 0, tone = 1.05) => { const C = CUTS[cut]; const pl = cutPlanes(cut, { pav: C.pav, crown: C.crown, table: C.table, uG: 1, uP: 1, uC: 1, uT: 1 }); const o = optics(sp, vid, tone, 0.2);
+  return { stone: { planes: pl, frost: pl.map(() => 0), inc: [], ver: 1 }, x, y, r, rot: mMul(mRotZ(roll), mMul(mRotX(tilt), mRotY(yaw))), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: 1.3, bound: 1.3, bounces: 9 }; };
+const cy = H * (TEXT ? (port ? 0.6 : land ? 0.62 : 0.6) : 0.47);
+const list = [];
+if (land) {
+  list.push(gem('oval', 'sapphire', 'blue', W / 2 - S * 0.56, cy + S * 0.1, S * 0.19, 0.95, 0.4, 0.25, 0.95));
+  list.push(gem('emerald', 'emerald', 'muzo', W / 2 + S * 0.56, cy + S * 0.12, S * 0.18, 1.0, 0.2, -0.3));
+  list.push(gem('pear', 'ruby', 'pigeon', W / 2 - S * 0.86, cy - S * 0.2, S * 0.12, 0.9, 1.2, 0.6));
+  list.push(gem('cushion', 'tourmaline', 'paraiba', W / 2 + S * 0.86, cy - S * 0.2, S * 0.12, 0.95, 0.7, -0.5));
+  list.push(gem('marquise', 'tanzanite', 'violet', W / 2 - S * 0.62, cy - S * 0.38, S * 0.08, 0.9, 0.3, 1.2));
+  list.push(gem('trillion', 'garnet', 'spessartite', W / 2 + S * 0.62, cy - S * 0.38, S * 0.08, 0.95, 0.5));
+} else {
+  const k = port ? 1 : 0.7;
+  list.push(gem('oval', 'sapphire', 'blue', W / 2 - S * 0.3 * k, cy + S * 0.36 * k, S * 0.17, 0.95, 0.4, 0.35, 0.95));
+  list.push(gem('emerald', 'emerald', 'muzo', W / 2 + S * 0.3 * k, cy + S * 0.37 * k, S * 0.16, 1.0, 0.2, -0.35));
+  list.push(gem('pear', 'ruby', 'pigeon', W / 2 - S * 0.36 * k, cy - S * (port ? 0.3 : 0.2), S * 0.1, 0.9, 1.2, 0.6));
+  list.push(gem('cushion', 'tourmaline', 'paraiba', W / 2 + S * 0.36 * k, cy - S * (port ? 0.3 : 0.2), S * 0.1, 0.95, 0.7, -0.5));
+}
+list.push(gem('round', 'diamond', 'white', W / 2, cy, S * (land ? 0.3 : port ? 0.27 : 0.24), 1.12, 0.3, 0, 0.7));
+// a rough crystal peeking in, for the "cut it yourself" story
+const rr = makeRough({ habit: 'hexpoint', size: 1, clarity: 0.2 }, rng(9)); const oa = optics('quartz', 'amethyst', 1, 0);
+if (land) list.push({ stone: { planes: rr.planes, frost: rr.planes.map((p) => (p.tag % 100 === 1 ? 0.55 : 0.12)), inc: [], ver: 1 }, x: W / 2 + S * 0.3, y: cy + S * 0.3, r: S * 0.09, rot: mMul(mRotZ(-0.9), mRotX(0.3)), ri: oa.ri, disp: oa.disp, sig: oa.sig.map((v) => v / 1.4), tint: oa.tint, rb: rr.r * 1.15, bound: rr.r * 1.05, grain: 7 });
+for (let i = 0; i < 2; i++) { R.begin(); for (const it of list) R.gem(it); R.end({ time: 1, bloom: 0.7, streak: 0.75, threshold: 1.4, vignette: 0.55, exposure: 1.05 }); }
+// text layer
+const tx = document.getElementById('tx'); tx.width = W; tx.height = H; const t = tx.getContext('2d');
+if (TEXT) {
+  const fs = Math.round(S * (port ? 0.2 : land ? 0.2 : 0.2)); t.textAlign = 'center'; t.textBaseline = 'alphabetic';
+  const ty = H * (port ? 0.24 : 0.25);
+  t.font = `${fs}px Limelight`; const grd = t.createLinearGradient(0, ty - fs, 0, ty); grd.addColorStop(0, '#fff6dc'); grd.addColorStop(0.45, '#f4d99c'); grd.addColorStop(0.62, '#a8783a'); grd.addColorStop(1, '#f4d99c');
+  t.shadowColor = 'rgba(244,217,156,0.45)'; t.shadowBlur = fs * 0.25; t.fillStyle = grd; t.letterSpacing = `${Math.round(fs * 0.1)}px`; t.fillText('GLINT', W / 2 + fs * 0.05, ty);
+  t.shadowBlur = 0; t.letterSpacing = `${Math.round(fs * 0.06)}px`; t.font = `${Math.round(fs * 0.17)}px Jost`; t.fillStyle = '#d6b06a'; t.fillText('GEM CUTTER SIMULATOR', W / 2, ty + fs * 0.36);
+  t.strokeStyle = 'rgba(214,176,106,0.6)'; t.lineWidth = Math.max(1.5, fs * 0.012); const lw = fs * 1.6; t.beginPath(); t.moveTo(W / 2 - lw, ty + fs * 0.5); t.lineTo(W / 2 - fs * 0.12, ty + fs * 0.5); t.moveTo(W / 2 + fs * 0.12, ty + fs * 0.5); t.lineTo(W / 2 + lw, ty + fs * 0.5); t.stroke();
+  t.fillStyle = '#d6b06a'; t.beginPath(); t.moveTo(W / 2, ty + fs * 0.44); t.lineTo(W / 2 + fs * 0.06, ty + fs * 0.5); t.lineTo(W / 2, ty + fs * 0.56); t.lineTo(W / 2 - fs * 0.06, ty + fs * 0.5); t.fill();
+}
+window.coverReady = true;
+</script></body></html>

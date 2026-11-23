@@ -10,6 +10,7 @@ const GAMES = {
   hordemind: { dir: 'hordemind', key: 'hordemind_profile_v1', profile: { tutorialDone: true, hive: { brood: 10, vats: 10, forge: 4, chitin: 4, royal: 5, pit: 0 }, stats: { hunts: 10 }, settings: { sfx: 0, music: 0 } } },
   emberkeep: { dir: 'emberkeep', key: 'emberkeep_profile_v1', profile: { tutorialDone: true, coins: 0, deck: ['flame', 'storm', 'stone', 'void', 'arc'], cards: { flame: 3, frost: 3, storm: 3, stone: 3, gold: 2, venom: 2, sun: 2, void: 2, arc: 3 }, workshop: { wispDmg: 8, speed: 5, crit: 5, hp: 15, regen: 10, embers: 15, startEmbers: 10, nova: 2 }, lab: { levels: { autoSummon: 1, autoMerge: 1, autoPower: 1, speed2: 1 }, active: [] }, login: { last: 99999999, streak: 1, pending: false }, settings: { sfx: 0, music: 0 } } },
   fuseworks: { dir: 'fuseworks', key: 'fuseworks_profile_v1', profile: { tutorialDone: true, settings: { sfx: 0, music: 0, lowFx: false, reaches: true, fast: false } } },
+  glint: { dir: 'glint', key: 'glint_profile_v1', profile: { v: 1, tut: 2, tier: 1, money: 2400, rep: 60, up: { machine: 2, refract: 1, loupe: 2, hammer: 2 }, cases: [null, null, null, null, null], settings: { sfx: 0, music: 0, quality: 'high', hints: true } } },
   driftline: { dir: 'driftline', key: 'driftline_profile_v1', profile: { tutorialDone: true, car: 'wraith', equip: { paint: 'p_synth', decal: 'd_bolt', glow: 'g_cyan', smoke: 's_pink' }, owned: { p_synth: true, d_bolt: true, g_cyan: true, s_pink: true, p_red: true, d_none: true, g_none: true, s_white: true }, stats: { races: 10 }, settings: { sfx: 0, music: 0 } } },
 };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
@@ -75,6 +76,32 @@ const DRIVERS = {
     });
     return { preroll: 1 * 30, shots: [102, 140, 430] };
   },
+  async glint(pg) {
+    // scripted, real gameplay: crack a rock → reveal → plan → grind three facet tiers to perfect meets → polish → certificate
+    await pg.evaluate(() => {
+      const a = window.__app; a.frame = () => {}; a.ui.closeModal();
+      const r = { id: 'trailer', sp: 'sapphire', vid: 'cornflower', seed: 31337, size: 5.8, clarity: 0.12, tone: 1.0, known: false, src: 'mystery', paid: 0 };
+      a.bench.load(r); let f = 0, phase = 'crack';
+      window.__step = (render) => {
+        for (let i = 0; i < 2; i++) {
+          f++; const b = a.bench; const L = a.benchL;
+          if (b.stage === 'crack' && [24, 46, 68].includes(f)) b.hammer(L.gx + (f % 3 - 1) * 14, L.gy - 6);
+          if (b.stage === 'plan' && phase === 'crack') { phase = 'plan'; b.planAt = f; }
+          if (b.stage === 'plan' && f - b.planAt === 70) { b.place.yaw += 0.4; b.refit(); a.ui.bench(b); }
+          if (b.stage === 'plan' && f - b.planAt === 110) b.startCut();
+          if (b.stage === 'cut' && b.sub !== 'girdle') {
+            if (!b.curve.ready) b.stepCurve(40);
+            if (b.curve.ready && !b.grinding && !b.stageDone) { b.setAngle(b.curve.best.a); b.grindStart(); b.hold = 1.6; }
+            const sd = b.stageDef(); if (b.grinding && (b.P[sd.u] || 0) >= 1.0) b.grindStop();
+          }
+          if (b.stage === 'polish') { const t = f * 0.09; for (let k = 0; k < 3; k++) b.rub(L.gx + Math.cos(t + k) * L.gr * 0.55, L.gy + Math.sin(t * 1.3 + k) * L.gr * 0.4, 26); }
+          a.step(1 / 60);
+        }
+        if (render) a.render(1 / 30);
+      };
+    });
+    return { preroll: 1, shots: [80, 250, 470] };
+  },
   async driftline(pg) {
     await pg.evaluate(async () => {
       const a = window.__app; a.loop = () => {}; a.startRace({ mode: 'quick', seed: 412, name: 'Boulevard 88' });
@@ -90,7 +117,7 @@ async function video(b, base, name, g, w, h, outDir, coverPng, shots) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [g.key, JSON.stringify(g.profile)]);
   const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
-  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && ['lobby', 'home', 'title'].includes(window.__app.state), null, { timeout: 20000 });
+  await pg.goto(`${base}/${g.dir ? g.dir + '/' : ''}index.html`); await pg.waitForFunction(() => window.__app && ['lobby', 'home', 'title', 'ready'].includes(window.__app.state), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
   const { preroll, shots: dshots } = await DRIVERS[name](pg); if (dshots && shots) shots = dshots;
   await pg.evaluate((n) => { for (let i = 0; i < n; i++) window.__step(i > n - 3); if (window.__stage) window.__stage(); }, preroll);
