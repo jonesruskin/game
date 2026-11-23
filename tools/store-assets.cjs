@@ -77,30 +77,32 @@ const DRIVERS = {
     return { preroll: 1 * 30, shots: [102, 140, 430] };
   },
   async glint(pg) {
-    // scripted, real gameplay: crack a rock → reveal → plan → grind three facet tiers to perfect meets → polish → certificate
+    // scripted, real gameplay: crack a rock → reveal → plan → grind three facet tiers to perfect meets (time-lapse) → polish → certificate → the shop
     await pg.evaluate(() => {
       const a = window.__app; a.frame = () => {}; a.ui.closeModal();
       const r = { id: 'trailer', sp: 'sapphire', vid: 'cornflower', seed: 31337, size: 5.8, clarity: 0.12, tone: 1.0, known: false, src: 'mystery', paid: 0 };
-      a.bench.load(r); let f = 0, phase = 'crack';
+      a.bench.load(r); let f = 0, planAt = -1, certAt = -1;
       window.__step = (render) => {
         for (let i = 0; i < 2; i++) {
           f++; const b = a.bench; const L = a.benchL;
-          if (b.stage === 'crack' && [24, 46, 68].includes(f)) b.hammer(L.gx + (f % 3 - 1) * 14, L.gy - 6);
-          if (b.stage === 'plan' && phase === 'crack') { phase = 'plan'; b.planAt = f; }
-          if (b.stage === 'plan' && f - b.planAt === 70) { b.place.yaw += 0.4; b.refit(); a.ui.bench(b); }
-          if (b.stage === 'plan' && f - b.planAt === 110) b.startCut();
+          if (b.stage === 'crack' && [20, 44, 66].includes(f)) b.hammer(L.gx + (f % 3 - 1) * 14, L.gy - 6);
+          if (b.stage === 'plan' && planAt < 0) planAt = f;
+          if (b.stage === 'plan' && f - planAt === 50) { b.place.yaw += 0.4; b.refit(); a.ui.bench(b); }
+          if (b.stage === 'plan' && f - planAt === 100) b.startCut();
           if (b.stage === 'cut' && b.sub !== 'girdle') {
-            if (!b.curve.ready) b.stepCurve(40);
-            if (b.curve.ready && !b.grinding && !b.stageDone) { b.setAngle(b.curve.best.a); b.grindStart(); b.hold = 1.6; }
-            const sd = b.stageDef(); if (b.grinding && (b.P[sd.u] || 0) >= 1.0) b.grindStop();
+            if (!b.curve.ready) b.stepCurve(500);
+            if (b.curve.ready && !b.grinding && !b.stageDone) { b.setAngle(b.curve.best.a); b.grindStart(); }
+            const sd = b.stageDef(); if (b.grinding) { b.P[sd.u] = Math.min(1, (b.P[sd.u] || 0) + 0.03); if (b.P[sd.u] >= 1) b.grindStop(); }
           }
-          if (b.stage === 'polish') { const t = f * 0.09; for (let k = 0; k < 3; k++) b.rub(L.gx + Math.cos(t + k) * L.gr * 0.55, L.gy + Math.sin(t * 1.3 + k) * L.gr * 0.4, 26); }
+          if (b.stage === 'polish') { const t = f * 0.09; for (let k = 0; k < 3; k++) b.rub(L.gx + Math.cos(t + k) * L.gr * 0.55, L.gy + Math.sin(t * 1.3 + k) * L.gr * 0.4, 40); }
+          if (b.stage === 'appraise' && certAt < 0) certAt = f;
+          if (certAt > 0 && f - certAt === 330) { const btn = document.querySelector('.cert [data-act=case]'); if (btn) btn.click(); a.setView('shop'); for (let k = 0; k < 3; k++) a.shop.spawn(); }
           a.step(1 / 60);
         }
         if (render) a.render(1 / 30);
       };
     });
-    return { preroll: 1, shots: [80, 250, 470] };
+    return { preroll: 1, shots: [70, 220, 360] };
   },
   async driftline(pg) {
     await pg.evaluate(async () => {

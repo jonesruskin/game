@@ -93,8 +93,8 @@ void main(){
     d = reflect(d, nn);
     if(max(w.r,max(w.g,w.b))<0.008) break;
   }
-  // a whisper of the body colour even in dark zones, so stones read as their colour
-  col += (vec3(1.0)-exp(-u_sig*0.8))*0.0 + u_tint*0.012;
+  // a whisper of the body colour even in dark zones, so stones read as their colour; fluorescent stones glow
+  col += u_tint*(0.012 + u_fx.w*0.55*(0.6 + 0.4*(1.0 - abs(dot(rd, n)))));
   o = vec4(col*u_opt.z*cov, cov*u_fx.z);
 }`;
 const FS_DOWN = `#version 300 es
@@ -214,7 +214,7 @@ export class Renderer {
     gl.uniform4f(u.u_opt, g.ri, g.disp, g.exposure || 1, g.gfrost || 0);
     gl.uniform3fv(u.u_sig, g.sig || [0, 0, 0]); gl.uniform3fv(u.u_tint, g.tint || [1, 1, 1]);
     const rb = g.rb || 1.35; gl.uniform4f(u.u_cam, rb, g.cam || rb * 7, (2 * rb) / Math.max(4, 2 * pr), g.bound || rb * 1.2);
-    gl.uniform4f(u.u_fx, g.grain || 7, g.light === undefined ? 1 : g.light, g.alpha === undefined ? 1 : g.alpha, 0);
+    gl.uniform4f(u.u_fx, g.grain || 7, g.light === undefined ? 1 : g.light, g.alpha === undefined ? 1 : g.alpha, g.glow || 0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
   end(opt = {}) {

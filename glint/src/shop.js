@@ -24,7 +24,7 @@ export class Shop {
   spawn() {
     const c = makeCustomer(this.R, this.save); const R = rng(c.look);
     Object.assign(c, { x: -0.05, y: R.range(0.72, 0.9), tx: 0, ty: 0, state: 'enter', wait: 0, visits: 0, skin: R.pick(SKIN), coat: R.pick(COAT), hat: R.int(0, 5), h: R.range(0.95, 1.08), walk: 0, dir: 1, bubble: null });
-    this.cust.push(c); this.app.audio.play('door');
+    c.bubble = { text: c.line, t: 0 }; this.cust.push(c); this.app.audio.play('door');
     this.pickCase(c);
   }
   pickCase(c) {
@@ -81,7 +81,7 @@ export class Shop {
   gems() {
     const s = this.save, L = this.app.shopL; if (!L || !L.caseRects) return [];
     const out = []; s.cases.forEach((id, i) => { if (!id) return; const g = this.app.gemById(id); const r = L.caseRects[i]; if (!g || !r) return; const st = this.app.gemStone(g); if (!st) return; const o = optics(g.sp, g.vid, g.tone, 0);
-      const a = this.t * 0.6 + i * 1.7; out.push({ stone: st, x: r.gx, y: r.gy, r: r.gr, rot: this.app.spinRot(a, 1.05), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: st.rb || 1.3, bound: st.bound, bounces: 6, light: 0.9 + upVal(s, 'lights') * 0.2 }); });
+      const a = this.t * 0.6 + i * 1.7; out.push({ stone: st, glow: o.glow, x: r.gx, y: r.gy, r: r.gr, rot: this.app.spinRot(a, 1.05), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: st.rb || 1.3, bound: st.bound, bounces: 6, light: 0.9 + upVal(s, 'lights') * 0.2 }); });
     return out;
   }
   draw(c) {

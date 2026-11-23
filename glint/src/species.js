@@ -36,6 +36,12 @@ export const SPECIES = {
       { id: 'london', name: 'London Blue Topaz', col: [0.2, 0.45, 0.72], k: 0.85, ppc: 75, w: 14 },
       { id: 'imperial', fam: 'orange', name: 'Imperial Topaz', col: [1.0, 0.55, 0.35], k: 0.7, ppc: 650, w: 4, rare: 2 },
     ] },
+  iolite: { name: 'Iolite', ri: 1.545, disp: 0.017, sg: 2.61, h: 7.2, habit: 'pebble', size: [5, 9], clarity: 0.28, tier: 1, origin: 'Orissa, India',
+    fact: 'Vikings may have used thin slices of iolite as a polarising filter to find the sun through clouds.',
+    vars: [
+      { id: 'iolite', name: 'Iolite', fam: 'purple', col: [0.42, 0.42, 0.9], k: 0.8, ppc: 42, w: 80 },
+      { id: 'water', name: 'Water Sapphire', fam: 'blue', col: [0.6, 0.68, 0.95], k: 0.6, ppc: 110, w: 10, rare: 1 },
+    ] },
   aquamarine: { name: 'Aquamarine', ri: 1.577, disp: 0.014, sg: 2.72, h: 7.5, habit: 'hexflat', size: [4, 8.5], clarity: 0.18, tier: 2, origin: 'Minas Gerais, Brazil',
     fact: 'Sailors carried aquamarine as a charm against storms: "the water of the sea".',
     vars: [
@@ -62,7 +68,13 @@ export const SPECIES = {
       { id: 'blue', name: 'Blue Zircon', col: [0.35, 0.8, 0.95], k: 0.65, ppc: 320, w: 60 },
       { id: 'cognac', name: 'Cognac Zircon', col: [0.9, 0.55, 0.25], k: 0.7, ppc: 160, w: 40 },
     ] },
-  tanzanite: { name: 'Tanzanite', ri: 1.7, disp: 0.019, sg: 3.35, h: 6.5, habit: 'tabular', size: [3.2, 6.5], clarity: 0.2, tier: 3, origin: 'Merelani Hills, Tanzania',
+  kunzite: { name: 'Kunzite', ri: 1.67, disp: 0.017, sg: 3.18, h: 6.8, habit: 'ortho', size: [4, 8.5], clarity: 0.2, tier: 2, origin: 'Nuristan, Afghanistan',
+    fact: 'Named after Tiffany\'s gemmologist George F. Kunz. Kunzite slowly fades in sunlight, so it\'s called the "evening stone".',
+    vars: [
+      { id: 'kunzite', name: 'Kunzite', fam: 'pink', col: [0.95, 0.68, 0.88], k: 0.6, ppc: 120, w: 80 },
+      { id: 'hiddenite', name: 'Hiddenite', fam: 'green', col: [0.55, 0.9, 0.5], k: 0.65, ppc: 600, w: 6, rare: 2 },
+    ] },
+  tanzanite: { name: 'Tanzanite', ri: 1.7, disp: 0.019, sg: 3.35, h: 6.5, habit: 'ortho', size: [3.2, 6.5], clarity: 0.2, tier: 3, origin: 'Merelani Hills, Tanzania',
     fact: 'Found in only one place on Earth: a 7 km strip in the foothills of Kilimanjaro.',
     vars: [
       { id: 'violet', name: 'Tanzanite', col: [0.45, 0.35, 0.95], k: 0.85, ppc: 650, w: 70 },
@@ -80,6 +92,12 @@ export const SPECIES = {
     vars: [
       { id: 'golden', name: 'Golden Chrysoberyl', col: [0.95, 0.85, 0.3], k: 0.65, ppc: 260, w: 70 },
       { id: 'alexandrite', name: 'Alexandrite', col: [0.25, 0.72, 0.5], warm: [0.85, 0.2, 0.35], k: 0.85, ppc: 12000, w: 2.5, rare: 3 },
+    ] },
+  sphene: { name: 'Sphene', ri: 1.95, disp: 0.051, sg: 3.52, h: 5.2, habit: 'tabular', size: [3, 6], clarity: 0.3, tier: 3, origin: 'Tuléar, Madagascar',
+    fact: 'Sphene has more fire than diamond: its dispersion is 0.051 against diamond\'s 0.044.',
+    vars: [
+      { id: 'sphene', name: 'Sphene', fam: 'yellow', col: [0.85, 0.9, 0.35], k: 0.65, ppc: 450, w: 70 },
+      { id: 'chrome', name: 'Chrome Sphene', fam: 'green', col: [0.35, 0.85, 0.3], k: 0.8, ppc: 1500, w: 6, rare: 2 },
     ] },
   sapphire: { name: 'Sapphire', ri: 1.77, disp: 0.018, sg: 4.0, h: 9, habit: 'barrel', size: [3, 6.2], clarity: 0.3, tier: 4, origin: 'Ratnapura, Sri Lanka',
     fact: 'Sapphire is so hard it is used for watch crystals and the windows of supermarket scanners.',
@@ -102,6 +120,12 @@ export const SPECIES = {
       { id: 'emerald', name: 'Emerald', col: [0.12, 0.78, 0.38], k: 0.95, ppc: 3800, w: 80 },
       { id: 'muzo', name: 'Muzo Emerald', col: [0.05, 0.85, 0.35], k: 1.15, ppc: 16000, w: 5, rare: 3 },
     ] },
+  benitoite: { name: 'Benitoite', ri: 1.78, disp: 0.046, sg: 3.65, h: 6.2, habit: 'tabular', size: [2.6, 5], clarity: 0.3, tier: 4, origin: 'San Benito County, California',
+    fact: 'Found in gem quality at only one mine on Earth. Under ultraviolet light it glows bright blue.',
+    vars: [{ id: 'benitoite', name: 'Benitoite', fam: 'blue', col: [0.3, 0.45, 1.0], k: 0.85, ppc: 5200, w: 10, rare: 2, glow: 0.18 }] },
+  taaffeite: { name: 'Taaffeite', ri: 1.72, disp: 0.019, sg: 3.6, h: 8.2, habit: 'barrel', size: [2.4, 4.6], clarity: 0.25, tier: 5, origin: 'Ratnapura, Sri Lanka',
+    fact: 'In 1945 Count Taaffe noticed one "spinel" in a box of cut stones behaved oddly: it was a new mineral, the only gem first identified after being cut.',
+    vars: [{ id: 'taaffeite', name: 'Taaffeite', fam: 'purple', col: [0.85, 0.6, 0.85], k: 0.7, ppc: 24000, w: 3, rare: 3 }] },
   diamond: { name: 'Diamond', ri: 2.417, disp: 0.044, sg: 3.52, h: 10, habit: 'octa', size: [2.4, 5.2], clarity: 0.32, tier: 5, origin: 'Jwaneng, Botswana',
     fact: 'Diamonds form 150 km down and ride to the surface in volcanic eruptions, at up to 30 km/h.',
     vars: [

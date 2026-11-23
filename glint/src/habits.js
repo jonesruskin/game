@@ -31,7 +31,7 @@ const HABITS = {
     for (let i = 0; i < 3; i++) { const a = ((i + ph) / 3) * Math.PI * 2; out.push([[Math.cos(a) * 0.6, 0.8, Math.sin(a) * 0.6], 0.6 + (L / 2) * 0.8]); }
     out.push([[R.range(-0.25, 0.25), -1, R.range(-0.25, 0.25)], L / 2]); return out; },
   pebble(r, R) { const out = []; const n = 20; for (let i = 0; i < n; i++) { const y = 1 - (2 * (i + 0.5)) / n, rr = Math.sqrt(1 - y * y), a = i * 2.39996; out.push([[Math.cos(a) * rr, y * 0.85, Math.sin(a) * rr], R.range(0.86, 1)]); } return out; },
-  tabular(r, R) { const out = []; const ph = R.range(0, 1); for (let i = 0; i < 8; i++) { const a = ((i + ph) / 8) * Math.PI * 2; out.push([[Math.cos(a), 0, Math.sin(a) * 1.3], R.range(0.92, 1.05)]); } out.push([[0, 1, 0], 0.42], [[0, -1, 0], 0.42]); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; out.push([[Math.cos(a), 1.1, Math.sin(a)], 1.0]); out.push([[Math.cos(a), -1.1, Math.sin(a)], 1.0]); } return out; },
+  tabular(r, R) { const out = []; const ph = R.range(0, 1); for (let i = 0; i < 8; i++) { const a = ((i + ph) / 8) * Math.PI * 2; out.push([[Math.cos(a), 0, Math.sin(a) * 1.3], R.range(0.92, 1.05)]); } out.push([[0, 1, 0], 0.66], [[0, -1, 0], 0.66]); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; out.push([[Math.cos(a), 1.1, Math.sin(a)], 1.25]); out.push([[Math.cos(a), -1.1, Math.sin(a)], 1.25]); } return out; },
 };
 export const HABIT_IDS = Object.keys(HABITS);
 

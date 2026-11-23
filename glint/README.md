@@ -17,7 +17,7 @@ A gem-cutting and jewellery-shop simulator for web portals. Every gem is **ray-t
 6. **Grow:** buy better tools (refractometer, precision mast, inclusion scope, planner), showcase lights, décor and advertising. Hire a clerk (offline sales) and apprentices (who cut with your recipe book). Move up five premises.
 
 ## Content
-20 real mineral species and 47 varieties (from Rock Crystal to the Red Diamond) · 10 cuts (Round Brilliant, Oval, Cushion, Emerald, Pear, Marquise, Princess, Trillion, Asscher, Radiant) · 9 crystal habits · 5 premises · 11 upgrade lines · apprentices · 8 customer archetypes with haggling · VIP commissions · Mystery Rocks, Rough Dealer, Expeditions (6 world gem fields) and an Auction House with rival dealers · Codex with real mineral facts · Hall of Fame · 26 achievements · Stone of the Day · offline progress
+20 real mineral species and 55 varieties (from Rock Crystal to the Red Diamond) · 10 cuts (Round Brilliant, Oval, Cushion, Emerald, Pear, Marquise, Princess, Trillion, Asscher, Radiant) · 9 crystal habits · 5 premises · 11 upgrade lines · apprentices · 8 customer archetypes with haggling · VIP commissions · Mystery Rocks, Rough Dealer, Expeditions (9 world gem fields) and an Auction House with rival dealers · Codex with real mineral facts · Hall of Fame · 26 achievements · Stone of the Day · offline progress
 
 ## Code map
 ```
@@ -29,7 +29,7 @@ src/habits.js    rough crystals in their real habits (hexagonal prism, octahedro
 src/optics.js    CPU light-performance analyser (light return, fire, scintillation, windowing, extinction)
 src/optable.js   generated: the optical optimum for each cut × refractive index (tools/optics-table.mjs)
 src/stone.js     the stone pipeline: placement & fitting, grind state, clarity, carat weight, appraisal
-src/species.js   20 minerals with real optical constants, 47 varieties, colours, prices, facts
+src/species.js   20 minerals with real optical constants, 55 varieties, colours, prices, facts
 src/bench.js     the cutting bench: crack → plan → cut → polish → appraise
 src/shop.js      the shop floor: customers, browsing, buying, haggling, commissions, offline sales
 src/workshop.js  apprentices cutting with real physics

@@ -68,8 +68,11 @@ export const MYSTERY = [
 ];
 export const REGIONS = [
   { id: 'brazil', name: 'Minas Gerais, Brazil', tier: 1, species: ['quartz', 'topaz', 'aquamarine', 'tourmaline', 'morganite'], icon: 'palm' },
-  { id: 'srilanka', name: 'Ratnapura, Sri Lanka', tier: 1, species: ['garnet', 'zircon', 'spinel', 'chrysoberyl', 'sapphire'], icon: 'river' },
+  { id: 'srilanka', name: 'Ratnapura, Sri Lanka', tier: 1, species: ['garnet', 'iolite', 'zircon', 'spinel', 'chrysoberyl', 'sapphire', 'taaffeite'], icon: 'river' },
   { id: 'tanzania', name: 'Merelani, Tanzania', tier: 2, species: ['tanzanite', 'garnet', 'spinel', 'tourmaline'], icon: 'mountain' },
+  { id: 'afghan', name: 'Nuristan, Afghanistan', tier: 2, species: ['kunzite', 'tourmaline', 'aquamarine', 'spinel'], icon: 'mountain' },
+  { id: 'madagascar', name: 'Tuléar, Madagascar', tier: 3, species: ['sphene', 'sapphire', 'morganite', 'garnet'], icon: 'palm' },
+  { id: 'california', name: 'San Benito, California', tier: 3, species: ['benitoite', 'kunzite', 'tourmaline'], icon: 'mine' },
   { id: 'colombia', name: 'Muzo, Colombia', tier: 3, species: ['emerald', 'quartz'], icon: 'jungle' },
   { id: 'myanmar', name: 'Mogok, Myanmar', tier: 3, species: ['ruby', 'sapphire', 'spinel', 'peridot'], icon: 'temple' },
   { id: 'botswana', name: 'Jwaneng, Botswana', tier: 4, species: ['diamond'], icon: 'mine' },

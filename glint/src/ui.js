@@ -73,7 +73,7 @@ export class UI {
     if (b.stage !== 'empty') h += `<div class="steps">${steps.map((n, i) => `<i class="${i < si ? 'done' : i === si ? 'on' : ''}">${n}</i>`).join('')}</div>`;
     if (b.stage === 'empty') {
       const rs = this.s.roughs; const s = this.s;
-      h += `<h2>The bench is free</h2><p class="muted">Pick a rough stone to work on.</p>`;
+      h += `<h2>The bench is free</h2><p class="muted">Pick a rough stone to work on.</p>`; const N = TIERS[s.tier + 1]; if (N) h += `<div class="goal">${icon('crown', 'xs')} Next premises: <b>${esc(N.name)}</b><div class="pbar"><span style="width:${Math.min(100, (s.rep / N.rep) * 100)}%"></span></div><i>★ ${Math.floor(s.rep)} / ${N.rep} · ${fmt$(N.cost)}</i></div>`;
       if (!s.daily.done) h += `<button class="daily-cta" data-p="daily">${icon('cal')}<span><b>Stone of the Day</b><i>The same mystery rock for every cutter, today only</i></span></button>`;
       h += rs.length ? `<div class="rlist">${rs.slice(0, 24).map((r) => this.roughCard(r, 'load')).join('')}</div>` : `<div class="empty-note">No rough in your vault.</div>`;
       h += `<button class="big gold" data-p="market">${icon('market')} Buy rough at the Market</button>`;
@@ -115,7 +115,7 @@ export class UI {
     return `<svg class="dial" id="dial" viewBox="0 0 300 165"><path d="M ${cx - R - 10} ${cy} A ${R + 10} ${R + 10} 0 0 1 ${cx + R + 10} ${cy}" class="d-rim"/><g id="dCurve"></g><path id="dBand" class="d-band"/>${ticks}<g id="dNeedle"><line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - R + 4}" class="d-needle"/><circle cx="${cx}" cy="${cy}" r="9" class="d-hub"/></g><text x="${cx}" y="${cy - 52}" class="d-label">${sd.name.toUpperCase()} ${sd.key === 'table' ? 'SIZE' : 'ANGLE'}</text></svg>`;
   }
   bindBench(b) {
-    const g = $('#grindBtn'); if (g) { const on = (e) => { e.preventDefault(); this.app.start(); b.grindStart(); }; const off = () => b.grindStop(); g.addEventListener('pointerdown', on); g.addEventListener('pointerup', off); g.addEventListener('pointerleave', off); g.addEventListener('pointercancel', off); }
+    const g = $('#grindBtn'); if (g) { const on = (e) => { e.preventDefault(); try { g.setPointerCapture(e.pointerId); } catch (er) {} this.app.start(); b.grindStart(); }; const off = () => b.grindStop(); g.addEventListener('pointerdown', on); g.addEventListener('pointerup', off); g.addEventListener('pointerleave', off); g.addEventListener('pointercancel', off); }
     const d = $('#dial'); if (d) { let drag = false; const setFrom = (e) => { const r = d.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * 300 - 150, y = 150 - (e.clientY - r.top) / r.height * 165; let ang = Math.atan2(Math.max(0, y), x); const t = 1 - ang / Math.PI; const sd = b.stageDef(); const v = sd.range[0] + t * (sd.range[1] - sd.range[0]); b.setAngle(Math.round(v * 2) / 2); };
       d.addEventListener('pointerdown', (e) => { drag = true; d.setPointerCapture(e.pointerId); setFrom(e); this.app.audio.play('soft'); }); d.addEventListener('pointermove', (e) => { if (drag) setFrom(e); }); d.addEventListener('pointerup', () => (drag = false)); d.addEventListener('wheel', (e) => { e.preventDefault(); b.setAngle(b.angleOf() + (e.deltaY < 0 ? 0.5 : -0.5)); }, { passive: false }); }
   }
@@ -123,7 +123,7 @@ export class UI {
     if (this.app.view !== 'bench') return;
     if (b.stage === 'plan') { const r = b.r; const sc = upVal(this.s, 'loupe'); const e = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; }; e('pCt', fmtCt(b.planCt)); e('pYield', ((b.planCt / roughCarat(r)) * 100).toFixed(0) + '%'); e('pClar', sc >= 1 ? b.planClar.grade : sc >= 0.6 ? '≈ ' + b.planClar.grade : '?'); e('pVal', fmt$(b.planVal)); }
     if (b.stage === 'cut' && b.sub !== 'girdle') {
-      const sd = b.stageDef(); const a = b.angleOf(); const [a0, a1] = sd.range; const t = (a - a0) / (a1 - a0); const ang = 90 - t * 180;
+      const sd = b.stageDef(); const a = b.angleOf(); const [a0, a1] = sd.range; const t = (a - a0) / (a1 - a0); const ang = t * 180 - 90;
       const nd = $('#dNeedle'); if (nd) nd.setAttribute('transform', `rotate(${ang} 150 150)`);
       const av = $('#angleVal'); if (av) av.innerHTML = `${a.toFixed(1)}${sd.key === 'table' ? '%' : '°'} <small>${b.P[sd.u] > 0.02 ? 'locked' : 'drag the dial'}</small>`;
       const cv = b.curveAt(a); const lvl = upVal(this.s, 'refract');

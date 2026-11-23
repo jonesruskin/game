@@ -32,7 +32,7 @@ Every gem-cutting game we found treats cutting as a minigame with an arbitrary s
 | Appraise | 5 s | The certificate prints, the value counts up with coin ticks, stamps slam: IDEAL CUT, FLAWLESS, NEW RECORD |
 | Sell | ongoing | Customers walk in, browse, haggle; VIP commissions pay 2–3× |
 | Grow | hours | Tools, showcase lights, décor, ads, clerk, apprentices, five premises from Market Stall to Maison Royale |
-| Collect | days | 47 varieties in the Codex, Hall of Fame, 26 achievements, the Stone of the Day |
+| Collect | days | 55 varieties in the Codex, Hall of Fame, 26 achievements, the Stone of the Day |
 
 **Real decisions, not busywork:**
 - *Carats vs. clarity:* move the cut away from a flaw and the gem shrinks.

@@ -27,12 +27,13 @@ export const cutMult = (s) => { for (let i = 1; i < MPTS.length; i++) if (s <= M
 export class Bench {
   constructor(app) {
     this.app = app; this.stage = 'empty'; this.r = null; this.view = mMul(mRotX(0.5), mRotY(0.4)); this.spin = 0; this.zoom = 1; this.rb = 12; this.rbT = 12;
-    this.shards = []; this.dust = []; this.sparks = []; this.cracks = []; this.flash = 0; this.shake = 0; this.t = 0; this.curve = null; this.grinding = false; this.hold = 0;
+    this.shards = []; this.dust = []; this.sparks = []; this.cracks = []; this.flash = 0; this.shake = 0; this.t = 0; this.curve = null; this.grinding = false; this.hold = 0; this.timers = [];
   }
+  after(sec, fn) { this.timers.push({ t: sec, fn }); }
   get save() { return this.app.save; }
   // ---------------- loading ----------------
   load(r) {
-    this.r = r; this.t = 0; this.shards = []; this.cracks = []; this.flash = 0; this.result = null; this.meetQ = {}; this.grade = null;
+    this.timers = []; this.cracking = false; this.polishDone = false; this.r = r; this.t = 0; this.shards = []; this.cracks = []; this.flash = 0; this.result = null; this.meetQ = {}; this.grade = null;
     this.geom = roughGeom(r); this.S = SPECIES[r.sp]; this.V = variety(r.sp, r.vid); this.opt = optics(r.sp, r.vid, r.tone, 0.25);
     this.cut = (this.save.recipes[r.sp] && this.app.cutsAvailable().includes(this.save.recipes[r.sp].cut)) ? this.save.recipes[r.sp].cut : 'round';
     if (!this.app.cutsAvailable().includes(this.cut)) this.cut = 'round';
@@ -61,10 +62,10 @@ export class Bench {
     for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; const cx = (a[0] + b[0]) / 3, cy = (a[1] + b[1]) / 3; const ang = Math.atan2(cy, cx);
       this.shards.push({ pts: [[0, 0], a, b], x: L.gx, y: L.gy, vx: Math.cos(ang) * R.range(260, 520), vy: Math.sin(ang) * R.range(260, 520) - 200, rot: 0, vr: R.range(-6, 6), life: 1.3, t: 0, s }); }
     this.r.known = true; this.save.stats.cracked++;
-    const rare = this.V.rare || 0; setTimeout(() => { A.audio.play('reveal', rare); if (rare >= 3) A.platformHappy(); }, 260);
+    const rare = this.V.rare || 0; this.after(0.26, () => { A.audio.play('reveal', rare); if (rare >= 3) A.platformHappy(); });
     this.reveal = { t: 0, rare };
     this.app.discover(this.r);
-    setTimeout(() => { this.cracking = false; this.toPlan(true); }, 1500);
+    this.after(1.5, () => { this.cracking = false; this.toPlan(true); });
   }
   // ---------------- plan ----------------
   toPlan(fromCrack) {
@@ -105,7 +106,7 @@ export class Bench {
   }
   // ---------------- cut ----------------
   startCut() {
-    if (this.stage !== 'plan' || this.planCt < 0.02) return;
+    if (this.stage !== 'plan') return; if (this.planCt < 0.02) { this.app.ui.toast('No room for a gem there: move the outline into the crystal', 'bad'); this.app.audio.play('deny'); return; }
     const rec = this.save.recipes[this.r.sp + ':' + this.cut]; const C = CUTS[this.cut];
     this.P = { pav: rec ? rec.pav : C.pav, crown: rec ? rec.crown : C.crown, table: rec ? rec.table : C.table, uG: 0 };
     this.stage = 'cut'; this.sub = 'girdle'; this.starts = grindStarts(this.r, this.place, this.cut, this.P);
@@ -144,7 +145,7 @@ export class Bench {
       const q = clamp(1 - Math.abs(err) / win, 0, 1); const perfect = Math.abs(err) <= win * 0.4; this.meetQ[sd.id] = err > win ? Math.max(0, 1 - err / (win * 4)) * 0.6 : q;
       this.stageDone = true; this.app.ui.meet(perfect ? 'PERFECT MEET' : err > win ? 'OVER-GROUND' : 'GOOD MEET', perfect ? 'gold' : err > win ? 'red' : 'ok');
       this.app.audio.play(perfect ? 'ting' : err > win ? 'over' : 'meet'); if (perfect) { this.flash = 0.4; this.app.vibrate(25); }
-      setTimeout(() => this.nextStage(), 650);
+      this.after(0.65, () => this.nextStage());
     } else this.app.ui.meet('KEEP GRINDING', 'dim');
     this.app.ui.benchLive(this);
   }
@@ -180,7 +181,7 @@ export class Bench {
     const v = Object.values(this.polishMap); this.polishPct = 1 - v.reduce((a, b) => a + b, 0) / (v.length * 0.5);
     this.stone.frost = this.stone.planes.map((p) => (p.stage === STAGE.ROUGH ? 0.3 : this.polishMap[p.idx] ?? 0)); this.stone.ver++;
     this.app.ui.benchLive(this);
-    if (this.polishPct >= 0.985 && !this.polishDone) { this.polishDone = true; this.app.audio.play('ting'); this.app.audio.polishOn(0); setTimeout(() => this.finish(), 450); }
+    if (this.polishPct >= 0.985 && !this.polishDone) { this.polishDone = true; this.app.audio.play('ting'); this.app.audio.polishOn(0); this.after(0.45, () => this.finish()); }
   }
   // screen → facet index (CPU ray cast through the same camera as the shader)
   pick(px, py) {
@@ -205,6 +206,7 @@ export class Bench {
     const ap = appraise(g); g.value = Math.round(this.estValue(ct, score, cl.grade) * ({ Excellent: 1.08, 'Very Good': 1, Good: 0.92, Fair: 0.8 }[ap.polishG] || 1)); g.cutG = ap.cut; g.polishG = ap.polishG; g.colorG = ap.color;
     g.perfectMeets = ['pav', 'crown', 'table'].filter((k) => (this.meetQ[k] ?? 0) >= 0.6).length;
     this.result = g; this.viewT = mMul(mRotX(1.18), mRotY(0)); this.rbT = this.gemR * 1.08;
+    if (g.cutG === 'Ideal' || g.cutG === 'Excellent') { const L = this.L; const n = g.cutG === 'Ideal' ? 70 : 30; this.flash = g.cutG === 'Ideal' ? 0.9 : 0.4; for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, sp = 180 + Math.random() * 420; this.sparks.push({ x: L.gx, y: L.gy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, life: 0.7 + Math.random() * 0.7, t: 0, c: Math.random() < 0.6 ? '#ffd98a' : '#ffffff', s: 1.5 + Math.random() * 2 }); } }
     this.save.recipes[this.r.sp + ':' + this.cut] = { pav: this.P.pav, crown: this.P.crown, table: this.P.table };
     this.save.recipes[this.r.sp] = { cut: this.cut };
     this.app.gemFinished(g, this.r);
@@ -214,6 +216,7 @@ export class Bench {
   // ---------------- per frame ----------------
   update(dt) {
     this.t += dt; const A = this.app;
+    if (this.timers.length) { const due = []; for (const tm of this.timers) { tm.t -= dt; if (tm.t <= 0) due.push(tm); } if (due.length) { this.timers = this.timers.filter((x) => !due.includes(x)); for (const tm of due) tm.fn(); } }
     this.shake = Math.max(0, this.shake - dt * 2.5); this.flash = Math.max(0, this.flash - dt * 1.6);
     if (this.reveal) { this.reveal.t += dt; if (this.reveal.t > 3) this.reveal = null; }
     for (const s of this.shards) { s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 900 * dt; s.rot += s.vr * dt; } this.shards = this.shards.filter((s) => s.t < s.life);
@@ -249,7 +252,7 @@ export class Bench {
     const L = this.L, s = this.save; const best = s.hall[0]; let stone, o;
     if (best) { stone = this.app.gemStone(best); o = optics(best.sp, best.vid, best.tone, 0.25); }
     else { if (!this._show) { const pl = cutPlanes('round', { pav: 41.5, crown: 34, table: 0.56, uG: 1, uP: 1, uC: 1, uT: 1 }); this._show = { planes: pl, frost: pl.map(() => 0), inc: [], ver: 1, rb: 1.3, bound: 1.25 }; } stone = this._show; o = optics('sapphire', 'cornflower', 1, 0.25); }
-    return { stone, bound: stone.bound, x: L.gx, y: L.gy + L.gr * 0.12, r: L.gr * 0.78, rot: mMul(mRotX(1.02), mRotY(this.t * 0.35)), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: stone.rb || 1.3, light: 1 };
+    return { stone, bound: stone.bound, glow: o.glow, x: L.gx, y: L.gy + L.gr * 0.12, r: L.gr * 0.78, rot: mMul(mRotX(1.02), mRotY(this.t * 0.35)), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: stone.rb || 1.3, light: 1 };
   }
   gemDraw() {
     if (!this.r || this.stage === 'empty') return this.stage === 'empty' ? this.showcase() : null;
@@ -261,7 +264,7 @@ export class Bench {
     const sig = plan ? o.sig.map((x) => x / Math.max(1, this.geom.r * 0.35)) : o.sig;
     let alpha = 1; if (this.stage === 'crack') alpha = clamp((this.reveal ? this.reveal.t : 0) * 3, 0, 1);
     const bound = plan ? this.geom.r * 1.02 : (this.gemR || this.rb) * 1.02;
-    return { stone, bound, x: L.gx + ox, y: L.gy + oy, r: L.gr, rot: this.view, ri: o.ri, disp: o.disp, sig, tint: o.tint, rb: this.rb, grain: plan ? 7 / Math.max(1, this.geom.r * 0.3) : 7, exposure: 1 + this.flash * 0.6, alpha, light: 1 };
+    return { stone, bound, glow: o.glow, x: L.gx + ox, y: L.gy + oy, r: L.gr, rot: this.view, ri: o.ri, disp: o.disp, sig, tint: o.tint, rb: this.rb, grain: plan ? 7 / Math.max(1, this.geom.r * 0.3) : 7, exposure: 1 + this.flash * 0.6, alpha, light: 1 };
   }
   project(p) { // world point → screen (same camera as the shader)
     const L = this.L; const w = mApply(this.view, p); const cam = this.rb * 7; const s = cam / (cam - w[2]); return [L.gx + (w[0] * s / this.rb) * L.gr, L.gy - (w[1] * s / this.rb) * L.gr, w[2]];

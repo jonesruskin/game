@@ -20,7 +20,7 @@ Glint is a gem-cutting simulator where every stone is ray-traced in real time. L
 - 💰 **Run your jewellery shop:** set your prices, haggle with customers, deliver VIP commissions
 - 🏛️ **Grow from Market Stall to Maison Royale:** better tools, showcase lights, apprentices who cut for you, a clerk who sells while you're away
 - 🌍 **Buy rough** from the dealer, gamble on mystery rocks, send expeditions to Brazil, Sri Lanka or Colombia, and outbid rivals at the Auction House
-- 📖 **Collect 47 gem varieties** from 20 real minerals, each with real optical properties and fun facts
+- 📖 **Collect 55 gem varieties** from 20 real minerals, each with real optical properties and fun facts
 - 📅 **Stone of the Day:** the same mystery rock for everyone. Who can cut it best?
 
 Relaxing, satisfying and surprisingly deep. Learn real gemology while you build your fortune.

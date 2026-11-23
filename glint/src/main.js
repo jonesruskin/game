@@ -33,6 +33,7 @@ class App {
     // a stone left on the bench goes back into the vault
     if (s.bench) { if (!s.roughs.find((r) => r.id === s.bench.id)) s.roughs.push(s.bench); s.bench = null; }
     if (!s.dealer.stock.length || Date.now() > s.dealer.next) this.restockDealer();
+    this.R.onRestore = () => this.layout();
     addEventListener('resize', () => this.layout()); this.layout(); this.bindInput();
     document.addEventListener('visibilitychange', () => { if (document.hidden) { Save.save(); this.audio.suspend(); } else if (!Platform.adPlaying) { this.audio.resume(); this.catchUp(); } });
     addEventListener('pagehide', () => Save.save());
@@ -42,6 +43,7 @@ class App {
     Platform.loadingStop();
     if (!s.tut) this.ui.title(true); else { this.ui.title(false); if (away > 120) this.offlineReport(away); }
     this.state = 'ready';
+    if (s.tut) this.dailyGift();
     requestAnimationFrame((t) => this.frame(t));
   }
   applySettings() { const st = this.save.settings; this.audio.setVolumes(st.sfx, st.music); const q = st.quality; this.R.bounces = q === 'low' ? 5 : 8; this.R.streaks = q !== 'low'; if (q === 'low') this.R.setScale(0.6); else if (q === 'high') this.R.setScale(1); }
@@ -68,8 +70,8 @@ class App {
     if (this.view === 'bench') this.bgCanvas = paintBench(this.benchL, k); else this.bgCanvas = paintShop(this.shopL, this.save.tier, k);
     this.R.setBackground(this.bgCanvas);
   }
-  setView(v) { if (this.view === v && !this.screen) return; this.closeScreen(); if (this.view !== v) { this.view = v; this.paintScene(); this.audio.play('whoosh'); this.audio.setRain(v === 'bench'); } this.ui.nav(); this.ui.panel(); }
-  openScreen(id, arg) { this.screen = id; this.ui.screen(id, arg); this.ui.nav(); Platform.gameplayStop(); }
+  setView(v) { this.bench.grindStop(); this.bench.up(); if (this.view === v && !this.screen) return; this.closeScreen(); if (this.view !== v) { this.view = v; this.paintScene(); this.audio.play('whoosh'); this.audio.setRain(v === 'bench'); } this.ui.nav(); this.ui.panel(); }
+  openScreen(id, arg) { this.bench.grindStop(); this.screen = id; this.ui.screen(id, arg); this.ui.nav(); Platform.gameplayStop(); }
   closeScreen() { if (!this.screen) return; this.screen = null; this.ui.screen(null); this.ui.nav(); if (this.started) Platform.gameplayStart(); }
   // ---------------- input ----------------
   bindInput() {
@@ -134,7 +136,7 @@ class App {
     const stone = { planes, frost: planes.map((p) => (p.stage === 9 ? 0.34 : 0)), inc: st.inc, ver: 1, rb: m * 1.08, bound: m * 1.02 };
     this.stoneCache.set(g.id, stone); if (this.stoneCache.size > 60) this.stoneCache.delete(this.stoneCache.keys().next().value); return stone;
   }
-  thumb(g, size = 112) { if (g._thumb && g._thumbS === size) return g._thumb; const st = this.gemStone(g); const o = optics(g.sp, g.vid, g.tone, 0); const cv = this.R.thumbnail({ stone: st, rot: this.spinRot(0.5, 1.0), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: st.rb, bounces: 7 }, size); const url = cv ? cv.toDataURL() : ''; Object.defineProperty(g, '_thumb', { value: url, writable: true, enumerable: false, configurable: true }); Object.defineProperty(g, '_thumbS', { value: size, writable: true, enumerable: false, configurable: true }); return url; }
+  thumb(g, size = 112) { if (g._thumb && g._thumbS === size) return g._thumb; const st = this.gemStone(g); const o = optics(g.sp, g.vid, g.tone, 0); const cv = this.R.thumbnail({ stone: st, glow: o.glow, rot: this.spinRot(0.5, 1.0), ri: o.ri, disp: o.disp, sig: o.sig, tint: o.tint, rb: st.rb, bounces: 7 }, size); const url = cv ? cv.toDataURL() : ''; Object.defineProperty(g, '_thumb', { value: url, writable: true, enumerable: false, configurable: true }); Object.defineProperty(g, '_thumbS', { value: size, writable: true, enumerable: false, configurable: true }); return url; }
   roughThumb(r, size = 96) {
     if (r._thumb) return r._thumb; const known = r.known; if (!known) return '';
     const G = toGemSpace(r, { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0], s: 1 }); const o = optics(r.sp, r.vid, r.tone, 0);
@@ -173,7 +175,7 @@ class App {
   }
   dealerPrice(g) { return Math.max(1, Math.round(g.value * 0.62)); }
   sellToDealer(g) { this.sellGem(g, this.dealerPrice(g), 'dealer'); }
-  toCase(g, i) { const s = this.save; if (s.tut === 1 && s.stats.cut <= 1) setTimeout(() => { this.setView('shop'); this.ui.tutor('shop'); }, 400); if (i === undefined) i = s.cases.indexOf(null); if (i < 0) { this.ui.toast('All cases are full', 'bad'); return false; } const old = s.cases.indexOf(g.id); if (old >= 0) s.cases[old] = null; s.cases[i] = g.id; this.audio.play('soft'); this.persist(); this.ui.refreshScreen(); return true; }
+  toCase(g, i) { const s = this.save; if (s.tut === 1 && s.stats.cut <= 1) this.bench.after(0.4, () => { this.setView('shop'); this.ui.tutor('shop'); }); if (i === undefined) i = s.cases.indexOf(null); if (i < 0) { this.ui.toast('All cases are full', 'bad'); return false; } const old = s.cases.indexOf(g.id); if (old >= 0) s.cases[old] = null; s.cases[i] = g.id; this.audio.play('soft'); this.persist(); this.ui.refreshScreen(); return true; }
   fromCase(i) { this.save.cases[i] = null; this.persist(); this.ui.refreshScreen(); }
   autoStock() { const s = this.save; if (!s.settings.autoStock) return; for (let i = 0; i < s.cases.length; i++) if (!s.cases[i]) { const g = s.gems.filter((x) => !s.cases.includes(x.id)).sort((a, b) => b.value - a.value)[0]; if (g) s.cases[i] = g.id; } }
   fulfil(o, g) { const s = this.save; const i = s.gems.findIndex((x) => x.id === g.id); if (i < 0 || !meets(o, g)) return; s.gems.splice(i, 1); const ci = s.cases.indexOf(g.id); if (ci >= 0) s.cases[ci] = null; s.orders = s.orders.filter((x) => x.id !== o.id);
@@ -229,6 +231,13 @@ class App {
     const s = this.save; s.tut = 1; const r = { id: uid(), sp: 'quartz', vid: 'amethyst', seed: 424242, size: 9.5, clarity: 0.12, tone: 1.02, rare: 0, src: 'mystery', known: false, paid: 0 };
     const r2 = { id: uid(), sp: 'garnet', vid: 'rhodolite', seed: 77177, size: 5.2, clarity: 0.2, tone: 1.0, rare: 0, src: 'mystery', known: false, paid: 0 };
     s.roughs.push(r2); this.bench.load(r); this.setView('bench'); this.ui.tutor('crack'); this.persist();
+  }
+  // a free mystery rock on the first visit of each day
+  dailyGift() {
+    const s = this.save; const d = dayNumber(); if (s.giftDay === d) return; s.giftDay = d;
+    const bin = MYSTERY[Math.min(s.tier, 2)]; const r = rollRough(rng((d * 131 + 7) >>> 0), { tier: bin.tier, luck: bin.luck * 1.2, richer: bin.richer, src: 'mystery', known: false }); r.paid = 0;
+    if (this.addRough(r)) setTimeout(() => this.ui.toast(`Morning delivery: a free ${bin.name} rock is in your vault`, 'good'), 1200);
+    this.persist();
   }
   // rewarded ad helpers
   async rewarded(fn) { if (!Platform.adsAvailable) { fn(); return; } this.audio.suspend(); const ok = await Platform.rewarded(); this.audio.resume(); if (ok) fn(); else this.ui.toast('Ad unavailable right now', 'info'); }
