@@ -10,7 +10,7 @@ export const fresh = () => ({
   orders: [], orderT: 60, staff: [], dealer: { stock: [], next: 0 }, exped: null, auction: null,
   codex: {}, hall: [], recipes: {}, sales: [],
   stats: { cut: 0, ideal: 0, fl: 0, perfect3: 0, best: 0, maxCt: 0, maxRare: 0, sold: 0, orders: 0, haggleWins: 0, dailies: 0, earned: 0, cracked: 0, playS: 0 },
-  ach: {}, settings: { sfx: 0.8, music: 0.5, quality: 'auto', hints: true },
+  ach: {}, settings: { sfx: 0.8, music: 0.5, quality: 'auto', hints: true, autoStock: true },
   daily: { day: 0, done: false, best: 0 }, lastSeen: Date.now(), tut: 0, bench: null, adGift: { day: 0, n: 0 },
 });
 export const Save = {

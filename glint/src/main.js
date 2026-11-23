@@ -46,7 +46,7 @@ class App {
     if (s.tut) this.dailyGift();
     requestAnimationFrame((t) => this.frame(t));
   }
-  applySettings() { const st = this.save.settings; this.audio.setVolumes(st.sfx, st.music); const q = st.quality; this.R.bounces = q === 'low' ? 5 : 8; this.R.streaks = q !== 'low'; if (q === 'low') this.R.setScale(0.6); else if (q === 'high') this.R.setScale(1); }
+  applySettings() { const st = this.save.settings; this.audio.setVolumes(st.sfx, st.music); const q = st.quality; const touch = matchMedia('(pointer: coarse)').matches; this.R.bounces = q === 'low' ? 5 : touch && q === 'auto' ? 7 : 8; this.R.streaks = q !== 'low'; if (q === 'low') this.R.setScale(0.6); else if (q === 'high') this.R.setScale(1); else if (touch && !this.scaled) { this.scaled = true; this.R.setScale(0.72); } }
   start() { // first interaction: audio unlock + gameplay start
     this.audio.unlock(); if (!this.screen) Platform.gameplayStart(); this.started = true;
   }
@@ -153,7 +153,9 @@ class App {
   addRough(r) { if (this.vaultUsed() >= this.vaultCap()) { this.ui.toast('Your vault is full: sell or cut something first', 'bad'); return false; } this.save.roughs.push(r); this.ui.badges(); return true; }
   restockDealer() { const s = this.save; s.dealer.stock = dealerStock(rng((Date.now() / 1000) | 0), s.tier, 6).map((r) => { r.price = priceRough(r, roughCarat(r)); return r; }); s.dealer.next = Date.now() + 4 * 60 * 1000; }
   buyDealer(i) { const s = this.save; const r = s.dealer.stock[i]; if (!r || r.sold) return; if (this.vaultUsed() >= this.vaultCap()) { this.ui.toast('Vault full', 'bad'); return; } if (!this.spend(r.price)) return; r.sold = true; const c = { ...r }; delete c.price; delete c.sold; c.paid = r.price; this.addRough(c); this.audio.play('buy'); this.ui.toast(`Bought ${gemName(r.sp, r.vid)} rough`, 'good'); this.persist(); return c; }
-  buyMystery(bin) { const s = this.save; if (this.vaultUsed() >= this.vaultCap()) { this.ui.toast('Vault full', 'bad'); return null; } if (!this.spend(bin.price)) return null; const R = rng((Math.random() * 1e9) | 0); const r = rollRough(R, { tier: bin.tier, luck: bin.luck, richer: bin.richer, sp: bin.sp, src: 'mystery', known: false }); r.paid = bin.price; this.addRough(r); this.audio.play('buy'); this.persist(); return r; }
+  buyMystery(bin) { const s = this.save; if (this.vaultUsed() >= this.vaultCap()) { this.ui.toast('Vault full', 'bad'); return null; }
+    const broke = bin.id === 'gravel' && s.money < bin.price && !s.roughs.length && !s.gems.length && (this.bench.stage === 'empty' || this.bench.stage === 'appraise');
+    if (broke) this.ui.toast('The quarry foreman lets you have this one on credit', 'good'); else if (!this.spend(bin.price)) return null; const R = rng((Math.random() * 1e9) | 0); const r = rollRough(R, { tier: bin.tier, luck: bin.luck, richer: bin.richer, sp: bin.sp, src: 'mystery', known: false }); r.paid = bin.price; this.addRough(r); this.audio.play('buy'); this.persist(); return r; }
   loadRough(id) { const s = this.save; const i = s.roughs.findIndex((r) => r.id === id); if (i < 0) return; if (this.bench.r && this.bench.stage !== 'appraise' && this.bench.stage !== 'empty') { s.roughs.push(this.bench.r); } const r = s.roughs.splice(i, 1)[0]; this.bench.load(r); this.setView('bench'); this.persist(); }
   discover(r) { const s = this.save; const k = r.sp + ':' + r.vid; const isNew = !s.codex[k]; if (isNew) s.codex[k] = { n: 0, best: 0, ct: 0 }; s.stats.maxRare = Math.max(s.stats.maxRare, (variety(r.sp, r.vid).rare || 0) + 1); if (isNew) this.ui.toast(`New in your Codex: ${gemName(r.sp, r.vid)}`, 'codex'); this.checkAch(); }
   gemFinished(g, r) {
@@ -174,6 +176,7 @@ class App {
     if (how === 'case') this.autoStock();
   }
   dealerPrice(g) { return Math.max(1, Math.round(g.value * 0.62)); }
+  sellAllUnlisted() { const s = this.save; const list = s.gems.filter((g) => !s.cases.includes(g.id) && !(this.bench.result && this.bench.result.id === g.id)); if (!list.length) return; let tot = 0; for (const g of list) { const p = this.dealerPrice(g); tot += p; this.sellGem(g, p, 'dealer', undefined, true); } this.audio.play('cash'); this.ui.toast(`Sold ${list.length} gem${list.length > 1 ? 's' : ''} to the dealer for ${fmt$(tot)}`, 'money'); }
   sellToDealer(g) { this.sellGem(g, this.dealerPrice(g), 'dealer'); }
   toCase(g, i) { const s = this.save; if (s.tut === 1 && s.stats.cut <= 1) this.bench.after(0.4, () => { this.setView('shop'); this.ui.tutor('shop'); }); if (i === undefined) i = s.cases.indexOf(null); if (i < 0) { this.ui.toast('All cases are full', 'bad'); return false; } const old = s.cases.indexOf(g.id); if (old >= 0) s.cases[old] = null; s.cases[i] = g.id; this.audio.play('soft'); this.persist(); this.ui.refreshScreen(); return true; }
   fromCase(i) { this.save.cases[i] = null; this.persist(); this.ui.refreshScreen(); }

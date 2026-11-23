@@ -294,7 +294,7 @@ export class UI {
   vaultHTML() {
     const s = this.s; const tab = this.scrArg === 'roughs' ? 'roughs' : 'gems'; let h = this.tabs('vault', [['gems', `Cut gems (${s.gems.length})`], ['roughs', `Rough (${s.roughs.length})`]], tab) + '<div class="scr-body">';
     h += `<div class="cap">${icon('vault', 'xs')} ${this.app.vaultUsed()} / ${this.app.vaultCap()} slots</div>`;
-    if (tab === 'gems') { const gs = s.gems.slice().sort((a, b) => b.value - a.value); h += gs.length ? `<div class="glist">${gs.map((g) => `<button class="gcard big ${s.cases.includes(g.id) ? 'incase' : ''}" data-vg="${g.id}"><img src="${this.app.thumb(g)}"><b>${esc(gemName(g.sp, g.vid))}</b><i>${esc(CUTS[g.cut].name)} · ${fmtCt(g.ct)}</i><i>${g.cutG} · ${g.clarity}</i><span class="gold-t">${fmt$(g.value)}</span>${s.cases.includes(g.id) ? '<em>On display</em>' : ''}${this.app.matchingOrder(g) ? '<em class="ord">Fits a commission</em>' : ''}</button>`).join('')}</div>` : `<div class="empty-note">No cut gems yet.</div>`; }
+    if (tab === 'gems') { const gs = s.gems.slice().sort((a, b) => b.value - a.value); const un = gs.filter((g) => !s.cases.includes(g.id)); if (un.length > 1) h += `<button class="big" data-sellall="1">${icon('coin')} Sell all ${un.length} gems not on display to the dealer · ${fmt$(un.reduce((a, g) => a + this.app.dealerPrice(g), 0))}</button>`; h += gs.length ? `<div class="glist">${gs.map((g) => `<button class="gcard big ${s.cases.includes(g.id) ? 'incase' : ''}" data-vg="${g.id}"><img src="${this.app.thumb(g)}"><b>${esc(gemName(g.sp, g.vid))}</b><i>${esc(CUTS[g.cut].name)} · ${fmtCt(g.ct)}</i><i>${g.cutG} · ${g.clarity}</i><span class="gold-t">${fmt$(g.value)}</span>${s.cases.includes(g.id) ? '<em>On display</em>' : ''}${this.app.matchingOrder(g) ? '<em class="ord">Fits a commission</em>' : ''}</button>`).join('')}</div>` : `<div class="empty-note">No cut gems yet.</div>`; }
     else h += s.roughs.length ? `<div class="rlist wide">${s.roughs.map((r) => this.roughCard(r, 'vr')).join('')}</div>` : `<div class="empty-note">No rough. Visit the Market.</div>`;
     return h + '</div>';
   }
@@ -332,6 +332,7 @@ export class UI {
     if (t.dataset.adgift) A.rewarded(() => { const d = dayNumber(); if (s.adGift.day !== d) s.adGift = { day: d, n: 0 }; s.adGift.n++; const b = MYSTERY[Math.min(s.tier, 1)]; const r = rollRough(rng((Math.random() * 1e9) | 0), { tier: b.tier, luck: b.luck, src: 'mystery', known: false }); r.paid = 0; A.addRough(r); this.toast('Free rock added to your vault', 'good'); A.persist(); this.renderScreen(); });
     if (t.dataset.vg) { const g = A.gemById(t.dataset.vg); if (g) { const m = this.openModal('gem'); m.innerHTML = `<div class="card">${s.cases.includes(g.id) ? this.gemActionsCase(g) : this.gemActions(g, false)}<button class="big ghost" data-m="close">Close</button></div>`; } }
     if (t.dataset.vr) A.loadRough(t.dataset.vr);
+    if (t.dataset.sellall) { if (t.dataset.sure) A.sellAllUnlisted(); else { t.dataset.sure = 1; t.textContent = 'Tap again to confirm'; } }
     if (t.dataset.up) A.buyUpgrade(t.dataset.up); if (t.dataset.hire) A.hire(); if (t.dataset.train) { const a = s.staff.find((x) => x.id === t.dataset.train); if (a) A.train(a); } if (t.dataset.tierup) A.tierUp();
   }
 }
