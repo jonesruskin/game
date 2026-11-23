@@ -151,6 +151,76 @@ export const ART = {
     if (T >= 2) { const [x2, y2] = P(1.6, 0.4, 0); c.fillStyle = '#c8cdd3'; c.fillRect(x2 - 1.5, y2 - 12, 3, 12); fx.push({ k: 'dish', x: x2, y: y2 - 14, r: 8, sp: -0.3 }); }
     return 50 + T * 4;
   },
+  academy(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#c3c8cf');
+    const h = 16 + T * 6; const b = box(c, 0.25, 0.3, 1.0, 1.35, h, '#f2f4f7'); grid(c, b.left, 2, 4, '#5fc8e8', 0.2, lights); grid(c, b.right, 2, 3, '#3e9ec2', 0.2, lights);
+    // centrifuge arm + pool
+    poly(c, diamond(1.3, 1.2, 0.55, 0.55), '#3f9fd8', 'rgba(0,0,0,0.2)'); const [cx, cy] = P(1.55, 0.6, 0); c.strokeStyle = '#8b939e'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx, cy - 12); c.stroke(); fx.push({ k: 'centrifuge', x: cx, y: cy - 12 });
+    poly(c, [P(0.25, 1.65, h - 3), P(1.25, 1.65, h - 3), P(1.25, 1.65, h), P(0.25, 1.65, h)], trim(T));
+    return h + 24;
+  },
+  // ---------------- Moon ----------------
+  hub(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#8d8b87', 'rgba(0,0,0,0.25)');
+    const d = dome(c, 1.5, 1.5, 0.95 + T * 0.05, 30 + T * 6, '#dfe2e6'); fx.push({ k: 'beacon', x: d.x, y: d.y - 4, col: '#ff3b3b' });
+    for (const [i, j] of [[0.45, 1.5], [2.55, 1.5], [1.5, 0.45], [1.5, 2.55]]) { const m = cyl(c, i, j, 0.28, 12, '#e8ebee', 0, { bands: '#f08a24', nb: 2 }); lights.push({ x: m.x, y: m.top + 8, r: 3, k: 2 }); }
+    const r = box(c, 2.2, 0.35, 0.5, 0.4, 10 + T * 3, '#c9cdd2'); grid(c, r.left, 1, 2, '#9fd2ff', 0.3, lights);
+    const [ax, ay] = P(0.6, 0.6, 0); lattice(c, ax, ay, 6, 34 + T * 6, '#9aa2ad', 5); fx.push({ k: 'beacon', x: ax, y: ay - 34 - T * 6, col: '#4dd0ff' });
+    if (T >= 2) fx.push({ k: 'dish', x: P(2.45, 0.55, 10 + T * 3)[0], y: P(2.45, 0.55, 10 + T * 3)[1] - 6, r: 8, sp: 0.2 });
+    return 40 + T * 6;
+  },
+  regolith(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#7a7874', 'rgba(0,0,0,0.2)');
+    for (let k = 0; k < 2 + Math.min(2, T - 1); k++) { const m = 0.2 + k * 0.17; poly(c, diamond(m, m, 1.2 - k * 0.3, 1.2 - k * 0.3), ['#6c6a66', '#5d5b57', '#4f4d4a', '#43413e'][k], 'rgba(0,0,0,0.12)'); }
+    const fur = box(c, 1.25, 1.2, 0.55, 0.55, 14 + T * 3, '#b9bdc2'); grid(c, fur.left, 1, 2, '#ffb36a', 0.3, lights);
+    const [x, y] = P(1.5, 0.45, 0); c.fillStyle = '#e8b04a'; c.fillRect(x - 6, y - 7, 12, 6); c.strokeStyle = '#555'; c.lineWidth = 2; c.beginPath(); c.moveTo(x + 5, y - 6); c.lineTo(x + 14, y - 14); c.lineTo(x + 18, y - 6); c.stroke(); fx.push({ k: 'dust', x: x + 18, y: y - 6 });
+    return 30 + T * 4;
+  },
+  ice(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#6f7680', 'rgba(0,0,0,0.2)');
+    poly(c, diamond(0.25, 0.25, 0.9, 0.9), '#cfe6f5', 'rgba(255,255,255,0.4)');
+    const [x, y] = P(0.7, 0.7, 0); lattice(c, x, y, 8, 30 + T * 6, '#9aa2ad', 5); fx.push({ k: 'drill', x, y: y - 4 });
+    for (const [i, j] of [[1.45, 0.5], [1.45, 1.1], ...(T >= 2 ? [[1.0, 1.5]] : [])]) { const t2 = cyl(c, i, j, 0.22, 14 + T * 2, '#eaf4fb', 0, { bands: '#6ee7ff', nb: 2 }); void t2; }
+    return 40 + T * 6;
+  },
+  he3x(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#7c7a76', 'rgba(0,0,0,0.2)');
+    // rotary kiln (long tilted cylinder) + collector sphere
+    const k0 = P(0.3, 1.0, 10), k1 = P(1.5, 1.0, 18); const g = c.createLinearGradient(k0[0], k0[1] - 8, k0[0], k0[1] + 8); g.addColorStop(0, '#e9ecf0'); g.addColorStop(1, '#8e97a3'); c.strokeStyle = g; c.lineWidth = 12; c.lineCap = 'round'; c.beginPath(); c.moveTo(k0[0], k0[1]); c.lineTo(k1[0], k1[1]); c.stroke(); c.lineCap = 'butt';
+    c.strokeStyle = 'rgba(184,146,255,0.8)'; c.lineWidth = 2; for (let k = 1; k < 4; k++) { const p = [k0[0] + (k1[0] - k0[0]) * k / 4, k0[1] + (k1[1] - k0[1]) * k / 4]; c.beginPath(); c.moveTo(p[0], p[1] - 6); c.lineTo(p[0], p[1] + 6); c.stroke(); }
+    const [sx, sy] = P(1.6, 0.45, 0); const gr = c.createRadialGradient(sx - 4, sy - 18, 1, sx, sy - 14, 12); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#8f7cc4'); c.fillStyle = gr; c.beginPath(); c.arc(sx, sy - 14, 10 + T, 0, 7); c.fill(); fx.push({ k: 'glow', x: sx, y: sy - 14, col: '184,146,255' });
+    box(c, 0.3, 1.5, 0.6, 0.35, 8, '#c9cdd2');
+    return 40 + T * 4;
+  },
+  lsolar(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#7d7b77', 'rgba(0,0,0,0.2)');
+    const n = 2 + Math.min(3, Math.floor((L - 1) / 4));
+    for (let k = 0; k < n; k++) { const i = 0.4 + (k % 2) * 0.9, j = 0.4 + Math.floor(k / 2) * 0.55 + (k % 2) * 0.25; const [x, y] = P(i, j, 0); const h = 30 + T * 6; c.fillStyle = '#9aa2ad'; c.fillRect(x - 1, y - h, 2, h);
+      const a = [x - 10, y - h - 18], b = [x + 10, y - h - 12]; const gr = c.createLinearGradient(a[0], a[1], b[0], b[1]); gr.addColorStop(0, '#1d3a6b'); gr.addColorStop(0.5, '#3a6fbf'); gr.addColorStop(1, '#16305a'); c.fillStyle = gr; c.beginPath(); c.moveTo(x - 10, y - h - 20); c.lineTo(x + 10, y - h - 14); c.lineTo(x + 10, y - h + 2); c.lineTo(x - 10, y - h - 4); c.closePath(); c.fill(); c.strokeStyle = 'rgba(180,200,240,0.6)'; c.lineWidth = 0.6; c.stroke(); }
+    return 60 + T * 6;
+  },
+  dome(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#85837f', 'rgba(0,0,0,0.2)');
+    poly(c, diamond(0.3, 0.3, 1.4, 1.4), '#4c8a3e'); for (let k = 0; k < 7; k++) { const [x, y] = P(0.5 + (k * 0.37) % 1.1, 0.6 + ((k * 0.61) % 1.0), 0); c.fillStyle = '#2f6a2a'; c.beginPath(); c.arc(x, y - 4, 4, 0, 7); c.fill(); }
+    const d = dome(c, 1.0, 1.0, 0.72, 24 + T * 5, '#9fd8ff', 0, true); lights.push({ x: d.x, y: d.y + 12, r: 10, k: 0 });
+    cyl(c, 1.75, 1.0, 0.16, 8, '#e3e6ea');
+    return 40 + T * 5;
+  },
+  llab(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#807e7a', 'rgba(0,0,0,0.2)');
+    const m = cyl(c, 0.55, 1.35, 0.32, 14, '#eef1f4', 0, { bands: '#6ee7ff', nb: 2 }); lights.push({ x: m.x, y: m.top + 7, r: 4, k: 1 }); const m2 = box(c, 0.85, 1.15, 0.6, 0.4, 10, '#d9dde2'); void m2;
+    const [px, py] = P(1.3, 0.6, 0); c.fillStyle = '#c8cdd3'; c.fillRect(px - 2, py - 18 - T * 3, 4, 18 + T * 3); fx.push({ k: 'dish', x: px, y: py - 22 - T * 3, r: 14 + T * 2, sp: 0.12, big: true });
+    return 50 + T * 4;
+  },
+  massDriver(c, L, S, lights, fx) {
+    const T = tierOf(L); poly(c, diamond(0.05, 0.05, S - 0.1, S - 0.1), '#7a7874', 'rgba(0,0,0,0.2)');
+    // an inclined rail leaving the lot
+    const a = P(0.2, 1.7, 2), b = P(1.85, 0.2, 40 + T * 10); c.strokeStyle = '#9aa2ad'; c.lineWidth = 2; for (let k = 0; k <= 6; k++) { const t2 = k / 6; const x = a[0] + (b[0] - a[0]) * t2, y = a[1] + (b[1] - a[1]) * t2; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 6 + (1 - t2) * 30 * 0); c.stroke(); }
+    c.strokeStyle = '#d9dee5'; c.lineWidth = 4; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = '#6ee7ff'; c.lineWidth = 1; c.beginPath(); c.moveTo(a[0], a[1] - 2); c.lineTo(b[0], b[1] - 2); c.stroke();
+    for (let k = 1; k < 6; k++) { const t2 = k / 6; const [x, y] = [a[0] + (b[0] - a[0]) * t2, a[1] + (b[1] - a[1]) * t2]; c.fillStyle = '#8e97a3'; c.fillRect(x - 1, y, 2, (1 - t2) * 2 + t2 * (40 + T * 10) * 0.9); }
+    fx.push({ k: 'pod', ax: a[0], ay: a[1], bx: b[0], by: b[1] }); box(c, 0.2, 1.4, 0.5, 0.45, 10, '#c9cdd2');
+    return 60 + T * 10;
+  },
 };
 // construction scaffold drawn over a building under construction
 export function scaffold(c, S, h, t) {

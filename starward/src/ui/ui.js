@@ -3,13 +3,15 @@
 import { icon } from './icons.js';
 import { fmt, fmtTime, esc, $, $$, clamp } from '../util.js';
 import { RES, RES_ORDER } from '../data/resources.js';
-import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, CATS } from '../data/buildings.js';
+import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, CATS, cmdReqs } from '../data/buildings.js';
 import { TECH, BRANCHES, techCost, techTime } from '../data/research.js';
 import { LAYOUTS } from '../data/layouts.js';
 import { CHAPTERS } from '../data/objectives.js';
 import * as G from '../core/game.js';
 import { ART } from '../render/art.js';
 import { TW, TH } from '../render/iso.js';
+import { LaunchUI } from './launch.js';
+import * as SP from '../core/space.js';
 
 const THUMBS = {};
 export function thumb(b, L = 1, px = 120) {
@@ -17,20 +19,24 @@ export function thumb(b, L = 1, px = 120) {
   const sc = (px * 2) / (S * TW + 40); c.scale(sc, sc); c.translate((S * TW + 40) / 2, (S * TW + 40) * 0.72 - S * TH / 2); (ART[b] || ART.depot)(c, L, S, [], []);
   return (THUMBS[k] = cv.toDataURL());
 }
+// replace markup only when it changed, so buttons are not swapped out from under a press
+export const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML = h; } };
 const costHTML = (cost, s) => Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 
 export class UI {
-  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; }
+  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); }
   get s() { return this.app.s; }
   init() {
     $('#hud').innerHTML = `<div class="topbar"><div class="res" id="resBar"></div><div class="topr"><div class="chip dm" id="dmChip" title="Dark Matter">${icon('dm')}<b id="dmVal">0</b></div><button class="ibtn" data-a="settings" title="Settings">${icon('cog')}</button></div></div>
       <div class="side"><div class="crews" id="crews"></div><button class="rslot" id="rslot" data-a="research"></button><div class="obj" id="obj"></div></div>
-      <nav class="nav"><button data-tab="base" class="on">${icon('base')}<span>Base</span></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="launch" class="soon" title="Unlocks with Orbital Mechanics">${icon('rocket')}<span>Launch</span></button><button data-tab="map" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
+      <nav class="nav"><button data-tab="earth" class="on">${icon('earth')}<span>Earth</span></button><button data-tab="moon" class="gone">${icon('moon')}<span>Moon</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="map" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
     $('#hud').addEventListener('click', (e) => this.click(e)); $('#panel').addEventListener('click', (e) => this.click(e)); $('#overlay').addEventListener('click', (e) => this.click(e)); $('#modal').addEventListener('click', (e) => this.click(e));
     this.hud(true); this.side(true);
   }
   // ---------------- per frame ----------------
-  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); this.panelLive(); if (this.app.view === 'research') this.researchLive(); }
+  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); this.panelLive(); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
+  // taps in the orbit view open the matching part of Launch Control
+  orbitPick(p) { if (!p) return; this.app.audio.play('tap'); if (p.kind === 'sat' || p.kind === 'slot') this.app.setView('launch', 'sats'); else if (p.kind === 'station') this.app.setView('launch', 'station'); else if (p.kind === 'moon') { if (this.s.bases.moon) this.app.setView('moon'); else this.app.setView('launch', 'missions'); } }
   hud(force) {
     const s = this.s, R = this.app.R; const bar = $('#resBar'); const show = RES_ORDER.filter((r) => RES[r].start || (s.res[r] || 0) > 0);
     if (force || bar.childElementCount !== show.length + 1) bar.innerHTML = show.map((r) => `<div class="chip" data-r="${r}" style="--rc:${RES[r].color}">${icon(r)}<span class="v"><b></b><i class="rate"></i></span><i class="bar"><span></span></i></div>`).join('') + `<div class="chip energy" data-r="energy">${icon('energy')}<span class="v"><b></b><i class="rate"></i></span></div>`;
@@ -39,19 +45,20 @@ export class UI {
       const v = s.res[r] || 0, cap = R.cap[r]; el.querySelector('b').textContent = fmt(v); el.querySelector('.rate').textContent = R.prod[r] ? `+${fmt(R.prod[r])}/h` : ''; el.querySelector('.bar span').style.width = (cap === Infinity ? 0 : clamp(v / cap) * 100) + '%'; el.classList.toggle('full', cap !== Infinity && v >= cap * 0.999); el.title = `${RES[r].name}: ${fmt(v)} / ${fmt(cap)} · ${fmt(R.prod[r])} per hour\n${RES[r].desc}`; }
     $('#dmVal').textContent = fmt(s.res.dm || 0);
     const ready = Object.keys(TECH).filter((id) => G.canResearch(s, id).ok).length; const b = $('#bRes'); b.textContent = ready && G.slotsBusy(s) < G.slotsTotal(s, R.m) ? '!' : ''; b.style.display = b.textContent ? '' : 'none';
-    $$('.nav [data-tab=launch]').forEach((el) => el.classList.toggle('soon', true));
+    const pad = SP.padLevel(s) > 0; $('.nav [data-tab=launch]').classList.toggle('soon', !pad && !s.tech.rocketry); $('.nav [data-tab=orbit]').classList.toggle('soon', !pad); $('.nav [data-tab=moon]').classList.toggle('gone', !s.bases.moon);
+    const lb = $('#bLaunch'); const idle = pad && SP.launchesBusy(s) < SP.launchSlots(s) && Object.values(SP.sp(s).rockets).some((n) => n > 0); lb.textContent = idle ? '!' : ''; lb.style.display = idle ? '' : 'none';
   }
   side() {
     const s = this.s, R = this.app.R; const tot = G.crewsTotal(s, R.m), busy = G.crewsBusy(s);
-    $('#crews').innerHTML = `<span class="lbl">${icon('crew', 'xs')} Crews</span>${Array.from({ length: tot }, (_, k) => `<i class="${k < busy ? 'busy' : ''}"></i>`).join('')}<span class="n">${tot - busy} free</span>`;
+    setHTML($('#crews'), `<span class="lbl">${icon('crew', 'xs')} Crews</span>${Array.from({ length: tot }, (_, k) => `<i class="${k < busy ? 'busy' : ''}"></i>`).join('')}<span class="n">${tot - busy} free</span>`);
     const rj = s.jobs.find((j) => j.kind === 'research'); const rs = $('#rslot');
     if (rj) { const p = clamp((Date.now() - rj.start) / (rj.end - rj.start)); rs.innerHTML = `${icon('research', 'xs')}<span><b>${esc(TECH[rj.tech].name)}</b><i>${fmtTime((rj.end - Date.now()) / 1000)}</i></span><em style="width:${p * 100}%"></em>`; rs.classList.remove('idle'); }
     else { rs.innerHTML = `${icon('research', 'xs')}<span><b>Lab idle</b><i>${G.slotsTotal(s, R.m) ? 'Start a research project' : ''}</i></span>`; rs.classList.add('idle'); }
     const st = G.currentStep(s); const o = $('#obj');
-    if (!st) { o.innerHTML = `<b class="ch">Programme complete</b><p>More chapters arrive with the next missions.</p>`; return; }
+    if (!st) { setHTML(o, `<b class="ch">Programme complete</b><p>More chapters arrive with the next missions.</p>`); return; }
     const ch = CHAPTERS.find((c) => c.steps.includes(CHAPTERS.flatMap((x) => x.steps).find((x) => x.id === st.id))); const done = G.stepDone(s, st, R);
     let prog = ''; if (st.kind === 'rate') prog = `<i class="pg">${fmt(R.prod[st.res])} / ${fmt(st.n)} per hour</i>`; if (st.kind === 'energy') prog = `<i class="pg">${fmt(R.gen - R.draw)} / ${st.n} spare</i>`;
-    o.innerHTML = `<b class="ch">${esc(ch ? ch.name : '')}</b><p>${icon('target', 'xs')} ${esc(st.text)}</p>${prog}<div class="rw">${Object.entries(st.reward).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}</div>${done ? `<button class="claim" data-a="claim">${icon('check', 'xs')} Claim reward</button>` : ''}`;
+    setHTML(o, `<b class="ch">${esc(ch ? ch.name : '')}</b><p>${icon('target', 'xs')} ${esc(st.text)}</p>${prog}<div class="rw">${Object.entries(st.reward).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}</div>${done ? `<button class="claim" data-a="claim">${icon('check', 'xs')} Claim reward</button>` : ''}`);
     o.classList.toggle('done', done);
   }
   // ---------------- selection panel ----------------
@@ -80,12 +87,14 @@ export class UI {
     if (a.draw) rows.push([`${icon('energy', 'xs')} Energy used`, `−${fmt(a.draw)}`, n && `−${fmt(n.draw)}`]);
     if (a.speed) rows.push([`${icon('research', 'xs')} Research speed`, `+${Math.round(a.speed * 100)}%`, n && `+${Math.round(n.speed * 100)}%`]);
     if (b === 'hq') { const lots = (l) => LAYOUTS.earth.lots.filter((x) => x.hq <= l).length; rows.push([`${icon('base', 'xs')} Building lots`, lots(L), n && lots(next)], [`${icon('crew', 'xs')} Engineering crews`, crewsFromHq(L), n && crewsFromHq(next)], [`${icon('up', 'xs')} Max building level`, L * 2, n && next * 2]); }
+    if (b === 'hub') { const lots = (l) => LAYOUTS.moon.lots.filter((x) => x.hq <= l).length; rows.push([`${icon('base', 'xs')} Lunar lots`, lots(L), n && lots(next)], [`${icon('up', 'xs')} Max lunar building level`, L * 2, n && next * 2]); }
+    if (b === 'launch') rows.push([`${icon('rocket', 'xs')} Simultaneous launches`, 1 + (L >= 10) + (L >= 18), n && 1 + (next >= 10) + (next >= 18)]);
     if (b === 'launch') rows.push([`${icon('rocket', 'xs')} Largest rocket class`, Math.min(9, Math.ceil(L / 2)), n && Math.min(9, Math.ceil(next / 2))]);
     return `<table class="stats">${rows.map(([k, v, w]) => `<tr><td>${k}</td><td>${v}</td>${n ? `<td class="nx">${w !== v ? '→ ' + w : ''}</td>` : ''}</tr>`).join('')}</table>`;
   }
   buildingInfo(st, lotDef, hq) {
     const s = this.s, d = BUILDINGS[st.b], R = this.app.R; const j = G.jobAt(s, this.app.base, this.sel);
-    let h = `<div class="ptitle"><img src="${thumb(st.b, Math.max(1, st.lvl))}"><div><h2>${esc(d.name)}</h2><span class="lvl">Level ${st.lvl}<small> / ${allowedLevel(d, hq)}${allowedLevel(d, hq) < d.max ? ' (max ' + d.max + ')' : ''}</small></span></div></div><p class="desc">${esc(d.desc)}</p>`;
+    let h = `<div class="ptitle"><img src="${thumb(st.b, Math.max(1, st.lvl))}"><div><h2>${esc(d.name)}</h2><span class="lvl">Level ${st.lvl}<small> / ${G.levelCap(s, this.app.base, st.b)}${G.levelCap(s, this.app.base, st.b) < d.max ? ' (max ' + d.max + ')' : ''}</small></span></div></div><p class="desc">${esc(d.desc)}</p>`;
     if (j) {
       const left = Math.max(0, (j.end - Date.now()) / 1000);
       h += `<div class="job"><div class="jl">${j.from === 0 ? 'Constructing' : `Upgrading to level ${j.to}`} · <b id="jobLeft">${fmtTime(left)}</b></div><div class="pbar"><span id="jobBar"></span></div>
@@ -95,10 +104,12 @@ export class UI {
     }
     const cu = G.canUpgrade(s, this.app.base, this.sel); const next = st.lvl + 1;
     h += this.statRows(st.b, st.lvl, next <= d.max ? next : null, R.m);
+    let reqH = ''; const reqs = cmdReqs(st.b, next); if (reqs.length && next <= d.max) { const miss = G.reqsMissing(s, this.app.base, st.b, next); reqH = `<div class="reqs"><b>Before level ${next}</b>${reqs.map(([b, n]) => { const ok = !miss.some(([x]) => x === b); return `<span class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'lock', 'xs')} ${esc(BUILDINGS[b].name)} level ${n}</span>`; }).join('')}</div>`; }
+    if (G.canDemolish(s, this.app.base, this.sel)) h += `<button class="btn ghost small demo" data-a="demolish">Demolish to free the lot (no refund)</button>`;
     if (cu.max) h += `<div class="maxed">${icon('star', 'xs')} Maximum level</div>`;
     else { const cost = G.costOf(st.b, next, R.m); const time = G.timeOf(st.b, next, R.m); const block = cu.hq || cu.crews;
-      h += `<div class="upg"><div class="costs">${Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}<span class="cost time">${icon('clock', 'xs')}${fmtTime(time)}</span></div>
-        <button class="btn gold big" data-a="upgrade" data-need='${JSON.stringify(cost)}' data-block="${block ? 1 : 0}" ${cu.ok ? '' : 'disabled'}>${icon('up', 'xs')} Upgrade to level ${next}</button>${!cu.ok && (cu.hq || cu.crews) ? `<p class="why">${esc(cu.why)}</p>` : ''}</div>`; }
+      h += `<div class="upg">${reqH}<div class="costs">${Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}<span class="cost time">${icon('clock', 'xs')}${fmtTime(time)}</span></div>
+        <button class="btn gold big" data-a="upgrade" data-need='${JSON.stringify(cost)}' data-block="${block ? 1 : 0}" ${cu.ok ? '' : 'disabled'}>${icon('up', 'xs')} Upgrade to level ${next}</button>${!cu.ok && (cu.hq || cu.crews) && !cu.reqs ? `<p class="why">${esc(cu.why)}</p>` : ''}</div>`; }
     return h;
   }
   buildMenu(lotDef) {
@@ -138,7 +149,7 @@ export class UI {
   techDetail(id) { this.techSel = id; const t = TECH[id]; const el = $('#tdetail'); if (!el) return; const cost = techCost(t);
     const eff = []; const e = t.effect || {}; for (const r in e.mult || {}) eff.push(`${RES[r].name} +${Math.round(e.mult[r] * 100)}%`); if (e.gen) eff.push(`Energy +${Math.round(e.gen * 100)}%`); if (e.buildTime) eff.push(`Construction ${Math.round(e.buildTime * 100)}% faster`); if (e.researchTime) eff.push(`Research ${Math.round(e.researchTime * 100)}% faster`); if (e.cap) eff.push(`Storage +${Math.round(e.cap * 100)}%`); if (e.crews) eff.push(`+${e.crews} engineering crew`); if (e.slots) eff.push(`+${e.slots} research slot`); if (e.costs) eff.push(`Build costs −${Math.round(e.costs * 100)}%`); if (t.unlocks) eff.push(`Unlocks: ${t.unlocks}`);
     el.className = 'tdetail on'; el.style.setProperty('--bc', BRANCHES[t.branch].color);
-    el.innerHTML = `<div class="td-t"><span class="br">${BRANCHES[t.branch].name} · Tier ${t.tier}</span><h2>${esc(t.name)}</h2><p>${esc(t.desc)}</p>${eff.length ? `<div class="eff">${eff.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}${t.req.length ? `<p class="muted small">Requires: ${t.req.map((r) => esc(TECH[r].name)).join(', ')}</p>` : ''}</div>
+    el.innerHTML = `<div class="td-t"><span class="br">${BRANCHES[t.branch].name} · Tier ${t.tier}</span><h2>${esc(t.name)}</h2><p>${esc(t.desc)}</p>${eff.length ? `<div class="eff">${eff.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}${t.req.length || t.hq ? `<p class="muted small">Requires: ${[...t.req.map((r) => esc(TECH[r].name)), ...(t.hq ? [`Mission Control level ${t.hq}`] : [])].join(', ')}</p>` : ''}</div>
       <div class="td-a"><div class="costs">${Object.entries(cost).map(([r, n]) => `<span class="cost" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}<span class="cost time">${icon('clock', 'xs')}<b id="tdTime"></b></span></div><button class="btn gold big" data-a="research" data-t="${id}" id="tdBtn"></button><p class="why" id="tdWhy"></p></div>`;
     this.techLive(); this.researchLive(); }
   techLive() { const s = this.s; const id = this.techSel; const c = G.canResearch(s, id); const b = $('#tdBtn'); if (!b) return; const j = s.jobs.find((x) => x.kind === 'research' && x.tech === id);
@@ -149,13 +160,14 @@ export class UI {
   // ---------------- clicks ----------------
   click(e) {
     const t = e.target.closest('[data-a],[data-tab]'); if (!t) return; const A = this.app, s = this.s; A.audio.unlock();
-    if (t.dataset.tab) { const v = t.dataset.tab; if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Launch Control arrives with Orbital Mechanics (coming in the next update)' : 'The Star Map opens once you reach orbit (coming soon)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
-    const a = t.dataset.a;
+    if (t.dataset.tab) { const v = t.dataset.tab; if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Research Rocketry Fundamentals to open Launch Control' : v === 'orbit' ? 'Build the Launch Complex to watch your orbit fill up' : 'The Star Map opens with interplanetary travel (coming in a future update)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
+    const a = t.dataset.a; if (this.app.view === 'launch' && this.launch.click(t)) return;
     if (a === 'deselect') this.select(null);
     if (a === 'build') { const r = G.startBuild(s, A.base, this.sel, t.dataset.b); if (r.ok) { A.audio.play('build'); this.toast(`Construction started: ${BUILDINGS[t.dataset.b].name}`, 'good'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'upgrade') { const r = G.startUpgrade(s, A.base, this.sel); if (r.ok) { A.audio.play('build'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'finish') { const r = G.speedup(s, t.dataset.job); if (r.ok) { A.audio.play('dm'); A.changed(); } else { this.toast(`${r.why}: need ${r.need} dark matter`, 'bad'); A.audio.play('deny'); } this.panelKey = ''; }
     if (a === 'adskip') A.rewarded(() => { G.skip(s, t.dataset.job, 1800); A.changed(); this.toast('30 minutes skipped', 'good'); });
+    if (a === 'demolish') { if (t.dataset.sure) { const b = s.bases[A.base].lots[this.sel].b; if (G.demolish(s, A.base, this.sel)) { this.toast(`${BUILDINGS[b].name} demolished`, 'info'); A.changed(); this.panelKey = ''; } } else { t.dataset.sure = 1; t.textContent = 'Tap again to demolish'; t.classList.add('warn'); } return; }
     if (a === 'cancel') { if (t.dataset.sure) { G.cancel(s, t.dataset.job); A.changed(); this.panelKey = ''; } else { t.dataset.sure = 1; t.textContent = 'Tap again to cancel'; } }
     if (a === 'claim') { const st = G.claimStep(s); if (st) { A.audio.play('claim'); this.toast(`Objective complete! ${Object.entries(st.reward).map(([r, n]) => '+' + fmt(n) + ' ' + RES[r].name).join(', ')}`, 'gold'); A.changed(); } }
     if (a === 'research') { if (t.closest('#rslot') || t.id === 'rslot') { A.setView('research'); return; } const r = G.startResearch(s, t.dataset.t); if (r.ok) { A.audio.play('build'); A.changed(); this.techDetail(t.dataset.t); } else this.toast(r.why, 'bad'); }
@@ -172,6 +184,6 @@ export class UI {
   closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; }
   settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label>
     <div class="set">Day / night<div class="chips">${[['auto', 'Local time'], ['day', 'Always day'], ['night', 'Always night']].map(([v, n]) => `<button class="chip2 ${st.dayNight === v ? 'on' : ''}" data-a="day" data-v="${v}">${n}</button>`).join('')}</div></div>
-    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.1 · Part 1 of the campaign.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
+    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.2 · Part 2 of the campaign: Orbit &amp; Moon.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
     $$('#modal [data-set]').forEach((el) => el.addEventListener('input', () => { st[el.dataset.set] = +el.value; this.app.applySettings(); })); }
 }

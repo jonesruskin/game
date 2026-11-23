@@ -1,0 +1,41 @@
+// STARWARD: spaceflight content. Rockets (built in the Vehicle Assembly), missions (flown from the Launch
+// Complex), satellites (fill orbital slots), station modules (build an orbital outpost). Curves are [base, growth].
+export const ROCKETS = {
+  kestrel: { name: 'Kestrel', cls: 1, role: 'Sounding rocket', payload: 0.1, rel: 0.82, pad: 1, vab: 0, req: ['rocketry'], cost: { credits: 600, metal: 500, fuel: 200 }, time: 120, h: 34, w: 6, band: '#f08a24', desc: 'A slim solid-fuel rocket that lobs instruments to the edge of space and back.' },
+  swift: { name: 'Swift', cls: 2, role: 'Light launcher', payload: 1.2, rel: 0.86, pad: 2, vab: 1, req: ['multistage'], cost: { credits: 2400, metal: 2600, fuel: 900 }, time: 1200, h: 52, w: 8, band: '#3b6fd4', desc: 'Two stages, kerosene and oxygen: small satellites to low orbit.' },
+  meridian: { name: 'Meridian', cls: 3, role: 'Medium launcher', payload: 9, rel: 0.9, pad: 4, vab: 3, req: ['orbital'], cost: { credits: 9000, metal: 12000, fuel: 4500 }, time: 7200, h: 72, w: 10, band: '#d64545', desc: 'The workhorse: geostationary satellites, crewed capsules, station modules.' },
+  colossus: { name: 'Colossus', cls: 4, role: 'Heavy lifter', payload: 28, rel: 0.92, pad: 6, vab: 5, req: ['cryo', 'crewed'], cost: { credits: 38000, metal: 52000, fuel: 22000 }, time: 21600, h: 92, w: 13, band: '#e8b04a', desc: 'Hydrogen upper stage, strap-on boosters. Lunar landers and big station segments.' },
+  leviathan: { name: 'Leviathan', cls: 5, role: 'Super-heavy reusable', payload: 120, rel: 0.95, pad: 8, vab: 7, req: ['heavy', 'reusable'], cost: { credits: 140000, metal: 210000, fuel: 90000 }, time: 64800, h: 118, w: 16, band: '#ffffff', reusable: true, desc: 'Stainless steel, dozens of engines, lands itself. Moon bases by the shipload.' },
+};
+export const ROCKET_ORDER = ['kestrel', 'swift', 'meridian', 'colossus', 'leviathan'];
+// orbital slots around Earth
+export const ORBITS = { leo: { name: 'Low Earth Orbit', base: 3, alt: '400 km' }, geo: { name: 'Geostationary', base: 2, alt: '35,786 km' }, lagrange: { name: 'Earth–Moon L1/L2', base: 0, alt: '326,000 km' } };
+// satellite types: effect per level is applied in core/space.js
+export const SATS = {
+  comms: { name: 'Comms Satellite', orbit: 'geo', cls: 2, req: 'satComms', prod: { credits: [900, 1.28] }, cost: { credits: [1800, 1.55], metal: [1500, 1.55], fuel: [600, 1.5] }, flight: [600, 1.3], desc: 'Relays TV, phone and internet traffic. Pays its way in credits.' },
+  observe: { name: 'Earth Observation', orbit: 'leo', cls: 2, req: 'remoteSensing', mult: { metal: 0.05, fuel: 0.05 }, cost: { credits: [2200, 1.55], metal: [1800, 1.55], fuel: [700, 1.5] }, flight: [600, 1.3], desc: 'Maps mineral deposits and oil fields from orbit. Metal and fuel +5% per level.' },
+  weather: { name: 'Weather Satellite', orbit: 'leo', cls: 2, req: 'remoteSensing', mult: { credits: 0.04, metal: 0.03, fuel: 0.03 }, rel: 0.01, cost: { credits: [2000, 1.55], metal: [1600, 1.55], fuel: [700, 1.5] }, flight: [600, 1.3], desc: 'Predicts storms and launch weather. Small boosts to production and launch reliability.' },
+  nav: { name: 'Navigation Satellite', orbit: 'leo', cls: 3, req: 'gps', rel: 0.015, flightCut: 0.04, cost: { credits: [5000, 1.55], metal: [4200, 1.55], fuel: [2000, 1.5] }, flight: [1200, 1.3], desc: 'Precise positioning and timing. Missions fly faster and succeed more often.' },
+  telescope: { name: 'Space Telescope', orbit: 'leo', cls: 3, req: 'telescopes', prod: { science: [420, 1.28] }, cost: { credits: [9000, 1.55], metal: [7000, 1.55], fuel: [3000, 1.5] }, flight: [1800, 1.3], desc: 'A mirror above the atmosphere. Floods your labs with data.' },
+  power: { name: 'Solar Power Satellite', orbit: 'geo', cls: 4, req: 'spacePower', gen: [90, 1.3], cost: { credits: [30000, 1.55], metal: [42000, 1.55], fuel: [12000, 1.5] }, flight: [3600, 1.3], desc: 'Kilometre-wide solar wings beam microwave power to the grid.' },
+  relay: { name: 'Deep Space Relay', orbit: 'lagrange', cls: 4, req: 'deepSpace', rel: 0.02, prod: { science: [600, 1.28] }, cost: { credits: [40000, 1.55], metal: [36000, 1.55], fuel: [20000, 1.5] }, flight: [7200, 1.3], desc: 'Parked at a Lagrange point: always-on contact with the Moon and beyond.' },
+};
+// station modules (each levels up with further launches)
+export const MODULES = {
+  core: { name: 'Core Module', cls: 3, req: 'spaceStation', prod: { science: [250, 1.24] }, max: 10, cost: { credits: [20000, 1.6], metal: [26000, 1.6], fuel: [9000, 1.5] }, flight: [7200, 1.25], desc: 'Power, guidance and the first living quarters. Every other module docks here.' },
+  lab: { name: 'Laboratory', cls: 3, req: 'spaceStation', needs: 'core', prod: { science: [500, 1.264] }, speed: 0.04, max: 15, cost: { credits: [24000, 1.6], metal: [28000, 1.6], fuel: [9000, 1.5] }, flight: [7200, 1.25], desc: 'Microgravity research. Science, plus 4% faster research per level.' },
+  solar: { name: 'Solar Wings', cls: 3, req: 'spaceStation', needs: 'core', gen: [60, 1.28], max: 15, cost: { credits: [16000, 1.6], metal: [22000, 1.6], fuel: [7000, 1.5] }, flight: [5400, 1.25], desc: 'Huge photovoltaic arrays. They feed the station and beam spare power down.' },
+  habitat: { name: 'Habitat Module', cls: 4, req: 'closedLoop', needs: 'core', prod: { credits: [1500, 1.264] }, max: 15, cost: { credits: [45000, 1.6], metal: [60000, 1.6], fuel: [20000, 1.5] }, flight: [10800, 1.25], desc: 'Room for more crew, and for paying space tourists.' },
+  depot: { name: 'Fuel Depot', cls: 4, req: 'cryo', needs: 'core', fuelCut: 0.05, cap: { fuel: [20000, 1.45] }, max: 10, cost: { credits: [30000, 1.6], metal: [40000, 1.6], fuel: [30000, 1.5] }, flight: [10800, 1.25], desc: 'Refuel in orbit. Missions beyond low orbit burn 5% less fuel per level.' },
+  dock: { name: 'Docking Hub', cls: 4, req: 'crewed', needs: 'core', rel: 0.012, max: 10, cost: { credits: [28000, 1.6], metal: [36000, 1.6], fuel: [12000, 1.5] }, flight: [10800, 1.25], desc: 'Berths for capsules and tugs. Crewed missions get safer.' },
+};
+// mission templates. kind: 'once' (story), 'repeat' (science runs), 'sat', 'module', 'outpost'
+export const MISSIONS = {
+  suborbital: { name: 'Suborbital Test Flight', kind: 'repeat', cls: 1, req: [], fuel: 150, credits: 200, flight: 120, reward: { science: 220 }, firstReward: { dm: 10 }, flag: 'suborbital', desc: 'Up to 100 km, down by parachute. Every flight teaches the engineers something.' },
+  firstOrbit: { name: 'First Satellite in Orbit', kind: 'once', cls: 2, req: ['orbital'], fuel: 600, credits: 1500, flight: 900, reward: { science: 1500, dm: 20 }, flag: 'firstOrbit', desc: 'A beeping sphere circling the Earth: the whole world will hear it.' },
+  crewOrbit: { name: 'Crewed Orbital Flight', kind: 'once', cls: 3, req: ['crewed'], needs: { academy: 1 }, fuel: 3000, credits: 8000, flight: 3600, crewed: true, reward: { science: 6000, credits: 20000, dm: 30 }, flag: 'crewOrbit', desc: 'An astronaut sees the curve of the Earth. A nation holds its breath.' },
+  lunarProbe: { name: 'Lunar Survey Probe', kind: 'once', cls: 3, req: ['deepSpace'], fuel: 5000, credits: 12000, flight: 10800, reward: { science: 12000, dm: 20 }, flag: 'lunarProbe', desc: 'Map the Moon from orbit: ice in the polar craters, helium-3 in the regolith.' },
+  lunarLanding: { name: 'Crewed Lunar Landing', kind: 'once', cls: 4, req: ['lunarLanders'], needs: { academy: 3 }, fuel: 20000, credits: 60000, flight: 21600, crewed: true, reward: { science: 50000, credits: 100000, dm: 60 }, flag: 'lunarLanding', desc: '"One small step." Footprints in the regolith that will last a million years.' },
+  lunarOutpost: { name: 'Establish Lunar Outpost', kind: 'outpost', cls: 4, req: ['isru'], flags: ['lunarLanding'], fuel: 40000, credits: 150000, metal: 120000, flight: 43200, base: 'moon', reward: { dm: 80 }, flag: 'moonBase', desc: 'Prefabricated habitats, a power plant and a crew of twelve. Humanity\'s first home off Earth.' },
+  lunarSample: { name: 'Lunar Sample Return', kind: 'repeat', cls: 4, req: ['lunarLanders'], flags: ['lunarLanding'], fuel: 12000, credits: 30000, flight: 14400, reward: { science: 25000, he3: 120 }, desc: 'Robotic landers scoop regolith and fly it home for the labs.' },
+};

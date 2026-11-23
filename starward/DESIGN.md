@@ -99,9 +99,16 @@ Procedurally generated minor species fill the rest of the galaxy (portraits, nam
 - **Dark matter** (earned, never bought) finishes timers instantly. Rewarded ads (optional) skip 30 minutes on one timer (a few per day) or grant a dark-matter bonus.
 - Midgame ads only at natural breaks (returning to the base after a completed mission), spaced out.
 
+### 10.1 Pacing rules (set in Part 2, verified with `tools/sim.mjs`)
+- **Time ladder.** Every timer reads from one ladder (`util.js` `LADDER`): 5 s … 1 h (step 10) … 1 day (step 21) … 14 days (step 36, the cap). Buildings use `[offset, stride]` with a gently flattening stride; Mission Control and the Colony Hub use a log curve (`[a, b, 'ln']`) so early levels jump quickly and late ones settle at days apiece. Research: tier T sits at step 3 + 3.6·(T−1) (tier 5 ≈ 12 h, 7 ≈ 2 days, 9+ about a week).
+- **Command gating.** Building levels cap at 2 × Mission Control. Each Mission Control level also needs its prerequisites (`cmdReqs`: research, depots, mines, offices, then the launch complex, VAB, tracking and academy, about two levels below their cap). This keeps every crew busy and the whole base growing; it avoids the "wait on the HQ timer while everything else sits maxed" trap. Colony Hubs follow Earth's Mission Control (hub ≤ MC − 7), and spaceflight techs carry Mission Control gates.
+- **Affordability guarantee.** Every building and tech cost is clamped to 85% of the storage the player is *guaranteed* to have when it unlocks (Mission Control vaults plus one depot at the level the prerequisites force; `capRef`). A cost can never exceed what the player can store, so no deadlock is possible.
+- **No dead ends.** The starting base includes a depot, a lot can always be cleared with Demolish, and objectives are tracked by id, so steps can be reordered between versions.
+- **Targets** (sim, Part 2): first liftoff about 10 minutes into the first session. Engaged player (10-minute check-ins): Moon landing around day 8, outpost around day 15, Part 2 done around day 23. Casual player (3-hour check-ins): landing around day 20, done around day 41. Later parts extend this to months, and the endgame to years.
+
 ## 11. Build plan (each part committed when done)
-1. **Foundation & Earth:** engine (state, saves, offline time, economy, timers), the isometric Earth base, buildings and upgrades, early research, objectives.
-2. **Orbit & Moon:** rockets, launch control, launches, satellites, the space station, a WebGL planet view, the lunar outpost.
+1. ✅ **Foundation & Earth:** engine (state, saves, offline time, economy, timers), the isometric Earth base, buildings and upgrades, early research, objectives.
+2. ✅ **Orbit & Moon:** rockets, launch control, launches, satellites, the space station, a WebGL planet view, the lunar outpost.
 3. **The Solar System:** every major body with real data, a system map, colonies, colonists, asteroid mining, terraforming.
 4. **Interstellar:** galaxy map, real nearby stars plus a procedural Milky Way, interstellar drives, megastructures.
 5. **Contact:** alien species (handcrafted plus procedural), first contact, xenology, diplomacy.

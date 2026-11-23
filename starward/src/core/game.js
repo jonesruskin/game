@@ -1,16 +1,17 @@
 // STARWARD: game rules. Construction, upgrades and research on real-time timers, engineering crews,
 // dark-matter speed-ups, objectives, and exact offline catch-up (production is integrated piecewise
 // between each timer completion, so a reactor finishing at 3 a.m. powers the mines from 3 a.m.).
-import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq } from '../data/buildings.js';
+import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, cmdReqs, capClamp, unlockHq } from '../data/buildings.js';
 import { TECH, techCost, techTime } from '../data/research.js';
 import { LAYOUTS } from '../data/layouts.js';
 import { allSteps } from '../data/objectives.js';
 import { mods, rates, accrue, canPay, pay, give, hqLevel, bStats } from './econ.js';
 import { uid } from './state.js';
-import { curve, round2 } from '../util.js';
+import { completeSpace, sp } from './space.js';
+import { curve, round2, timeCurve } from '../util.js';
 
-export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; for (const r in d.cost) out[r] = round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)); return out; };
-export const timeOf = (id, L, m) => { const d = BUILDINGS[id]; return Math.max(2, Math.round(curve(d.time[0], d.time[1], L) * (1 - m.buildTime))); };
+export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
+export const timeOf = (id, L, m) => { const d = BUILDINGS[id]; return Math.max(2, Math.round(timeCurve(d.time, L) * (1 - m.buildTime))); };
 export const researchTimeOf = (t, R) => Math.max(5, Math.round(techTime(TECH[t]) * (1 - R.m.researchTime) / (1 + R.speed)));
 export const crewsTotal = (s, m = mods(s)) => crewsFromHq(hqLevel(s)) + m.crews;
 export const crewsBusy = (s) => s.jobs.filter((j) => j.kind === 'build').length;
@@ -35,10 +36,16 @@ export function canBuild(s, base, lotId, b) {
   const cost = costOf(b, 1, m); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost };
   return { ok: true, cost, time: timeOf(b, 1, m) };
 }
+// unmet command-level prerequisites for taking building b to level L on this base
+export const reqsMissing = (s, base, b, L) => cmdReqs(b, L).filter(([rb, n]) => !Object.values(s.bases[base].lots).some((l) => l.b === rb && l.lvl >= n));
+// highest level a building may reach right now (colony hubs follow Mission Control back on Earth)
+export const levelCap = (s, base, b) => { const d = BUILDINGS[b]; if (d.lot === 'hq' && base !== 'earth') return Math.max(1, Math.min(d.max, hqLevel(s, 'earth') - 7)); return allowedLevel(d, hqLevel(s, base)); };
 export function canUpgrade(s, base, lotId) {
   const lot = s.bases[base].lots[lotId]; if (!lot || !lot.b) return { ok: false, why: 'Empty' }; const d = BUILDINGS[lot.b]; const m = mods(s); const hq = hqLevel(s, base);
   if (jobAt(s, base, lotId)) return { ok: false, why: 'Under construction' };
   if (lot.lvl >= d.max) return { ok: false, why: 'Maximum level', max: true };
+  if (d.lot === 'hq' && base !== 'earth' && lot.lvl >= levelCap(s, base, lot.b)) return { ok: false, why: `Mission Control level ${lot.lvl + 8} on Earth`, hq: true };
+  const miss = reqsMissing(s, base, lot.b, lot.lvl + 1); if (miss.length) return { ok: false, why: `First upgrade ${miss.map(([b, n]) => BUILDINGS[b].name + ' to level ' + n).join(', ')}`, reqs: miss, hq: true };
   if (lot.lvl >= allowedLevel(d, hq)) return { ok: false, why: `Upgrade ${base === 'earth' ? 'Mission Control' : 'the Colony Hub'} first`, hq: true };
   if (crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All crews busy', crews: true };
   const cost = costOf(lot.b, lot.lvl + 1, m); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost };
@@ -73,7 +80,7 @@ function complete(s, j) {
   s.jobs = s.jobs.filter((x) => x !== j);
   if (j.kind === 'build') { const lot = s.bases[j.base].lots[j.lot]; lot.lvl = j.to; if (j.from === 0) s.stats.built++; else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, lot: j.lot }; }
   if (j.kind === 'research') { s.tech[j.tech] = 1; s.stats.researched++; return { kind: 'research', tech: j.tech }; }
-  return null;
+  return completeSpace(s, j);
 }
 // advance the world to time t (handles offline gaps exactly). Returns notifications in order.
 export function advance(s, t = Date.now()) {
@@ -96,8 +103,12 @@ export function cancel(s, jobId) {
   const j = s.jobs.find((x) => x.id === jobId); if (!j) return false; const m = mods(s);
   if (j.kind === 'build') { const cost = costOf(j.b, j.to, m); give(s, Object.fromEntries(Object.entries(cost).map(([r, n]) => [r, Math.floor(n * 0.5)]))); if (j.from === 0) delete s.bases[j.base].lots[j.lot]; }
   if (j.kind === 'research') { const cost = techCost(TECH[j.tech]); give(s, Object.fromEntries(Object.entries(cost).map(([r, n]) => [r, Math.floor(n * 0.5)]))); }
+  if (j.kind === 'mission') return false; // no aborts once a rocket has left the pad
   s.jobs = s.jobs.filter((x) => x !== j); return true;
 }
+// clear a lot (no refund). Command buildings and the launch complex stay; so does anything under construction.
+export function canDemolish(s, base, lotId) { const lot = s.bases[base].lots[lotId]; const def = LAYOUTS[base].lots.find((l) => l.id === lotId); return !!(lot && lot.b && def && !def.special && !jobAt(s, base, lotId)); }
+export function demolish(s, base, lotId) { if (!canDemolish(s, base, lotId)) return false; delete s.bases[base].lots[lotId]; return true; }
 // ---------------- objectives ----------------
 const STEPS = allSteps();
 export const currentStep = (s) => STEPS[s.obj.i] || null;
@@ -110,6 +121,10 @@ export function stepDone(s, st, R = rates(s)) {
     case 'rate': return R.prod[st.res] >= st.n;
     case 'energy': return R.gen - R.draw >= st.n;
     case 'flag': return !!s.flags[st.flag];
+    case 'rockets': return (s.stats.rocketsBuilt || 0) >= st.n;
+    case 'sat': return sp(s).sats.some((x) => x.type === st.sat);
+    case 'module': return (sp(s).modules[st.mod] || 0) >= st.lvl;
+    case 'hubLvl': return !!s.bases.moon && hqLevel(s, 'moon') >= st.lvl;
   }
   return false;
 }

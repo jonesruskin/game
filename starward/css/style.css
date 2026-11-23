@@ -100,5 +100,35 @@ body.port .tdetail { flex-direction: column; gap: 6px; } body.port .bmenu { grid
 body.port .side { left: 8px; right: 8px; width: auto; flex-direction: row; flex-wrap: wrap; gap: 6px; }
 body.port .crews { flex: 1 1 40%; padding: 6px 8px; } body.port .rslot { flex: 1 1 40%; padding: 6px 8px; } body.port .rslot b { font-size: 12.5px; }
 body.port .obj { flex: 1 1 100%; padding: 7px 10px; } body.port .obj p { margin: 3px 0; } body.port .obj .rw { margin-top: 3px; }
-body.port.panel-open .side { display: none; }
+body.port.panel-open .side > * { display: none; } body.port.panel-open .side > .obj.done { display: block; flex: 1 1 100%; }
 .upg { position: sticky; bottom: -14px; background: linear-gradient(rgba(8, 16, 32, 0.6), rgba(8, 16, 32, 0.98) 30%); padding-bottom: 6px; }
+/* ---------- Part 2: scenes, orbit view, launch control ---------- */
+canvas#gl, canvas#fx { position: fixed; inset: 0; display: none; } canvas#fx { z-index: 1; }
+body[data-scene=orbit] canvas#base { display: none; } body[data-scene=orbit] canvas#gl, body[data-scene=orbit] canvas#fx { display: block; }
+.nav button.gone { display: none; } .logo.small { font-size: 28px; letter-spacing: 0.12em; }
+#overlay.launch .lc-tabs { display: flex; gap: 6px; margin: 8px 10px 0; overflow-x: auto; scrollbar-width: none; }
+.lc-tabs button { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(8, 16, 32, 0.8); color: var(--muted); font-weight: 600; flex: none; }
+.lc-tabs button.on { color: var(--cy); background: rgba(110, 231, 255, 0.14); border-color: var(--cy); }
+.lc-flights { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 10px 0; } .lc-flights:empty { display: none; }
+.fl { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px 8px 10px; border-radius: 9px; background: rgba(12, 24, 46, 0.92); border: 1px solid rgba(255, 209, 102, 0.35); font-size: 13px; overflow: hidden; }
+.fl span { display: flex; align-items: center; gap: 5px; color: var(--amber); } .fl b { font: 600 13px var(--disp); } .fl i { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--amber); }
+.mini { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; border: 1px solid rgba(201, 182, 255, 0.5); color: #ddd0ff; }
+.lc-body { flex: 1; overflow-y: auto; padding: 10px 10px 110px; touch-action: pan-y; }
+.lc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.lcard { display: flex; flex-direction: column; padding: 12px 13px; border-radius: 12px; background: rgba(10, 20, 40, 0.94); border: 1px solid rgba(255, 255, 255, 0.08); }
+.lcard.done { border-color: rgba(124, 242, 154, 0.35); opacity: 0.8; } .lcard.locked { opacity: 0.55; }
+.lc-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; } .lc-h b { font: 600 15.5px var(--disp); } .lc-h b small { font: 500 12px var(--ui); color: var(--muted); } .lc-h i { font-style: normal; font-size: 12px; color: var(--green); text-align: right; }
+.lcard .desc { margin: 6px 0 6px; font-size: 13.5px; } .lcard .nx { margin: 0 0 4px; font-size: 12.5px; color: var(--green); }
+.lc-a { margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); } .lc-a .btn { margin-top: 6px; padding: 9px; }
+.rel { margin: 6px 0 0; font-size: 12.5px; color: var(--cy); } .cost.cls { color: #c9b6ff; } .rws { display: flex; gap: 5px; flex-wrap: wrap; } .rws .cost { color: var(--green); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.07); color: var(--muted); font: 600 11px var(--disp); letter-spacing: 0.05em; white-space: nowrap; } .tag.ok { color: var(--green); background: rgba(124, 242, 154, 0.1); } .tag.story { color: var(--amber); background: rgba(255, 209, 102, 0.1); }
+.orb { margin: 14px 2px 8px; font-size: 15px; color: var(--cy); } .orb small { font: 500 12px var(--ui); color: var(--muted); margin-left: 6px; } .lc-body > .orb:first-child { margin-top: 2px; }
+.rk { display: flex; gap: 12px; align-items: flex-start; } .rkc { width: 40px; height: 120px; flex: none; } .stats.small { font-size: 12.5px; margin: 4px 0; } .stats.small td { padding: 3px 4px; }
+.lnk { color: var(--cy); text-decoration: underline; font-size: 13px; } .empty { padding: 30px; text-align: center; color: var(--muted); font-size: 15px; }
+body.port .nav button span { font-size: 10px; } body.port .nav button { padding: 5px 0 4px; } body.port .nav button .ic { width: 21px; height: 21px; } body.port .nav { gap: 2px; }
+body.port .lc-grid { grid-template-columns: 1fr; } body.port .badge { right: 6px; }
+.lcard .cur { margin: 0 0 2px; font-size: 12.5px; color: var(--cy); }
+.reqs { display: flex; flex-wrap: wrap; gap: 5px 10px; margin: 0 0 10px; padding: 8px 10px; border-radius: 9px; background: rgba(255, 209, 102, 0.06); border: 1px solid rgba(255, 209, 102, 0.2); font-size: 13px; } .reqs b { flex: 1 1 100%; font: 600 12px var(--disp); letter-spacing: 0.06em; text-transform: uppercase; color: var(--amber); } .reqs span { color: var(--amber); } .reqs span.ok { color: var(--green); }
+.btn.demo { margin: 0 0 8px; color: #8aa0bd; font-weight: 500; } .btn.demo.warn { color: var(--red); border-color: var(--red); }
+body.port .lc-tabs { gap: 4px; } body.port .lc-tabs button { flex: 1; justify-content: center; padding: 8px 4px; font-size: 12.5px; gap: 4px; } body.port .lc-tabs button .ic { display: none; }
+body.port .ovh { padding: 8px 10px; gap: 8px; } body.port .ovh h1 { font-size: 17px; } body.port .ovh .muted { font-size: 11.5px; line-height: 1.2; }

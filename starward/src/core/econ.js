@@ -3,6 +3,7 @@
 import { BUILDINGS } from '../data/buildings.js';
 import { TECH } from '../data/research.js';
 import { RES } from '../data/resources.js';
+import { SATS, MODULES } from '../data/space.js';
 import { curve } from '../util.js';
 
 export function mods(s) {
@@ -12,6 +13,8 @@ export function mods(s) {
     for (const k of ['gen', 'buildTime', 'researchTime', 'cap', 'crews', 'slots', 'costs']) if (e[k]) m[k] += e[k];
     if (e.flag) m.flags.add(e.flag); }
   for (const f in s.flags) if (s.flags[f]) m.flags.add(f);
+  // satellites that multiply production (observation, weather)
+  for (const x of (s.space && s.space.sats) || []) { const d = SATS[x.type]; for (const r in d.mult || {}) m.mult[r] = (m.mult[r] || 0) + d.mult[r] * x.lvl; }
   return m;
 }
 const val = (c, L) => (c ? curve(c[0], c[1], L) : 0);
@@ -23,7 +26,7 @@ export function bStats(id, L, m) {
   o.gen = val(d.gen, L) * (1 + m.gen); o.draw = val(d.draw, L); o.speed = d.speed ? d.speed * L : 0;
   return o;
 }
-export const lvlOf = (s, base, b) => { let best = 0; for (const lot of Object.values(s.bases[base].lots)) if (lot.b === b) best = Math.max(best, lot.lvl); return best; };
+export const lvlOf = (s, base, b) => { let best = 0; if (!s.bases[base]) return 0; for (const lot of Object.values(s.bases[base].lots)) if (lot.b === b) best = Math.max(best, lot.lvl); return best; };
 export const hqLevel = (s, base = 'earth') => lvlOf(s, base, base === 'earth' ? 'hq' : 'hub');
 // full economic picture
 export function rates(s, m = mods(s)) {
@@ -32,6 +35,11 @@ export function rates(s, m = mods(s)) {
   for (const bid in s.bases) for (const lot of Object.values(s.bases[bid].lots)) {
     if (!lot.b || lot.lvl <= 0) continue; const st = bStats(lot.b, lot.lvl, m);
     for (const r in st.prod) R.prod[r] += st.prod[r]; for (const r in st.cap) R.cap[r] += st.cap[r]; R.gen += st.gen; R.draw += st.draw; R.speed += st.speed;
+  }
+  // orbital assets: satellites and station modules
+  const SP = s.space; if (SP) {
+    for (const x of SP.sats) { const d = SATS[x.type]; for (const r in d.prod || {}) R.prod[r] += val(d.prod[r], x.lvl) * (1 + (m.mult[r] || 0)); if (d.gen) R.gen += val(d.gen, x.lvl) * (1 + m.gen); }
+    for (const id in SP.modules) { const L = SP.modules[id]; const d = MODULES[id]; if (!L || !d) continue; for (const r in d.prod || {}) R.prod[r] += val(d.prod[r], L) * (1 + (m.mult[r] || 0)); for (const r in d.cap || {}) R.cap[r] += val(d.cap[r], L) * (1 + m.cap); if (d.gen) R.gen += val(d.gen, L) * (1 + m.gen); if (d.speed) R.speed += d.speed * L; }
   }
   R.eff = R.draw <= 0 ? 1 : Math.min(1, R.gen / R.draw);
   // production is throttled by power shortage (command buildings keep a trickle)

@@ -1,3 +1,5 @@
+import { ladder } from '../util.js';
+import { capClamp } from './buildings.js';
 // STARWARD: the technology tree. Costs and times come from the tier unless overridden.
 // Effects: mult.{res} (+% output), gen (+% energy), buildTime (−%), researchTime (−%), cap (+% storage),
 //          crews (+n), slots (+n research slots), costs (−% build costs), flag (unlocks a game system)
@@ -46,6 +48,27 @@ export const TECH = {
   // ---- Astronomy ----
   radioAstro: { name: 'Radio Astronomy', branch: 'astro', tier: 1, req: [], effect: { mult: { science: 0.1 } }, desc: 'Listen to the universe in radio waves. Science +10%.' },
   telescopes: { name: 'Space Telescopes', branch: 'astro', tier: 4, req: ['orbital', 'radioAstro'], effect: { flag: 'telescopes' }, unlocks: 'Telescope satellites', desc: 'Above the atmosphere the sky is perfectly sharp.' },
+  // ---- Part 2: orbit & the Moon ----
+  satComms: { name: 'Communication Satellites', branch: 'astro', tier: 3, req: ['orbital'], effect: {}, unlocks: 'Comms satellites', desc: 'Arthur C. Clarke\'s geostationary relays: a satellite that hangs over one spot of the Earth.' },
+  remoteSensing: { name: 'Remote Sensing', branch: 'astro', tier: 3, req: ['orbital'], effect: {}, unlocks: 'Observation & weather satellites', desc: 'Multispectral cameras and radar that read the planet from above.' },
+  orbitalOps: { name: 'Orbital Operations', branch: 'rocketry', tier: 4, req: ['orbital', 'networks'], effect: { flag: 'orbitalOps' }, desc: 'Traffic control for crowded orbits. +1 low-orbit and +1 geostationary slot.' },
+  gps: { name: 'Satellite Navigation', branch: 'astro', tier: 4, req: ['satComms', 'networks'], effect: {}, unlocks: 'Navigation satellites', desc: 'Atomic clocks in orbit. Know where everything is, to the centimetre.' },
+  deepSpace: { name: 'Deep Space Navigation', branch: 'rocketry', tier: 4, req: ['orbital', 'guidance'], effect: {}, unlocks: 'Lunar probes, deep space relays', desc: 'Trajectory design and the Deep Space Network: reaching beyond Earth orbit.' },
+  spaceStation: { name: 'Orbital Assembly', branch: 'engineering', tier: 5, req: ['crewed', 'additive'], effect: {}, unlocks: 'Space station', desc: 'Dock modules in orbit and bolt them together: a permanent home in space.' },
+  closedLoop: { name: 'Closed-Loop Ecology', branch: 'life', tier: 5, req: ['lifeSupport', 'spaceStation'], effect: {}, unlocks: 'Habitat modules', desc: 'Recycle every drop of water and breath of air. Long stays become possible.' },
+  constellations: { name: 'Satellite Constellations', branch: 'astro', tier: 5, req: ['orbitalOps', 'reusable'], effect: { flag: 'constellations' }, desc: 'Cheap mass-produced satellites in swarms. +2 low-orbit slots.' },
+  lunarLanders: { name: 'Lunar Landers', branch: 'rocketry', tier: 6, req: ['deepSpace', 'heavy'], effect: {}, unlocks: 'Crewed lunar landing', desc: 'Descent engines, landing legs and the nerve to fly them.' },
+  spacePower: { name: 'Space-Based Solar Power', branch: 'energy', tier: 6, req: ['spaceStation', 'breeder'], effect: {}, unlocks: 'Solar power satellites', desc: 'Collect sunlight where it never sets and beam it home.' },
+  isru: { name: 'In-Situ Resource Utilisation', branch: 'engineering', tier: 6, req: ['lunarLanders', 'closedLoop'], effect: {}, unlocks: 'Lunar outpost', desc: 'Live off the land: oxygen from rock, water from ice, metal from regolith.' },
+  he3Mining: { name: 'Helium-3 Extraction', branch: 'energy', tier: 7, req: ['isru'], effect: { flag: 'he3' }, unlocks: 'He-3 Extractor', desc: 'Heat tonnes of regolith to release a few grams of the perfect fusion fuel.' },
+  lunarHabitats: { name: 'Lunar Habitats', branch: 'life', tier: 7, req: ['isru'], effect: {}, unlocks: 'Habitat Dome, Lunar Lab', desc: 'Regolith-shielded domes where people can live for years.' },
+  massDrivers: { name: 'Mass Drivers', branch: 'engineering', tier: 7, req: ['isru', 'spacePower'], effect: {}, unlocks: 'Mass Driver', desc: 'Electromagnetic rails that fling cargo off the Moon without a drop of fuel.' },
+  lowGravity: { name: 'Low-Gravity Industry', branch: 'engineering', tier: 7, req: ['isru'], effect: { mult: { metal: 0.15 } }, desc: 'Smelt, cast and print in one-sixth gravity. Metal output +15%.' },
 };
-export const techCost = (t) => { const T = t.tier; return t.cost || { science: Math.round(40 * Math.pow(3.1, T - 1) / 10) * 10, credits: Math.round(160 * Math.pow(2.7, T - 1) / 10) * 10 }; };
-export const techTime = (t) => t.time || Math.round(45 * Math.pow(3, t.tier - 1));
+// science 60·3.6^(T-1), credits 200·3.2^(T-1), clamped under the storage guaranteed at the tech's Mission Control gate
+export const techCost = (t) => { if (t.cost) return t.cost; const T = t.tier, h = t.hq || Math.max(1, T); return { science: capClamp(Math.round(60 * Math.pow(3.6, T - 1) / 10) * 10, h, 'science'), credits: capClamp(Math.round(200 * Math.pow(3.2, T - 1) / 10) * 10, h, 'credits') }; };
+// Mission Control gates: the spaceflight programme follows the size of the agency (Clash-style town-hall gating)
+const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, deepSpace: 6, spaceStation: 6, heavy: 7, reusable: 7, closedLoop: 7, constellations: 7, lunarLanders: 8, spacePower: 8, isru: 9, he3Mining: 9, lowGravity: 9, lunarHabitats: 10, massDrivers: 10 };
+for (const k in HQ_GATE) if (TECH[k]) TECH[k].hq = HQ_GATE[k];
+// tier 1 ≈ 1 min, 3 ≈ 1 h, 5 ≈ 12 h, 6 ≈ 1 day, 7 ≈ 2 days, 8 ≈ 4 days, 9+ a week or more (before speed bonuses)
+export const techTime = (t) => t.time || Math.round(ladder(3 + 3.6 * (t.tier - 1)));

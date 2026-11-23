@@ -11,9 +11,9 @@ const GAPS = [[3, 4], [6, 7], [10, 11], [13, 14]];
 export class BaseView {
   constructor(canvas) {
     this.cv = canvas; this.c = canvas.getContext('2d'); this.base = 'earth'; this.zoom = 1; this.cam = { x: 0, y: 0 }; this.sprites = new Map(); this.ground = null; this.sel = null; this.hover = null; this.t = 0;
-    this.particles = []; this.cars = []; this.dayLock = null;
+    this.particles = []; this.cars = []; this.dayLock = null; this.theme = 'earth'; this.launching = null; this.padRocket = null;
   }
-  setBase(id) { this.base = id; this.ground = null; this.sprites.clear(); this.fit(); }
+  setBase(id) { if (this.base === id && this.ground) return; this.base = id; this.theme = id === 'moon' ? 'moon' : 'earth'; this.ground = null; this.sprites.clear(); this.cars = []; this.particles = []; this.padXY = null; this.fit(); }
   resize(w, h, dpr) { this.w = w; this.h = h; this.dpr = dpr; this.cv.width = Math.round(w * dpr); this.cv.height = Math.round(h * dpr); this.cv.style.width = w + 'px'; this.cv.style.height = h + 'px'; this.ground = null; this.sprites.clear(); if (!this.fitted) this.fit(); }
   get lay() { return LAYOUTS[this.base]; }
   fit() { const N = this.lay.N; const span = N * TW; const port = this.h > this.w; this.zoom = clamp(port ? this.w / (span * 0.6) : Math.min(this.w / (span * 0.78), (this.h - 110) / (N * TH * 0.95)), 0.35, 1.8); const c = P(N / 2, N / 2); this.cam = { x: c[0], y: c[1] + (port ? (this.h * 0.04) / this.zoom : -30) }; this.fitted = true; this.ground = null; }
@@ -51,6 +51,7 @@ export class BaseView {
   }
   // ---------------- ground ----------------
   buildGround(s) {
+    if (this.theme === 'moon') return this.buildMoonGround(s);
     const N = this.lay.N, M = 7; const sc = this.scale(); this.gZoom = this.zoom;
     const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 40, y1 = P(N + M, N + M)[1] + 40;
     const cv = document.createElement('canvas'); cv.width = Math.ceil((x1 - x0) * sc); cv.height = Math.ceil((y1 - y0) * sc); const c = cv.getContext('2d'); c.scale(sc, sc); c.translate(-x0, -y0);
@@ -76,16 +77,34 @@ export class BaseView {
       else { c.fillStyle = '#8b8f94'; c.beginPath(); c.ellipse(x, y, 4 + R() * 3, 2.5, 0, Math.PI, 0); c.fill(); } }
     this.ground = { cv, x0, y0, sc, isl };
   }
+  buildMoonGround(s) {
+    const N = this.lay.N, M = 10; const sc = this.scale(); this.gZoom = this.zoom;
+    const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 60, y1 = P(N + M, N + M)[1] + 40;
+    const cv = document.createElement('canvas'); cv.width = Math.ceil((x1 - x0) * sc); cv.height = Math.ceil((y1 - y0) * sc); const c = cv.getContext('2d'); c.scale(sc, sc); c.translate(-x0, -y0);
+    const R = rng(21); const isl = []; const steps = 64; for (let k = 0; k < steps; k++) { const a = (k / steps) * Math.PI * 2; const rr = (N / 2 + M * 0.85) * (1 + 0.05 * Math.sin(a * 5) + 0.03 * Math.sin(a * 11)); isl.push([N / 2 + Math.cos(a) * rr, N / 2 + Math.sin(a) * rr]); }
+    const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#5b5955'); g.addColorStop(0.5, '#7a7873'); g.addColorStop(1, '#6a6864'); poly(c, isl.map(([i, j]) => P(i, j)), g);
+    for (let k = 0; k < 4000; k++) { const i = R.range(-M * 0.8, N + M * 0.8), j = R.range(-M * 0.8, N + M * 0.8); const [x, y] = P(i, j); c.fillStyle = R.chance(0.5) ? 'rgba(30,30,32,0.16)' : 'rgba(200,198,190,0.12)'; c.fillRect(x, y, R.range(1, 2.5), 1); }
+    // craters (avoid the lots)
+    for (let k = 0; k < 46; k++) { const i = R.range(-M * 0.7, N + M * 0.7), j = R.range(-M * 0.7, N + M * 0.7); const inGrid = i > -0.5 && i < N + 0.5 && j > -0.5 && j < N + 0.5; const r = inGrid ? R.range(0.15, 0.35) : R.range(0.3, 1.8); if (inGrid && R.chance(0.6)) continue; const [x, y] = P(i, j);
+      c.fillStyle = 'rgba(25,25,28,0.35)'; c.beginPath(); c.ellipse(x, y, r * 45, r * 22, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(60,60,62,0.6)'; c.beginPath(); c.ellipse(x + r * 4, y + r * 2, r * 40, r * 19, 0, 0, 7); c.fill();
+      c.strokeStyle = 'rgba(220,218,210,0.35)'; c.lineWidth = 1 + r; c.beginPath(); c.ellipse(x, y, r * 45, r * 22, 0, Math.PI * 0.1, Math.PI * 0.95); c.stroke(); }
+    // rover tracks from the hub to every lot
+    const hub = this.lay.lots.find((l) => l.id === 'hq'); const [hx, hy] = P(hub.i + 1.5, hub.j + 1.5); c.strokeStyle = 'rgba(190,188,180,0.35)'; c.lineWidth = 5;
+    for (const L of this.lay.lots) { if (L.id === 'hq') continue; const [lx, ly] = P(L.i + L.size / 2, L.j + L.size / 2); c.beginPath(); c.moveTo(hx, hy); c.quadraticCurveTo((hx + lx) / 2 + 8, (hy + ly) / 2 - 4, lx, ly); c.stroke(); }
+    for (let k = 0; k < 120; k++) { const i = R.range(-M * 0.7, N + M * 0.7), j = R.range(-M * 0.7, N + M * 0.7); if (i > -0.5 && i < N + 0.5 && j > -0.5 && j < N + 0.5) continue; const [x, y] = P(i, j); c.fillStyle = '#4e4c49'; c.beginPath(); c.ellipse(x, y, 3 + R() * 4, 2, 0, Math.PI, 0); c.fill(); c.fillStyle = 'rgba(210,208,200,0.4)'; c.fillRect(x - 2, y - 2, 2, 1); }
+    this.ground = { cv, x0, y0, sc, isl, moon: true };
+  }
   // empty / locked lots drawn live (they react to selection)
   drawLot(c, L, st, open, hq) {
     const sel = this.sel === L.id, hov = this.hover === L.id; const pts = diamond(L.i + 0.06, L.j + 0.06, L.size - 0.12, L.size - 0.12);
-    if (!open) { const next = L.hq === hq + 1; poly(c, pts, next ? 'rgba(60,90,50,0.4)' : 'rgba(60,90,50,0.18)'); if (next) { c.setLineDash([3, 4]); poly(c, pts, null, 'rgba(255,255,255,0.4)', 1); c.setLineDash([]); const [x, y] = P(L.i + L.size / 2, L.j + L.size / 2); c.fillStyle = 'rgba(255,255,255,0.75)'; c.font = '600 8px Barlow, sans-serif'; c.textAlign = 'center'; c.fillText('OPENS AT LV ' + L.hq, x, y + 3); } return; }
-    poly(c, pts, sel ? 'rgba(110,231,255,0.35)' : hov ? 'rgba(255,255,255,0.32)' : 'rgba(196,201,208,0.85)', sel ? '#6ee7ff' : 'rgba(0,0,0,0.25)', sel ? 2 : 0.8);
+    if (!open) { const next = L.hq === hq + 1; const moon = this.theme === 'moon'; poly(c, pts, moon ? (next ? 'rgba(40,40,50,0.35)' : 'rgba(40,40,50,0.14)') : next ? 'rgba(60,90,50,0.4)' : 'rgba(60,90,50,0.18)'); if (next) { c.setLineDash([3, 4]); poly(c, pts, null, 'rgba(255,255,255,0.4)', 1); c.setLineDash([]); const [x, y] = P(L.i + L.size / 2, L.j + L.size / 2); c.fillStyle = 'rgba(255,255,255,0.75)'; c.font = '600 8px Barlow, sans-serif'; c.textAlign = 'center'; c.fillText('OPENS AT LV ' + L.hq, x, y + 3); } return; }
+    poly(c, pts, sel ? 'rgba(110,231,255,0.35)' : hov ? 'rgba(255,255,255,0.32)' : this.theme === 'moon' ? 'rgba(150,148,142,0.85)' : 'rgba(196,201,208,0.85)', sel ? '#6ee7ff' : 'rgba(0,0,0,0.25)', sel ? 2 : 0.8);
     const [x, y] = P(L.i + L.size / 2, L.j + L.size / 2); c.strokeStyle = 'rgba(80,90,105,0.7)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 8, y); c.lineTo(x + 8, y); c.moveTo(x, y - 4); c.lineTo(x, y + 4); c.stroke();
     if (L.special === 'pad') { c.fillStyle = 'rgba(60,70,85,0.8)'; c.font = '700 9px Oxanium, sans-serif'; c.textAlign = 'center'; c.fillText('LAUNCH SITE', x, y + 16); }
   }
   // ---------------- frame ----------------
   daylight() {
+    if (this.theme === 'moon') return 0.7;
     if (this.dayLock !== null) return this.dayLock; const d = new Date(); const h = d.getHours() + d.getMinutes() / 60;
     return smooth(5.5, 7.5, h) * (1 - smooth(18.5, 20.5, h));
   }
@@ -97,22 +116,29 @@ export class BaseView {
     // sky + sea
     const sky = c.createLinearGradient(0, 0, 0, this.h); const mix = (a, b, k) => { const pa = a.match(/\w\w/g).map((x) => parseInt(x, 16)), pb = b.match(/\w\w/g).map((x) => parseInt(x, 16)); return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * k)).join(',')})`; };
     sky.addColorStop(0, mix('#07122b', '#5aa7e6', day)); sky.addColorStop(0.55, mix('#16244a', dusk > 0.3 ? '#f6b37a' : '#a9d5f5', day)); sky.addColorStop(1, mix('#1b2c55', '#d9eefb', day));
-    c.fillStyle = sky; c.fillRect(0, 0, this.w, this.h);
-    if (night > 0.2) { const R = rng(3); c.fillStyle = `rgba(255,255,255,${(night - 0.2) * 0.9})`; for (let k = 0; k < 160; k++) { const x = R() * this.w, y = R() * this.h * 0.6; const tw = 0.5 + 0.5 * Math.sin(t * (1 + R() * 2) + k); c.globalAlpha = (night - 0.2) * tw; c.fillRect(x, y, R() < 0.1 ? 2 : 1, R() < 0.1 ? 2 : 1); } c.globalAlpha = 1; }
+    if (this.theme === 'moon') { const sk = c.createLinearGradient(0, 0, 0, this.h); sk.addColorStop(0, '#010207'); sk.addColorStop(1, '#070a14'); c.fillStyle = sk; c.fillRect(0, 0, this.w, this.h); const R = rng(9); for (let k = 0; k < 260; k++) { c.fillStyle = `rgba(255,255,255,${0.3 + R() * 0.7})`; c.fillRect(R() * this.w, R() * this.h, R() < 0.08 ? 2 : 1, R() < 0.08 ? 2 : 1); }
+      // Earth hanging in the black sky
+      const ex = this.w * 0.78, ey = this.h * 0.2, er = Math.min(this.w, this.h) * 0.07; const eg = c.createRadialGradient(ex - er * 0.4, ey - er * 0.3, er * 0.1, ex, ey, er); eg.addColorStop(0, '#9fd2ff'); eg.addColorStop(0.55, '#2e6db0'); eg.addColorStop(1, '#0b2346'); c.fillStyle = eg; c.beginPath(); c.arc(ex, ey, er, 0, 7); c.fill();
+      c.save(); c.beginPath(); c.arc(ex, ey, er, 0, 7); c.clip(); c.fillStyle = 'rgba(80,140,70,0.75)'; for (const [a, b, r] of [[-0.3, -0.1, 0.35], [0.25, 0.2, 0.28], [0.1, -0.45, 0.2]]) { c.beginPath(); c.ellipse(ex + a * er + Math.sin(this.t * 0.02) * er * 0.3, ey + b * er, r * er, r * er * 0.7, 0.4, 0, 7); c.fill(); } c.fillStyle = 'rgba(255,255,255,0.7)'; for (let k = 0; k < 5; k++) { c.beginPath(); c.ellipse(ex + Math.sin(k * 2.1 + this.t * 0.03) * er * 0.6, ey + Math.cos(k * 1.7) * er * 0.6, er * 0.3, er * 0.08, k, 0, 7); c.fill(); }
+      const sh = c.createLinearGradient(ex - er, 0, ex + er, 0); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(0.62, 'rgba(0,0,0,0)'); sh.addColorStop(0.85, 'rgba(0,0,6,0.82)'); c.fillStyle = sh; c.fillRect(ex - er, ey - er, er * 2, er * 2); c.restore();
+      const hz = c.createRadialGradient(ex, ey, er, ex, ey, er * 1.35); hz.addColorStop(0, 'rgba(110,170,255,0.35)'); hz.addColorStop(1, 'rgba(110,170,255,0)'); c.fillStyle = hz; c.fillRect(ex - er * 1.4, ey - er * 1.4, er * 2.8, er * 2.8); }
+    else c.fillStyle = sky, c.fillRect(0, 0, this.w, this.h);
+    if (night > 0.2 && this.theme !== 'moon') { const R = rng(3); c.fillStyle = `rgba(255,255,255,${(night - 0.2) * 0.9})`; for (let k = 0; k < 160; k++) { const x = R() * this.w, y = R() * this.h * 0.6; const tw = 0.5 + 0.5 * Math.sin(t * (1 + R() * 2) + k); c.globalAlpha = (night - 0.2) * tw; c.fillRect(x, y, R() < 0.1 ? 2 : 1, R() < 0.1 ? 2 : 1); } c.globalAlpha = 1; }
     c.setTransform(dpr * this.zoom, 0, 0, dpr * this.zoom, dpr * (this.vx() - this.cam.x * this.zoom), dpr * (this.h / 2 - this.cam.y * this.zoom));
     const N = this.lay.N; const hzY = P(-14, -14)[1];
-    const sea = c.createLinearGradient(0, hzY, 0, P(N + 14, N + 14)[1]); sea.addColorStop(0, mix('#0b1f3a', '#5f9fd0', day)); sea.addColorStop(1, mix('#081a33', '#2f78b0', day));
+    if (this.theme !== 'moon') { const sea = c.createLinearGradient(0, hzY, 0, P(N + 14, N + 14)[1]); sea.addColorStop(0, mix('#0b1f3a', '#5f9fd0', day)); sea.addColorStop(1, mix('#081a33', '#2f78b0', day));
     c.fillStyle = sea; c.fillRect(P(-30, N + 30)[0], hzY, P(N + 30, -30)[0] - P(-30, N + 30)[0], 4000);
     // glints on the water
     c.fillStyle = `rgba(255,255,255,${0.25 + day * 0.35})`; const R2 = rng(11); for (let k = 0; k < 90; k++) { const x = P(-20, N + 20)[0] + R2() * (P(N + 20, -20)[0] - P(-20, N + 20)[0]); const y = hzY + 20 + R2() * 900; const a = Math.sin(t * 1.5 + k * 1.7); if (a > 0.6) c.fillRect(x + Math.sin(t * 0.3 + k) * 6, y, 6 * (a - 0.6) * 4, 1); }
+    }
     const G = this.ground; c.drawImage(G.cv, G.x0, G.y0, G.cv.width / G.sc, G.cv.height / G.sc);
     // surf line
-    c.strokeStyle = `rgba(255,255,255,${0.35 + 0.2 * Math.sin(t * 1.2)})`; c.lineWidth = 1.2; c.beginPath(); G.isl.forEach(([i, j], k) => { const p = P(N / 2 + (i - N / 2) * 1.015, N / 2 + (j - N / 2) * 1.015); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); c.stroke();
+    if (!G.moon) c.strokeStyle = `rgba(255,255,255,${0.35 + 0.2 * Math.sin(t * 1.2)})`; c.lineWidth = 1.2; c.beginPath(); if (!G.moon) { G.isl.forEach(([i, j], k) => { const p = P(N / 2 + (i - N / 2) * 1.015, N / 2 + (j - N / 2) * 1.015); k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); c.stroke(); }
     // lots + buildings, back to front
     const hq = game.hqLevel(s, this.base); const B = s.bases[this.base]; const lots = this.lay.lots.slice().sort((a, b) => a.i + a.j + a.size - (b.i + b.j + b.size));
     const lightsAll = []; const fxAll = []; this.labels = [];
     // cars on roads (behind buildings is fine for a cozy look)
-    this.drawCars(c, dt, day);
+    if (this.theme === 'earth') this.drawCars(c, dt, day);
     for (const L of lots) {
       const st = B.lots[L.id]; const open = hq >= L.hq;
       if (!st || !st.b) { this.drawLot(c, L, st, open, hq); continue; }
@@ -126,11 +152,12 @@ export class BaseView {
       else if (this.sel === L.id || this.hover === L.id) { const [lx, ly] = P(L.i + L.size / 2, L.j + L.size / 2, sp.h + 6); this.labels.push({ x: lx, y: ly, name: BUILDINGS[st.b].name, lvl: st.lvl }); }
     }
     this.drawFx(c, fxAll, dt, day, s);
+    this.drawLaunch(c, dt);
     // particles (smoke / steam)
     this.stepParticles(c, dt, day);
     // night: darken, then add lights
     if (night > 0.02) {
-      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'multiply'; c.fillStyle = `rgba(${Math.round(255 - 190 * night)},${Math.round(255 - 170 * night)},${Math.round(255 - 110 * night)},1)`; c.fillRect(0, 0, this.cv.width, this.cv.height); c.restore();
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'multiply'; c.fillStyle = this.theme === 'moon' ? 'rgba(205,205,215,1)' : `rgba(${Math.round(255 - 190 * night)},${Math.round(255 - 170 * night)},${Math.round(255 - 110 * night)},1)`; c.fillRect(0, 0, this.cv.width, this.cv.height); c.restore();
       c.save(); c.globalCompositeOperation = 'lighter';
       for (const l of lightsAll) { if (l.flood) { const g = c.createRadialGradient(l.x, l.y, 1, l.x, l.y + 30, 60); g.addColorStop(0, `rgba(255,240,200,${0.55 * night})`); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(l.x, l.y); c.lineTo(l.x - 50, l.y + 70); c.lineTo(l.x + 50, l.y + 70); c.closePath(); c.fill(); continue; }
         const on = (l.k + Math.floor(t * 0.05)) % 5 !== 0; if (!on) continue; const r = Math.min(6, Math.max(2, l.r * 1.1)); const g = c.createRadialGradient(l.x, l.y, 0, l.x, l.y, r); g.addColorStop(0, `rgba(255,222,150,${0.75 * night})`); g.addColorStop(0.45, `rgba(255,200,120,${0.35 * night})`); g.addColorStop(1, 'rgba(255,190,110,0)'); c.fillStyle = g; c.fillRect(l.x - r, l.y - r, r * 2, r * 2); }
@@ -159,12 +186,32 @@ export class BaseView {
         case 'truck': { const p = (Math.sin(t * 0.35 + x) + 1) / 2; const [tx, ty] = P(f.i0 + (f.i1 - f.i0) * p, f.j0 + (f.j1 - f.j0) * p); c.fillStyle = '#e8b04a'; c.fillRect(tx + f.ox - 4, ty + f.oy - 5, 8, 4); c.fillStyle = '#333'; c.fillRect(tx + f.ox - 4, ty + f.oy - 1, 8, 1.5); break; }
         case 'glint': { const p = (t * 0.15 + f.x0 * 0.01) % 1.6; if (p < 1) { const gx = f.x0 + (f.x1 - f.x0) * p, gy = f.y0 + (f.y1 - f.y0) * p; const g = c.createRadialGradient(gx + f.ox, gy + f.oy, 0, gx + f.ox, gy + f.oy, 10); g.addColorStop(0, `rgba(255,255,255,${0.6 * day})`); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(gx + f.ox - 10, gy + f.oy - 10, 20, 20); } break; }
         case 'slit': { c.fillStyle = '#20262e'; c.save(); c.translate(x, y); c.rotate(Math.sin(t * 0.1) * 0.6); c.fillRect(-1.5, -9, 3, 9); c.restore(); break; }
-        case 'rocketSlot': this.drawPadRocket(c, x, y, f.T, s); break;
+        case 'rocketSlot': this.padXY = [x, y]; this.drawPadRocket(c, x, y, f.T, s); break;
+        case 'centrifuge': { const a = t * 3; c.strokeStyle = '#9aa2ad'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - Math.cos(a) * 14, y - Math.sin(a) * 4); c.lineTo(x + Math.cos(a) * 14, y + Math.sin(a) * 4); c.stroke(); c.fillStyle = '#e8eef5'; c.beginPath(); c.arc(x + Math.cos(a) * 14, y + Math.sin(a) * 4, 3, 0, 7); c.fill(); break; }
+        case 'dust': if (Math.random() < dt * 4) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: -4 - Math.random() * 4, life: 2.5, t: 0, r: 1.5, col: 'rgba(180,176,168,', grow: 2.5 }); break;
+        case 'drill': { const b = Math.abs(Math.sin(t * 6)) * 3; c.fillStyle = '#e8b04a'; c.fillRect(x - 3, y - 14 + b, 6, 10); break; }
+        case 'glow': { const a = 0.35 + 0.25 * Math.sin(t * 2.2); const g = c.createRadialGradient(x, y, 0, x, y, 22); g.addColorStop(0, `rgba(${f.col},${a})`); g.addColorStop(1, `rgba(${f.col},0)`); c.fillStyle = g; c.fillRect(x - 22, y - 22, 44, 44); break; }
+        case 'pod': { const p = (t * 0.4) % 1; const px = f.ax + (f.bx - f.ax) * p + f.ox, py = f.ay + (f.by - f.ay) * p + f.oy; c.fillStyle = '#ffffff'; c.fillRect(px - 3, py - 3, 6, 4); const g = c.createRadialGradient(px, py, 0, px, py, 8); g.addColorStop(0, 'rgba(110,231,255,0.6)'); g.addColorStop(1, 'rgba(110,231,255,0)'); c.fillStyle = g; c.fillRect(px - 8, py - 8, 16, 16); break; }
       } }
   }
   // a rocket waiting on the pad (size follows the pad tier); Part 2 replaces it with the real vehicle
+  // liftoff sequence: venting, ignition, smoke, rise with flame trail
+  launch(rk) { this.launching = { t: 0, rk, base: this.base }; }
+  // frame the pad in the lower third so the climb stays on screen
+  focusLaunch() { const L = this.lay.lots.find((l) => l.id === 'pad'); if (!L) return; const [x, y] = P(L.i + L.size / 2, L.j + L.size / 2); this.camT = { x, y: y - (this.h * 0.2) / this.zoom }; }
+  drawLaunch(c, dt) {
+    const L = this.launching; if (!L || !this.padXY) return; if (L.base !== this.base) { this.launching = null; return; } L.t += dt; const [x0, y0] = this.padXY; const rk = L.rk; const t = L.t; const h = rk.h, w = rk.w;
+    const rise = t < 3 ? 0 : 0.5 * 30 * (t - 3) * (t - 3) + 5 * (t - 3); const x = x0, y = y0 - rise;
+    if (t < 3) { if (Math.random() < 0.6) this.particles.push({ x: x + (Math.random() - 0.5) * w, y: y0 - h * 0.5, vx: (Math.random() - 0.5) * 12, vy: 4, life: 1.5, t: 0, r: 2, col: 'rgba(255,255,255,', grow: 3 }); }
+    else { for (let k = 0; k < (t < 6 ? 6 : 2); k++) this.particles.push({ x: x + (Math.random() - 0.5) * w, y: y + 4, vx: (Math.random() - 0.5) * (t < 5 ? 90 : 20), vy: t < 5 ? 10 + Math.random() * 20 : 30, life: t < 6 ? 3.5 : 2, t: 0, r: 4, col: 'rgba(235,235,240,', grow: 7 });
+      const fl = 18 + Math.random() * 8 + Math.min(40, rise * 0.05); const g = c.createLinearGradient(0, y, 0, y + fl * 2.4); g.addColorStop(0, 'rgba(255,255,230,1)'); g.addColorStop(0.3, 'rgba(255,190,80,0.95)'); g.addColorStop(1, 'rgba(255,90,20,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(x - w * 0.45, y); c.lineTo(x + w * 0.45, y); c.lineTo(x, y + fl * 2.4); c.closePath(); c.fill();
+      const gl = c.createRadialGradient(x, y + 6, 0, x, y + 6, 60); gl.addColorStop(0, 'rgba(255,200,120,0.45)'); gl.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = gl; c.fillRect(x - 60, y - 54, 120, 120); }
+    const g2 = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0); g2.addColorStop(0, '#d9dee5'); g2.addColorStop(0.4, '#ffffff'); g2.addColorStop(1, '#8e97a3'); c.fillStyle = g2; c.fillRect(x - w / 2, y - h, w, h); c.fillStyle = rk.band || '#f08a24'; c.fillRect(x - w / 2, y - h * 0.3, w, 4); c.fillStyle = '#20252c'; c.fillRect(x - w / 2, y - h * 0.62, w, 3);
+    c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(x - w / 2, y - h); c.quadraticCurveTo(x, y - h - w * 2.2, x + w / 2, y - h); c.fill();
+    if (t > 12) this.launching = null;
+  }
   drawPadRocket(c, x, y, T, s) {
-    const rk = this.padRocket; const h = rk ? rk.h : 40 + T * 16, w = rk ? rk.w : 7 + T * 1.5; if (this.launching) return;
+    const rk = this.padRocket; if (!rk) return; const h = rk ? rk.h : 40 + T * 16, w = rk ? rk.w : 7 + T * 1.5; if (this.launching) return;
     c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(x + 6, y + 2, w * 1.4, w * 0.5, 0, 0, 7); c.fill();
     const g = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0); g.addColorStop(0, '#d9dee5'); g.addColorStop(0.4, '#ffffff'); g.addColorStop(1, '#8e97a3');
     c.fillStyle = g; c.fillRect(x - w / 2, y - h, w, h); c.fillStyle = '#20252c'; c.fillRect(x - w / 2, y - h * 0.62, w, 3); c.fillStyle = (rk && rk.band) || '#f08a24'; c.fillRect(x - w / 2, y - h * 0.3, w, 4);
