@@ -1,0 +1,48 @@
+// STARWARD: the economy. Aggregates research modifiers, computes production / storage / energy from every
+// building in every base, and integrates the stockpile over time.
+import { BUILDINGS } from '../data/buildings.js';
+import { TECH } from '../data/research.js';
+import { RES } from '../data/resources.js';
+import { curve } from '../util.js';
+
+export function mods(s) {
+  const m = { mult: {}, gen: 0, buildTime: 0, researchTime: 0, cap: 0, crews: 0, slots: 0, costs: 0, flags: new Set() };
+  for (const id in s.tech) { const t = TECH[id]; if (!t) continue; const e = t.effect || {};
+    for (const r in e.mult || {}) m.mult[r] = (m.mult[r] || 0) + e.mult[r];
+    for (const k of ['gen', 'buildTime', 'researchTime', 'cap', 'crews', 'slots', 'costs']) if (e[k]) m[k] += e[k];
+    if (e.flag) m.flags.add(e.flag); }
+  for (const f in s.flags) if (s.flags[f]) m.flags.add(f);
+  return m;
+}
+const val = (c, L) => (c ? curve(c[0], c[1], L) : 0);
+// what one building contributes at level L (before the energy factor)
+export function bStats(id, L, m) {
+  const d = BUILDINGS[id]; const o = { prod: {}, cap: {}, gen: 0, draw: 0, speed: 0 }; if (!d || L <= 0) return o;
+  for (const r in d.prod || {}) o.prod[r] = val(d.prod[r], L) * (1 + (m.mult[r] || 0));
+  for (const r in d.cap || {}) o.cap[r] = val(d.cap[r], L) * (1 + m.cap);
+  o.gen = val(d.gen, L) * (1 + m.gen); o.draw = val(d.draw, L); o.speed = d.speed ? d.speed * L : 0;
+  return o;
+}
+export const lvlOf = (s, base, b) => { let best = 0; for (const lot of Object.values(s.bases[base].lots)) if (lot.b === b) best = Math.max(best, lot.lvl); return best; };
+export const hqLevel = (s, base = 'earth') => lvlOf(s, base, base === 'earth' ? 'hq' : 'hub');
+// full economic picture
+export function rates(s, m = mods(s)) {
+  const R = { prod: {}, cap: {}, gen: 0, draw: 0, eff: 1, speed: 0, m };
+  for (const r in RES) { R.prod[r] = 0; R.cap[r] = RES[r].cap ? 0 : Infinity; }
+  for (const bid in s.bases) for (const lot of Object.values(s.bases[bid].lots)) {
+    if (!lot.b || lot.lvl <= 0) continue; const st = bStats(lot.b, lot.lvl, m);
+    for (const r in st.prod) R.prod[r] += st.prod[r]; for (const r in st.cap) R.cap[r] += st.cap[r]; R.gen += st.gen; R.draw += st.draw; R.speed += st.speed;
+  }
+  R.eff = R.draw <= 0 ? 1 : Math.min(1, R.gen / R.draw);
+  // production is throttled by power shortage (command buildings keep a trickle)
+  for (const r in R.prod) R.prod[r] *= 0.25 + 0.75 * R.eff;
+  return R;
+}
+// advance the stockpile by dt seconds at fixed rates (never pushes above cap; never removes overflow)
+export function accrue(s, R, dt) {
+  if (dt <= 0) return; for (const r in R.prod) { const add = (R.prod[r] * dt) / 3600; if (!add) continue; const cur = s.res[r] || 0; const cap = R.cap[r];
+    if (cur >= cap) continue; s.res[r] = Math.min(cap, cur + add); }
+}
+export const canPay = (s, cost) => Object.entries(cost).every(([r, n]) => (s.res[r] || 0) >= n);
+export const pay = (s, cost) => { for (const [r, n] of Object.entries(cost)) s.res[r] = (s.res[r] || 0) - n; };
+export const give = (s, gift) => { for (const [r, n] of Object.entries(gift)) s.res[r] = (s.res[r] || 0) + n; };
