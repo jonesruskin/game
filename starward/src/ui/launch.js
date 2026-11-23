@@ -8,6 +8,8 @@ import * as S from '../core/space.js';
 import { rates } from '../core/econ.js';
 import { SHIPS, SHIP_ORDER } from '../data/solar.js';
 import * as SO from '../core/solar.js';
+import { DRIVES, DRIVE_ORDER } from '../data/stars.js';
+import * as ST from '../core/stars.js';
 
 const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 const rw = (c) => Object.entries(c || {}).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}+${fmt(n)}</span>`).join('');
@@ -28,8 +30,8 @@ export class LaunchUI {
   }
   live() {
     const s = this.s; const info = $('#lcInfo'); if (!info) return; info.textContent = `Pad ${S.launchesBusy(s)}/${S.launchSlots(s)} busy · largest rocket class ${S.maxClass(s)}`;
-    const fl = s.jobs.filter((j) => j.kind === 'mission' || j.kind === 'rocket' || j.kind === 'ship' || j.kind === 'voyage'); const F = $('#lcFlights'); const key = fl.map((j) => j.id).join();
-    if (F.__k !== key) { F.__k = key; F.innerHTML = fl.map((j) => `<div class="fl" data-j="${j.id}"><span>${icon(j.kind === 'rocket' || j.kind === 'ship' ? 'cog' : 'rocket', 'xs')} ${esc(j.kind === 'rocket' ? 'Assembling ' + ROCKETS[j.rocket].name : j.kind === 'ship' ? 'Building ' + SHIPS[j.ship].name : j.kind === 'voyage' ? SHIPS[j.ship].name + ': ' + j.name : j.name)}</span><b></b><i></i><button class="mini" data-a="finish" data-job="${j.id}" title="Finish now with dark matter">${icon('dm', 'xs')}</button></div>`).join(''); }
+    const fl = s.jobs.filter((j) => ['mission', 'rocket', 'ship', 'voyage', 'drive', 'star', 'sail'].includes(j.kind)); const F = $('#lcFlights'); const key = fl.map((j) => j.id).join();
+    if (F.__k !== key) { F.__k = key; F.innerHTML = fl.map((j) => `<div class="fl" data-j="${j.id}"><span>${icon(j.kind === 'rocket' || j.kind === 'ship' ? 'cog' : 'rocket', 'xs')} ${esc(j.kind === 'rocket' ? 'Assembling ' + ROCKETS[j.rocket].name : j.kind === 'ship' ? 'Building ' + SHIPS[j.ship].name : j.kind === 'voyage' ? SHIPS[j.ship].name + ': ' + j.name : j.kind === 'drive' ? 'Building ' + DRIVES[j.ship].name : j.kind === 'star' ? DRIVES[j.ship].name + ': ' + j.name : j.kind === 'sail' ? 'Light sail to ' + j.star.toUpperCase() : j.name)}</span><b></b><i></i><button class="mini" data-a="finish" data-job="${j.id}" title="Finish now with dark matter">${icon('dm', 'xs')}</button></div>`).join(''); }
     for (const j of fl) { const el = F.querySelector(`[data-j="${j.id}"]`); if (!el) continue; el.querySelector('b').textContent = fmtTime((j.end - Date.now()) / 1000); el.querySelector('i').style.width = clamp((Date.now() - j.start) / (j.end - j.start)) * 100 + '%'; }
     $$('#overlay .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n));
   }
@@ -80,6 +82,11 @@ export class LaunchUI {
       const body = `<p class="desc">${esc(d.desc)}</p><table class="stats small"><tr><td>Drive class</td><td>${d.cls} · reaches ${['', 'the inner system and the belt', 'Jupiter and Saturn', 'the whole Solar System'][d.cls]}</td></tr><tr><td>Speed</td><td>×${d.speed}</td></tr>${d.carries ? `<tr><td>Colonists</td><td>${d.carries}</td></tr>` : ''}<tr><td>Needs</td><td>Shipyard ${d.yard}</td></tr></table>`;
       const act = miss.length ? `<p class="why">${icon('lock', 'xs')} Research ${esc(miss.map((t) => TECH[t].name).join(', '))}</p>` : `<div class="lc-a"><div class="costs">${cost(d.cost, s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(SO.shipTime(s, id))}</span></div>${c.ok ? '' : `<p class="why">${esc(c.why)}</p>`}<button class="btn gold" data-a="buildShip" data-ship="${id}" ${c.ok ? '' : 'disabled'}>${icon('cog', 'xs')} Build</button></div>`;
       h += this.card(`${esc(d.name)} <small>· ${esc(d.role)}</small>`, `<span class="tag ${own ? 'ok' : ''}">${own ? `${free}/${own} docked` : 'none'}</span>`, body, act, miss.length ? 'locked' : ''); }
+    if (s.tech.sleeperShips || s.tech.starColonies) { h += `</div><h3 class="orb">Starships <small>interstellar drives</small></h3><div class="lc-grid">`;
+      for (const id of DRIVE_ORDER) { const d = DRIVES[id]; const c = ST.canBuildDrive(s, id); const own = ST.ist(s).ships[id] || 0, free = ST.drivesFree(s, id); const miss = d.req.filter((t) => !s.tech[t]);
+        const body = `<p class="desc">${esc(d.desc)}</p><table class="stats small"><tr><td>Speed</td><td>${d.hpl >= 1 ? d.hpl + ' h per light-year' : Math.round(d.hpl * 60) + ' min per light-year'}</td></tr><tr><td>Needs</td><td>Shipyard ${d.yard}</td></tr></table>`;
+        const act = miss.length ? `<p class="why">${icon('lock', 'xs')} Research ${esc(miss.map((t) => TECH[t].name).join(', '))}</p>` : `<div class="lc-a"><div class="costs">${cost(d.cost, s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(ST.driveTime(s, id))}</span></div>${c.ok ? '' : `<p class="why">${esc(c.why)}</p>`}<button class="btn gold" data-a="buildDrive" data-ship="${id}" ${c.ok ? '' : 'disabled'}>${icon('cog', 'xs')} Build</button></div>`;
+        h += this.card(`${esc(d.name)} <small>· ${esc(d.role)}</small>`, `<span class="tag ${own ? 'ok' : ''}">${own ? `${free}/${own} docked` : 'none'}</span>`, body, act, miss.length ? 'locked' : ''); } }
     return h + '</div>';
   }
   drawRockets() { $$('canvas.rkc').forEach((cv) => { const r = ROCKETS[cv.dataset.rk]; const c = cv.getContext('2d'); const k = 100 / 118; const h = r.h * k, w = r.w * k; const x = 20, y = 112; c.clearRect(0, 0, 40, 120);

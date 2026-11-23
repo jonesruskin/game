@@ -22,7 +22,7 @@ export class SystemUI {
     const s = this.s, id = this.id, p = $('#panel'); document.body.classList.toggle('panel-open', !!id); if (!id) { p.className = ''; p.innerHTML = ''; return; }
     const b = BODIES[id]; const S = SO.sol(s); p.className = 'on body'; const known = S.surveyed[id] || b.zone === 'home';
     let h = `<button class="close" data-a="deselect">${icon('x')}</button><div class="ptitle"><canvas class="bthumb" width="84" height="84" data-body="${id}"></canvas><div><h2>${esc(b.name)}</h2><span class="lvl">${esc(b.type)}${b.zone && ZONE_NAME[b.zone] ? ' · ' + ZONE_NAME[b.zone] : ''}</span></div></div>`;
-    if (id === 'sun') { h += `<p class="desc">${esc(b.fact)}</p>`; p.innerHTML = h; return; }
+    if (id === 'sun') { h += `<p class="desc">${esc(b.fact)}</p>${this.ui.stars.megaHTML()}`; p.innerHTML = h; this.key = this.keyOf(); this.thumb(); return; }
     h += `<p class="desc">${esc(b.fact)}</p>`;
     const dist = b.parent ? `${fmt(b.orbit)} km from ${BODIES[b.parent].name}` : `${b.a} AU from the Sun`;
     h += `<table class="stats small"><tr><td>Radius</td><td>${fmt(b.r)} km</td></tr><tr><td>Gravity</td><td>${b.g} g</td></tr><tr><td>Day</td><td>${esc(b.day)}</td></tr><tr><td>Temperature</td><td>${esc(b.temp)}</td></tr><tr><td>Atmosphere</td><td>${esc(b.atm)}</td></tr><tr><td>Orbit</td><td>${dist}</td></tr></table>`;
@@ -31,7 +31,7 @@ export class SystemUI {
     else { h += `<div class="win" id="winLine"></div>`; h += !known ? this.surveyBlock(id) : this.presenceBlock(id); }
     p.innerHTML = h; this.key = this.keyOf(); this.thumb(); this.live();
   }
-  keyOf() { const s = this.s, S = SO.sol(s), id = this.id; return JSON.stringify([id, S.surveyed[id], S.sites[id], !!s.bases[id], SO.terraStage(s, id), s.jobs.filter((j) => j.kind === 'voyage' || j.kind === 'terra' || j.kind === 'mission').map((j) => j.id), Object.keys(s.tech).length, JSON.stringify(S.ships)]); }
+  keyOf() { const s = this.s, S = SO.sol(s), id = this.id; return JSON.stringify([id, S.surveyed[id], S.sites[id], !!s.bases[id], SO.terraStage(s, id), s.jobs.filter((j) => j.kind === 'voyage' || j.kind === 'terra' || j.kind === 'mission' || j.kind === 'mega').map((j) => j.id), JSON.stringify((s.stars || {}).mega || {}), Object.keys(s.tech).length, JSON.stringify(S.ships)]); }
   // a small painted globe for the panel header (palette from the world's shader preset)
   thumb() { const cv = $('#panel canvas.bthumb'); if (!cv) return; const c = cv.getContext('2d'); const b = BODIES[this.id]; c.clearRect(0, 0, 84, 84);
     if (this.id === 'sun') { const g = c.createRadialGradient(42, 42, 0, 42, 42, 40); g.addColorStop(0, '#fffef0'); g.addColorStop(0.5, '#ffd76a'); g.addColorStop(0.75, 'rgba(255,150,40,0.6)'); g.addColorStop(1, 'rgba(255,120,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 84, 84); return; }
@@ -84,7 +84,7 @@ export class SystemUI {
       wl.className = 'win ' + (w.open ? 'open' : ''); wl.innerHTML = w.k === 0 ? '' : w.open ? `${icon('check', 'xs')} Launch window open: fuel ${pct(w.fuel)}, travel ${pct(w.time)}` : `${icon('clock', 'xs')} Window ${nx ? 'opens in ' + fmtTime(nx / 1000) : 'closed'} · right now fuel ${pct(w.fuel)}, travel ${pct(w.time)}`; }
     $$('#panel .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n));
     const j = s.jobs.find((x) => x.kind === 'terra' && x.body === this.id); if (j) { const el = $('#terraLeft'); if (el) el.textContent = fmtTime((j.end - Date.now()) / 1000); const bar = $('#terraBar'); if (bar) bar.style.width = clamp((Date.now() - j.start) / (j.end - j.start)) * 100 + '%'; }
-    const pn = $('#popNow'); if (pn && s.bases[this.id]) pn.textContent = Math.floor(s.bases[this.id].pop);
+    const pn = $('#popNow'); if (pn && s.bases[this.id]) pn.textContent = Math.floor(s.bases[this.id].pop); this.ui.stars.live();
   }
   click(t) {
     const A = this.app, s = this.s, a = t.dataset.a;

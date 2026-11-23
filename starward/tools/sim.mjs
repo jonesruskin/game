@@ -5,8 +5,8 @@
 //   FOCUS=90 MIN=1 STEP=20 DAYS=0.1 node tools/sim.mjs   the first session, minute by minute
 //   SNAP=1 ...                                 add an economy snapshot every 2 days (caps, income, idle crews)
 // Use it after any balance change: nothing may get stuck, and the milestone days should stay on target
-// (DESIGN.md §10.1). Covers Parts 1-3: research, building, launches, probes, the fleet, voyages, colonies and
-// terraforming. Outcomes are random (launch failures), so run it a few times.
+// (DESIGN.md §10.1). Covers Parts 1-4: research, building, launches, probes, the fleet, voyages, colonies,
+// terraforming, light sails, starships, star colonies, megastructures and gates. Outcomes are random (launch failures), so run it a few times.
 const root = new URL('../src/', import.meta.url).href;
 const { fresh } = await import(root + 'core/state.js');
 const G = await import(root + 'core/game.js');
@@ -17,6 +17,8 @@ const { LAYOUTS } = await import(root + 'data/layouts.js');
 const { ROCKETS, MISSIONS } = await import(root + 'data/space.js');
 const { allSteps } = await import(root + 'data/objectives.js');
 const SO = await import(root + 'core/solar.js');
+const ST = await import(root + 'core/stars.js');
+const { STARS, STAR_IDS, DRIVE_ORDER } = await import(root + 'data/stars.js');
 const { BODIES, SITES, SHIPS, SHIP_ORDER, TERRA, ZONE_CLASS } = await import(root + 'data/solar.js');
 
 const env = (k, d) => (process.env[k] !== undefined ? Number(process.env[k]) : d);
@@ -26,7 +28,8 @@ const STEPS = allSteps(); const log = [];
 const when = (x) => (process.env.MIN ? Math.round((x - t0) / 60000) + ' min' : ((x - t0) / 86400000).toFixed(2) + ' d');
 const focused = () => t - t0 < FOCUS * 60000; // a new player doing exactly what the objective panel says
 const GOALS = ['rocketry', 'liquidProp', 'multistage', 'guidance', 'orbital', 'satComms', 'lifeSupport', 'crewed', 'deepSpace', 'additive', 'spaceStation', 'alloys', 'heavy', 'lunarLanders', 'closedLoop', 'isru', 'he3Mining', 'lunarHabitats',
-  'planetaryProbes', 'nuclearThermal', 'orbitalShipyard', 'marsDirect', 'spaceAgriculture', 'asteroidMining', 'colonyShips', 'aerostats', 'fusionPower', 'planetaryEngineering', 'beltSettlement', 'fusionDrive', 'radiationShielding', 'cometCapture', 'magnetosphere', 'gasGiantScoops', 'xenobiology', 'cryoHabitats', 'hydrosphere', 'extremophiles', 'advancedFusion', 'ecopoiesis', 'solarFurnace', 'spaceElevator'];
+  'planetaryProbes', 'nuclearThermal', 'orbitalShipyard', 'marsDirect', 'spaceAgriculture', 'asteroidMining', 'colonyShips', 'aerostats', 'fusionPower', 'planetaryEngineering', 'beltSettlement', 'fusionDrive', 'radiationShielding', 'cometCapture', 'magnetosphere', 'gasGiantScoops', 'xenobiology', 'cryoHabitats', 'hydrosphere', 'extremophiles', 'advancedFusion', 'ecopoiesis', 'solarFurnace', 'spaceElevator',
+  'laserSails', 'exoplanetology', 'starColonies', 'sleeperShips', 'dysonSwarm', 'casimirEffect', 'ramjets', 'domeWorlds', 'xenoarchaeology', 'interstellarTrade', 'warpTheory', 'wormholeGates', 'warpDrive'];
 const closure = (id, out = []) => { if (s.tech[id] || out.includes(id)) return out; for (const r of TECH[id].req) closure(r, out); out.push(id); return out; };
 const lots = (base) => LAYOUTS[base].lots.filter((l) => G.lotOpen(s, base, l) && !(s.bases[base].lots[l.id] && s.bases[base].lots[l.id].b));
 const lotOf = (base, b) => Object.keys(s.bases[base].lots).find((k) => s.bases[base].lots[k].b === b && !G.jobAt(s, base, k));
@@ -43,7 +46,7 @@ function want(base) { // buildings worth placing on a free lot, best first
   const need = G.reqsMissing(s, base, cmd(base), G.hqLevel(s, base) + 1).map(([b]) => b).filter((b) => !Object.values(s.bases[base].lots).some((l) => l.b === b));
   if (lots(base).length <= 1 && !need.length) return []; // keep a lot spare for whatever the campaign asks next
   const R = G.rates(s); const C = R.col[base];
-  const LISTS = { earth: ['research', 'mine', 'office', 'refinery', 'solar', 'depot', 'vab', 'tracking', 'academy', 'university', 'fission', 'fusion', 'elevator'], moon: ['he3x', 'regolith', 'lsolar', 'ice', 'llab', 'dome', 'greenhouse', 'massDriver', 'reactor'],
+  const LISTS = { earth: ['research', 'mine', 'office', 'refinery', 'solar', 'depot', 'vab', 'tracking', 'academy', 'university', 'fission', 'fusion', 'elevator', 'casimir'], moon: ['he3x', 'regolith', 'lsolar', 'ice', 'llab', 'dome', 'greenhouse', 'massDriver', 'reactor'],
     mars: ['dome', 'greenhouse', 'regolith', 'reactor', 'terraformer', 'llab', 'ice', 'lsolar', 'fusion'], ceres: ['dome', 'greenhouse', 'ice', 'reactor', 'beltControl', 'regolith', 'llab', 'fusion'], titan: ['dome', 'greenhouse', 'reactor', 'methane', 'ice', 'llab', 'fusion'] };
   const list = [...LISTS[base]]; if (C && C.pop >= C.house * 0.9) list.unshift('dome');
   if (R.gen - R.draw < 15) list.unshift(base === 'earth' ? (s.tech.fusionPower ? 'fusion' : s.tech.fission ? 'fission' : 'solar') : base === 'moon' || base === 'mars' ? 'lsolar' : 'reactor');
@@ -113,18 +116,31 @@ function voyages() {
   for (const P of plan) { const c = SO.canVoyage(s, P, t); if (c.ok && SO.windowOf(P.body, t).q > 0.35) SO.startVoyage(s, P, t); else if (c.ok && P === plan[0]) SO.startVoyage(s, P, t); }
   if (s.bases.mars && SO.canTerra(s, 'mars').ok) SO.startTerra(s, 'mars', t);
 }
+// ---- Part 4: megastructures, light sails, starships, star colonies, gates ----
+function interstellar() {
+  const I = ST.ist(s); const st = G.currentStep(s);
+  for (const id of ['laser', 'dyson', 'gate']) if (ST.canMega(s, id).ok && (id !== 'dyson' || ST.megaStage(s, 'laser') >= 1)) ST.startMega(s, id, t);
+  const want = st && st.kind === 'starSurvey' && st.star ? [st.star] : []; const near = STAR_IDS.filter((k) => !I.surveyed[k]).sort((a, b) => ST.dist(a) - ST.dist(b));
+  for (const k of [...want, ...near]) { if (ST.canSail(s, k).ok) ST.startSail(s, k, t); if (ST.sailsOut(s) >= ST.megaStage(s, 'laser')) break; }
+  if (!ST.driveBusy(s) && !SO.shipBusy(s)) for (const [id, n] of [['ark', 1], ['ramjet', 1], ['ark', 2], ['warp', 1], ['ramjet', 2]]) if ((I.ships[id] || 0) < n) { if (ST.canBuildDrive(s, id).ok) ST.startDrive(s, id, t); break; }
+  const sites = []; for (const k in I.surveyed) STARS[k].planets.forEach((pl, p) => sites.push([pl.hab + (pl.res.exotic ? 0.3 : 0) - ST.dist(k) * 0.004, k, p]));
+  sites.sort((a, b) => b[0] - a[0]); for (const [, k, p] of sites) { const c = ST.canFound(s, k, p); if (c.ok) { ST.startFound(s, k, p, t); break; } }
+  let n = 0; for (const key in I.colonies) { const C = I.colonies[key]; if (C.spec === 'balanced') ST.setSpec(s, key, ['research', 'trade', 'mining', 'industry'][n++ % 4]); if (ST.canDevelop(s, key).ok) ST.startDevelop(s, key, t); if (ST.canGate(s, C.star).ok) ST.startGate(s, C.star, t); }
+}
 let fails = 0; const W = { idle: 0, lab: 0, n: 0 }; let snapT = t0;
 while (t < t0 + DAYS * 86400000) {
   const h = new Date(t).getUTCHours(); const awake = h >= 8 && h < 23;
   const notes = G.advance(s, t); fails += notes.filter((x) => x.kind === 'fail').length;
   if (awake) { W.n++; if (G.crewsBusy(s) < G.crewsTotal(s)) W.idle++; if (G.slotsBusy(s) < G.slotsTotal(s)) W.lab++; }
   if (process.env.SNAP && t - snapT >= 2 * 86400000) { snapT = t; const R = G.rates(s); const r = (k) => `${k} ${Math.round(s.res[k])}/${Math.round(R.cap[k])} (+${Math.round(R.prod[k])}/h)`;
-    log.push(`    [${when(t)}] HQ${G.hqLevel(s)} techs ${Object.keys(s.tech).length} crews ${G.crewsTotal(s)} idle ${Math.round((W.idle / W.n) * 100)}% lab idle ${Math.round((W.lab / W.n) * 100)}% · ${['credits', 'metal', 'fuel', 'science'].map(r).join(' · ')}`); Object.assign(W, { idle: 0, lab: 0, n: 0 }); }
-  if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}`); } research(); construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } }
+    log.push(`    [${when(t)}] HQ${G.hqLevel(s)} techs ${Object.keys(s.tech).length} crews ${G.crewsTotal(s)} idle ${Math.round((W.idle / W.n) * 100)}% lab idle ${Math.round((W.lab / W.n) * 100)}% · ${['credits', 'metal', 'science', 'rare', 'he3', 'exotic'].map(r).join(' · ')} · laser ${ST.megaStage(s, 'laser')} dyson ${ST.megaStage(s, 'dyson')}`); Object.assign(W, { idle: 0, lab: 0, n: 0 }); }
+  if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}`); } // like a player, save up for the megastructure or starship the campaign is asking for
+    const st0 = G.currentStep(s); const saving = st0 && ((st0.kind === 'mega' && ST.canMega(s, st0.mega).why === 'Not enough resources') || (st0.kind === 'drive' && ST.canBuildDrive(s, st0.ship).why === 'Not enough resources'));
+    if (s.tech.laserSails) interstellar(); research(); if (!saving) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
   if (s.obj.i >= STEPS.length) { log.push(`${when(t).padStart(9)}  campaign complete`); break; }
   t += awake ? STEP * 1000 : 3600 * 1000;
 }
 const st = G.currentStep(s);
 console.log(log.join('\n'));
-console.log(`\nend ${when(t)} · Mission Control ${G.hqLevel(s)} · hubs ${Object.keys(s.bases).filter((b) => b !== 'earth').map((b) => b + ' ' + G.hqLevel(s, b) + ' (' + Math.floor(s.bases[b].pop) + ' pop)').join(', ') || '-'} · sites ${Object.keys(SO.sol(s).sites).length} · terra ${SO.terraStage(s, 'mars')}/7 · techs ${Object.keys(s.tech).length}/${Object.keys(TECH).length} · flights ${S.sp(s).flights} (lost ${fails}) · ${st ? 'STUCK on ' + st.id + ': ' + st.text : 'nothing stuck'}`);
+console.log(`\nend ${when(t)} · Mission Control ${G.hqLevel(s)} · hubs ${Object.keys(s.bases).filter((b) => b !== 'earth').map((b) => b + ' ' + G.hqLevel(s, b) + ' (' + Math.floor(s.bases[b].pop) + ' pop)').join(', ') || '-'} · sites ${Object.keys(SO.sol(s).sites).length} · terra ${SO.terraStage(s, 'mars')}/7 · stars surveyed ${Object.keys(ST.ist(s).surveyed).length}, colonies ${Object.keys(ST.ist(s).colonies).length} (max lvl ${Math.max(0, ...Object.values(ST.ist(s).colonies).map((C) => C.lvl))}), dyson ${ST.megaStage(s, 'dyson')}/10, gates ${Object.keys(ST.ist(s).gates).length} · techs ${Object.keys(s.tech).length}/${Object.keys(TECH).length} · flights ${S.sp(s).flights} (lost ${fails}) · ${st ? 'STUCK on ' + st.id + ': ' + st.text : 'nothing stuck'}`);
 if (st) process.exitCode = 1;

@@ -107,6 +107,8 @@ Procedurally generated minor species fill the rest of the galaxy (portraits, nam
 - **Colonies.** Colony Hubs follow Earth's Mission Control (hub ≤ MC − 7) and need colony prerequisites (main extractor, domes, reactor, greenhouse, lab). Colonists drift in per hub level and grow with greenhouses; production scales by 0.3 + 0.7 × jobs filled. Offline catch-up integrates growing colonies in steps of at most an hour.
 - **Research is the Part 3 pacer.** Part 3 techs (tiers 7-13) take roughly 1 to 14 days each and are gated at Mission Control 10-14, so the lab always has something running while the base grows. Tech costs grow ×3.6 per tier up to tier 8, then ×2 (science) and ×1.9 (credits).
 - **Linear objectives must not block on very long goals.** Full terraforming (Colony Hub 8, i.e. Mission Control 15) is a long-term side goal; the chapter closes on stage 5.
+- **Part 4 economy.** Credits are the binding resource (megastructures, colony development and founding, whose cost grows ×1.3 per colony), so the campaign's objectives should be saved for. Star colonies are abstract (development level + specialization) so dozens stay manageable; each develops locally without Earth's crews.
+- **Targets** (sim, Part 4): engaged player founds the first star colony around day 212, Dyson stage 4 around day 300, the Sol Gate around day 390; a casual player finishes Part 4 around day 399.
 - **Targets** (sim, Part 3): engaged player founds Mars around day 31, Ceres around day 68, Titan around day 112, Part 3 done around day 167. A casual player finishes around day 174, because long timers dominate at this stage.
 - **Targets** (sim, Part 2): first liftoff about 10 minutes into the first session. Engaged player (10-minute check-ins): Moon landing around day 8, outpost around day 15, Part 2 done around day 23. Casual player (3-hour check-ins): landing around day 20, done around day 41. Later parts extend this to months, and the endgame to years.
 
@@ -114,7 +116,7 @@ Procedurally generated minor species fill the rest of the galaxy (portraits, nam
 1. ✅ **Foundation & Earth:** engine (state, saves, offline time, economy, timers), the isometric Earth base, buildings and upgrades, early research, objectives.
 2. ✅ **Orbit & Moon:** rockets, launch control, launches, satellites, the space station, a WebGL planet view, the lunar outpost.
 3. ✅ **The Solar System:** every major body with real data, a system map, colonies, colonists, asteroid mining, terraforming.
-4. **Interstellar:** galaxy map, real nearby stars plus a procedural Milky Way, interstellar drives, megastructures.
+4. ✅ **Interstellar:** galaxy map, real nearby stars plus a procedural Milky Way, interstellar drives, megastructures.
 5. **Contact:** alien species (handcrafted plus procedural), first contact, xenology, diplomacy.
 6. **Conflict:** fleets, defences, raids, battles, conquest.
 7. **Beyond:** intergalactic travel, endgame megaprojects, Ascension (prestige), achievements, codex.

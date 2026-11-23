@@ -86,5 +86,31 @@ export const CHAPTERS = [
       { id: 'u9', text: 'Give Mars liquid oceans (terraforming stage 5)', kind: 'terra', body: 'mars', n: 5, reward: { dm: 200, credits: 50000000 } },
     ],
   },
+  {
+    id: 'ch7', name: 'Chapter 7 · First Light', intro: 'The nearest star is 4.2 light-years away: 40 trillion kilometres. Light itself takes four years. We are going anyway.',
+    steps: [
+      { id: 'v1', text: 'Research Laser Light Sails', kind: 'tech', id2: 'laserSails', reward: { science: 20000000, dm: 40 } },
+      { id: 'v2', text: 'Build the Starshot Laser Array (tap the Sun on the Star Map)', kind: 'mega', mega: 'laser', n: 1, reward: { rare: 20000, dm: 40 } },
+      { id: 'v3', text: 'Survey Proxima Centauri with a light sail', kind: 'starSurvey', star: 'proxima', reward: { credits: 60000000, dm: 40 } },
+      { id: 'v4', text: 'Research Star Colonies', kind: 'tech', id2: 'starColonies', reward: { science: 30000000, dm: 40 } },
+      { id: 'v5', text: 'Build an Exodus Ark', kind: 'drive', ship: 'ark', reward: { he3: 20000, dm: 50 } },
+      { id: 'v6', text: 'Found humanity\'s first star colony', kind: 'starCol', n: 1, reward: { dm: 150, credits: 100000000 } },
+      { id: 'v7', text: 'Begin the Dyson Swarm', kind: 'mega', mega: 'dyson', n: 1, reward: { dm: 60, metal: 100000000 } },
+      { id: 'v8', text: 'Survey Epsilon Eridani, the source of the signal', kind: 'starSurvey', star: 'epseri', reward: { dm: 100, science: 60000000 } },
+    ],
+  },
+  {
+    id: 'ch8', name: 'Chapter 8 · Between the Stars', intro: 'A lighthouse at Epsilon Eridani, older than our species. Whoever built it wanted to be found. Spread out, grow strong, and be ready.',
+    steps: [
+      { id: 'w1', text: 'Run three star colonies', kind: 'starCol', n: 3, reward: { dm: 80, credits: 200000000 } },
+      { id: 'w2', text: 'Develop a star colony to level 5', kind: 'starLvl', lvl: 5, reward: { dm: 80, rare: 60000 } },
+      { id: 'w3', text: 'Build the Casimir Foundry on Earth', kind: 'build', b: 'casimir', lvl: 1, reward: { exotic: 200, dm: 60 } },
+      { id: 'w4', text: 'Build a Pathfinder ramjet', kind: 'drive', ship: 'ramjet', reward: { dm: 80, he3: 40000 } },
+      { id: 'w5', text: 'Raise the Dyson Swarm to stage 4', kind: 'mega', mega: 'dyson', n: 4, reward: { dm: 100, science: 150000000 } },
+      { id: 'w6', text: 'Survey ten star systems', kind: 'starSurvey', n: 10, reward: { dm: 100, credits: 400000000 } },
+      { id: 'w7', text: 'Open the Sol Wormhole Gate', kind: 'mega', mega: 'gate', n: 1, reward: { dm: 200, exotic: 1000 } },
+      { id: 'w8', text: 'Gate a star colony into the network', kind: 'gates', n: 1, reward: { dm: 200, credits: 800000000 } },
+    ],
+  },
 ];
 export const allSteps = () => CHAPTERS.flatMap((c) => c.steps.map((s) => ({ ...s, ch: c.id })));

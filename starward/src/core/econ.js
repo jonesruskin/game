@@ -5,6 +5,8 @@ import { TECH } from '../data/research.js';
 import { RES } from '../data/resources.js';
 import { SATS, MODULES } from '../data/space.js';
 import { BODIES, SITES, TERRA } from '../data/solar.js';
+import { MEGA } from '../data/stars.js';
+import { colonyOut } from './stars.js';
 import { curve } from '../util.js';
 
 export function mods(s) {
@@ -57,6 +59,9 @@ export function rates(s, m = mods(s)) {
     for (const x of SP.sats) { const d = SATS[x.type]; for (const r in d.prod || {}) R.prod[r] += val(d.prod[r], x.lvl) * (1 + (m.mult[r] || 0)); if (d.gen) R.gen += val(d.gen, x.lvl) * (1 + m.gen); }
     for (const id in SP.modules) { const L = SP.modules[id]; const d = MODULES[id]; if (!L || !d) continue; for (const r in d.prod || {}) R.prod[r] += val(d.prod[r], L) * (1 + (m.mult[r] || 0)); for (const r in d.cap || {}) R.cap[r] += val(d.cap[r], L) * (1 + m.cap); if (d.gen) R.gen += val(d.gen, L) * (1 + m.gen); if (d.speed) R.speed += d.speed * L; }
   }
+  // star colonies (and the warehouses they keep for what they export), then the megastructures
+  const IS = s.stars; if (IS) { for (const key in IS.colonies) { const o = colonyOut(s, key); for (const r in o) { R.prod[r] += o[r] * (1 + (m.mult[r] || 0)); if (r === 'exotic' || r === 'rare' || r === 'he3') R.cap[r] += o[r] * 24; } }
+    const dy = IS.mega.dyson || 0; if (dy) { R.gen += MEGA.dyson.gen * dy * (1 + m.gen); for (const r in MEGA.dyson.prod) R.prod[r] += MEGA.dyson.prod[r] * dy * (1 + (m.mult[r] || 0)); } }
   R.eff = R.draw <= 0 ? 1 : Math.min(1, R.gen / R.draw);
   // production is throttled by power shortage (command buildings keep a trickle)
   for (const r in R.prod) R.prod[r] *= 0.25 + 0.75 * R.eff;

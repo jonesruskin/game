@@ -274,6 +274,14 @@ export const ART = {
     cyl(c, 1.0, 1.0, 0.3, 10, '#c9ced6', 10 + T * 2 + 14); fx.push({ k: 'climber', x, y: y - 30 });
     return 60 + T * 2;
   },
+  casimir(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#a9aeb6');
+    const b = box(c, 0.2, 1.05, 1.6, 0.75, 12 + T * 2, '#d9dde2'); grid(c, b.left, 1, 5, '#ff6bd6', 0.25, lights);
+    const ch = cyl(c, 1.0, 0.6, 0.42, 22 + T * 4, '#c9ced6', 0, { bands: '#ff6bd6', nb: 3 });
+    for (let k = 0; k < 4 + T; k++) { const y = ch.top + 4 + k * 3; c.strokeStyle = 'rgba(255,107,214,0.85)'; c.lineWidth = 1; c.beginPath(); c.ellipse(ch.x, y, ch.rx * 0.6, ch.ry * 0.6, 0, 0, Math.PI); c.stroke(); }
+    fx.push({ k: 'glow', x: ch.x, y: ch.top, col: '255,107,214' }); fx.push({ k: 'beacon', x: ch.x, y: ch.top - 4, col: '#ff6bd6' });
+    return 40 + T * 4;
+  },
 };
 // construction scaffold drawn over a building under construction
 export function scaffold(c, S, h, t) {

@@ -49,7 +49,7 @@ export const BUILDINGS = {
   },
   depot: {
     name: 'Logistics Depot', icon: 'depot', size: 2, bases: ['earth'], max: 25, cat: 'storage', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
-    cost: { credits: [180, 1.78], metal: [280, 1.78] }, time: [1.5, 2.0], cap: { credits: [5000, 1.48], metal: [6000, 1.48], fuel: [3500, 1.48], science: [1500, 1.48] }, draw: [1, 1.1],
+    cost: { credits: [180, 1.78], metal: [280, 1.78] }, time: [1.5, 2.0], cap: { credits: [5000, 1.48], metal: [6000, 1.48], fuel: [3500, 1.48], science: [1500, 1.48], rare: [800, 1.48], he3: [300, 1.48] }, draw: [1, 1.1],
     desc: 'Warehouses, tank farms and secure data vaults. Raises storage for every basic resource.',
   },
   launch: {
@@ -148,6 +148,11 @@ export const BUILDINGS = {
     name: 'Space Elevator', icon: 'elevator', size: 2, bases: ['earth'], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'spaceElevator' },
     cost: { credits: [5000000, 1.8], metal: [4000000, 1.8], rare: [3000, 1.6] }, time: [16, 1.95], prod: { credits: [20000, 1.24] }, draw: [60, 1.16], liftCut: 0.03,
     desc: 'A ribbon from the equator to geostationary orbit. Climbers carry cargo up for the price of electricity: rockets and missions cost 3% less per level.',
+  },
+  casimir: {
+    name: 'Casimir Foundry', icon: 'casimir', size: 2, bases: ['earth'], unique: true, max: 20, cat: 'science', req: { tech: 'casimirEffect' },
+    cost: { credits: [3e7, 1.7], metal: [2e7, 1.7], rare: [5000, 1.6] }, time: [17, 1.8], prod: { exotic: [3, 1.24] }, cap: { exotic: [300, 1.5] }, draw: [80, 1.16],
+    desc: 'Stacks of nanometre-gap plates in a vacuum chamber, squeezing out exotic matter a microgram at a time.',
   },
 };
 // command level → building lots open (Earth)

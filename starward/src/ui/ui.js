@@ -13,6 +13,7 @@ import { ART } from '../render/art.js';
 import { TW, TH } from '../render/iso.js';
 import { LaunchUI } from './launch.js';
 import { SystemUI } from './system.js';
+import { StarsUI } from './stars.js';
 import * as SP from '../core/space.js';
 
 const THUMBS = {};
@@ -26,21 +27,23 @@ export const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML
 const costHTML = (cost, s) => Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 
 export class UI {
-  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); this.sys = new SystemUI(this); }
+  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); this.sys = new SystemUI(this); this.stars = new StarsUI(this); }
   get s() { return this.app.s; }
   init() {
     $('#hud').innerHTML = `<div class="topbar"><div class="res" id="resBar"></div><div class="topr"><div class="chip dm" id="dmChip" title="Dark Matter">${icon('dm')}<b id="dmVal">0</b></div><button class="ibtn" data-a="settings" title="Settings">${icon('cog')}</button></div></div>
       <div class="side"><div class="crews" id="crews"></div><div class="colline" id="colline"></div><button class="rslot" id="rslot" data-a="research"></button><div class="obj" id="obj"></div></div>
-      <div class="basepick" id="basepick"></div><nav class="nav"><button data-tab="bases" class="on" id="baseTab">${icon('earth')}<span>Earth</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="system" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
+      <div class="basepick" id="basepick"></div><div class="maptog" id="maptog"><button data-a="maptog" data-m="sol">${icon('orbit', 'xs')} Solar System</button><button data-a="maptog" data-m="stars">${icon('star', 'xs')} Neighbourhood</button></div><nav class="nav"><button data-tab="bases" class="on" id="baseTab">${icon('earth')}<span>Earth</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="system" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
     $('#hud').addEventListener('click', (e) => this.click(e)); $('#panel').addEventListener('click', (e) => this.click(e)); $('#overlay').addEventListener('click', (e) => this.click(e)); $('#modal').addEventListener('click', (e) => this.click(e));
     this.hud(true); this.side(true);
   }
   // ---------------- per frame ----------------
-  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); if (this.app.scene === 'system') this.sys.live(); else this.panelLive(); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
+  frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); if (this.app.scene === 'system') { if (this.app.mapMode === 'stars') this.stars.live(); else this.sys.live(); } else this.panelLive();
+    const mt = $('#maptog'); mt.classList.toggle('on', this.app.scene === 'system' && this.app.view === 'system'); $$('#maptog button').forEach((b) => b.classList.toggle('on', b.dataset.m === this.app.mapMode)); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
   // taps in the orbit view open the matching part of Launch Control
   // the base picker above the nav (Earth, the Moon and every colony)
   bases() { const s = this.s, el = $('#basepick'); if (el.classList.contains('on')) { el.className = 'basepick'; return; }
     const R = this.app.R; el.innerHTML = Object.keys(s.bases).map((id) => { const B = s.bases[id]; const c = R.col[id]; const jobs = s.jobs.filter((j) => j.kind === 'build' && j.base === id).length; return `<button data-tab="${id}" class="${this.app.scene === id ? 'on' : ''}">${icon(id === 'earth' ? 'earth' : id === 'moon' ? 'moon' : 'base')}<span><b>${esc(B.name)}</b><i>${id === 'earth' ? 'Earth' : esc(BODIES[B.body].name)}${c ? ` · ${Math.floor(B.pop)} colonists` : ''}${jobs ? ` · ${jobs} building` : ''}</i></span></button>`; }).join(''); el.className = 'basepick on'; }
+  selectStar(id) { this.sel = null; this.app.stars.sel = id; this.stars.open(id); if (id) this.app.audio.play('tap'); }
   selectBody(id) { this.sel = null; this.app.bv.sel = null; this.app.system.sel = id; this.sys.open(id); if (id) { this.app.audio.play('tap'); this.app.system.focus(id); } }
   orbitPick(p) { if (!p) return; this.app.audio.play('tap'); if (p.kind === 'sat' || p.kind === 'slot') this.app.setView('launch', 'sats'); else if (p.kind === 'station') this.app.setView('launch', 'station'); else if (p.kind === 'moon') { if (this.s.bases.moon) this.app.setView('moon'); else this.app.setView('launch', 'missions'); } }
   hud(force) {
@@ -173,8 +176,8 @@ export class UI {
   click(e) {
     const t = e.target.closest('[data-a],[data-tab]'); if (!t) return; const A = this.app, s = this.s; A.audio.unlock();
     if (t.dataset.tab) { const v = t.dataset.tab; $('#basepick').className = 'basepick'; if (v === 'bases') { if (Object.keys(s.bases).length > 1 && (this.app.scene === 'earth' || this.app.scene === 'moon' || s.bases[this.app.scene])) { this.app.audio.play('tap'); this.bases(); return; } A.setView(Object.keys(s.bases).length > 1 ? A.base : 'earth'); return; } if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Research Rocketry Fundamentals to open Launch Control' : v === 'orbit' ? 'Build the Launch Complex to watch your orbit fill up' : 'The Star Map opens with interplanetary travel (coming in a future update)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
-    const a = t.dataset.a; if (this.launch.click(t)) return; if (this.sys.click(t)) return;
-    if (a === 'deselect') { if (this.app.scene === 'system') this.selectBody(null); else this.select(null); }
+    const a = t.dataset.a; if (this.launch.click(t)) return; if (this.sys.click(t)) return; if (this.stars.click(t)) return;
+    if (a === 'deselect') { if (this.app.scene === 'system') { if (this.app.mapMode === 'stars') this.selectStar(null); else this.selectBody(null); } else this.select(null); }
     if (a === 'build') { const r = G.startBuild(s, A.base, this.sel, t.dataset.b); if (r.ok) { A.audio.play('build'); this.toast(`Construction started: ${BUILDINGS[t.dataset.b].name}`, 'good'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'upgrade') { const r = G.startUpgrade(s, A.base, this.sel); if (r.ok) { A.audio.play('build'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'finish') { const r = G.speedup(s, t.dataset.job); if (r.ok) { A.audio.play('dm'); A.changed(); } else { this.toast(`${r.why}: need ${r.need} dark matter`, 'bad'); A.audio.play('deny'); } this.panelKey = ''; }
@@ -196,6 +199,6 @@ export class UI {
   closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; }
   settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label>
     <div class="set">Day / night<div class="chips">${[['auto', 'Local time'], ['day', 'Always day'], ['night', 'Always night']].map(([v, n]) => `<button class="chip2 ${st.dayNight === v ? 'on' : ''}" data-a="day" data-v="${v}">${n}</button>`).join('')}</div></div>
-    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.3 · Part 3 of the campaign: the Solar System.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
+    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.4 · Part 4 of the campaign: Interstellar.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
     $$('#modal [data-set]').forEach((el) => el.addEventListener('input', () => { st[el.dataset.set] = +el.value; this.app.applySettings(); })); }
 }

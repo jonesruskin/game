@@ -6,7 +6,7 @@ import { capClamp } from './buildings.js';
 export const BRANCHES = {
   rocketry: { name: 'Rocketry', color: '#ff8a5b' }, engineering: { name: 'Engineering', color: '#b8c4d6' }, energy: { name: 'Energy', color: '#ffd166' },
   computing: { name: 'Computing', color: '#6ee7ff' }, economy: { name: 'Economy', color: '#7cf29a' }, life: { name: 'Life Sciences', color: '#ff9bd2' }, astro: { name: 'Astronomy', color: '#b892ff' },
-  planetary: { name: 'Planetary', color: '#ff7a59' },
+  planetary: { name: 'Planetary', color: '#ff7a59' }, interstellar: { name: 'Interstellar', color: '#ff6bd6' },
 };
 export const TECH = {
   // ---- Rocketry ----
@@ -90,6 +90,20 @@ export const TECH = {
   extremophiles: { name: 'Engineered Extremophiles', branch: 'life', tier: 12, req: ['xenobiology', 'hydrosphere'], effect: {}, unlocks: 'Terraforming stage 6', desc: 'Lichens and algae rewritten to thrive in cold, thin, radiation-soaked air.' },
   advancedFusion: { name: 'Antimatter-Catalysed Fusion', branch: 'rocketry', tier: 12, req: ['fusionDrive', 'cryoHabitats'], effect: {}, unlocks: 'Odyssey cruisers, the outer planets', desc: 'A few micrograms of antiprotons ignite fusion hotter than any magnet can hold.' },
   ecopoiesis: { name: 'Ecopoiesis', branch: 'life', tier: 13, req: ['extremophiles'], effect: {}, unlocks: 'Terraforming stage 7', desc: 'Not engineering a planet: gardening one. Forests, soil and a breathable sky.' },
+  // ---- Part 4: interstellar ----
+  laserSails: { name: 'Laser Light Sails', branch: 'interstellar', tier: 13, req: ['solarFurnace', 'spaceElevator'], effect: {}, unlocks: 'Starshot Laser Array (megastructure)', desc: 'Gram-scale probes on sails thinner than a soap bubble, pushed by lasers to a fifth of light speed.' },
+  exoplanetology: { name: 'Exoplanetology', branch: 'interstellar', tier: 13, req: ['planetaryProbes', 'xenobiology'], effect: { mult: { science: 0.1 } }, desc: 'Read a world\'s atmosphere from its starlight. Science +10%.' },
+  sleeperShips: { name: 'Sleeper Ships', branch: 'interstellar', tier: 14, req: ['advancedFusion', 'cryoHabitats'], effect: {}, unlocks: 'Exodus Ark', desc: 'Cryogenic suspension for ten thousand. Decades pass in a dreamless night.' },
+  starColonies: { name: 'Star Colonies', branch: 'interstellar', tier: 14, req: ['exoplanetology', 'colonyShips'], effect: {}, unlocks: 'Settling exoplanets (capacity 2)', desc: 'Governance, supply and culture across light-years: how to found a world you will never visit.' },
+  dysonSwarm: { name: 'Dyson Swarm', branch: 'energy', tier: 14, req: ['solarFurnace', 'spaceElevator'], effect: {}, unlocks: 'Dyson Swarm (megastructure)', desc: 'Disassemble Mercury into a cloud of mirrors and collectors around the Sun.' },
+  casimirEffect: { name: 'Casimir Engineering', branch: 'interstellar', tier: 15, req: ['laserSails', 'fusionDrive'], effect: {}, unlocks: 'Casimir Foundry (exotic matter)', desc: 'Plates a few atoms apart squeeze the vacuum itself: negative energy density, bottled.' },
+  ramjets: { name: 'Bussard Ramjets', branch: 'rocketry', tier: 15, req: ['sleeperShips', 'gasGiantScoops'], effect: {}, unlocks: 'Pathfinder ramjets', desc: 'Scoop interstellar hydrogen with magnetic fields a thousand kilometres wide and burn it on the fly.' },
+  domeWorlds: { name: 'Dome Worlds', branch: 'interstellar', tier: 15, req: ['starColonies', 'extremophiles'], effect: {}, unlocks: 'Settle hostile worlds, giants and belts (+2 capacity)', desc: 'Domes, orbital habitats and mining stations: no world is too hostile to settle.' },
+  xenoarchaeology: { name: 'Xenoarchaeology', branch: 'life', tier: 15, req: ['exoplanetology', 'xenobiology'], effect: { mult: { science: 0.1 } }, desc: 'The study of minds that are not human, from what they leave behind. Science +10%.' },
+  interstellarTrade: { name: 'Interstellar Commerce', branch: 'economy', tier: 16, req: ['starColonies', 'domeWorlds'], effect: { mult: { credits: 0.15 } }, unlocks: 'Star colonies +15% (+2 capacity)', desc: 'Light-lag contracts, tachyon-free banking and the first interstellar brands. Credits +15%.' },
+  warpTheory: { name: 'Warp Field Theory', branch: 'interstellar', tier: 16, req: ['casimirEffect', 'ramjets'], effect: {}, desc: 'Alcubierre\'s metric, made practical: the energy budget falls from a galaxy\'s worth to a few tonnes of exotic matter.' },
+  warpDrive: { name: 'Warp Drive', branch: 'rocketry', tier: 17, req: ['warpTheory'], effect: {}, unlocks: 'Herald warp ships', desc: 'Space folds ahead and unfolds behind. Light-years in an afternoon.' },
+  wormholeGates: { name: 'Wormhole Gates', branch: 'interstellar', tier: 17, req: ['warpTheory', 'dysonSwarm'], effect: {}, unlocks: 'Sol Gate and colony gates', desc: 'Two throats of a wormhole, held open with exotic matter and towed apart. Step through, arrive light-years away.' },
 };
 // science 60·3.6^(T-1) and credits 200·3.2^(T-1) up to tier 8, then ×2 / ×1.9 per tier (tracks the empire's
 // income instead of exploding); clamped under the storage guaranteed at the tech's Mission Control gate
@@ -98,7 +112,8 @@ export const techCost = (t) => { if (t.cost) return t.cost; const T = t.tier, h 
 // Mission Control gates: the spaceflight programme follows the size of the agency (Clash-style town-hall gating)
 const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, deepSpace: 6, spaceStation: 6, heavy: 7, reusable: 7, closedLoop: 7, constellations: 7, lunarLanders: 8, spacePower: 8, isru: 9, he3Mining: 9, lowGravity: 9, lunarHabitats: 10, massDrivers: 10,
   planetaryProbes: 10, nuclearThermal: 10, orbitalShipyard: 10, marsDirect: 10, spaceAgriculture: 10, asteroidMining: 11, fusionPower: 11, aerostats: 11, colonyShips: 11, planetaryEngineering: 11,
-  beltSettlement: 12, solarFurnace: 12, radiationShielding: 12, fusionDrive: 12, gasGiantScoops: 12, cometCapture: 12, magnetosphere: 12, xenobiology: 13, cryoHabitats: 13, hydrosphere: 13, spaceElevator: 13, extremophiles: 13, advancedFusion: 13, ecopoiesis: 14 };
+  beltSettlement: 12, solarFurnace: 12, radiationShielding: 12, fusionDrive: 12, gasGiantScoops: 12, cometCapture: 12, magnetosphere: 12, xenobiology: 13, cryoHabitats: 13, hydrosphere: 13, spaceElevator: 13, extremophiles: 13, advancedFusion: 13, ecopoiesis: 14,
+  laserSails: 13, exoplanetology: 13, sleeperShips: 14, starColonies: 14, dysonSwarm: 14, casimirEffect: 15, ramjets: 15, domeWorlds: 15, xenoarchaeology: 15, interstellarTrade: 16, warpTheory: 16, warpDrive: 17, wormholeGates: 17 };
 for (const k in HQ_GATE) if (TECH[k]) TECH[k].hq = HQ_GATE[k];
 // tier 1 ≈ 1 min, 3 ≈ 1 h, 5 ≈ 12 h, 6 ≈ 1 day, 7 ≈ 2 days, 8 ≈ 4 days, 9+ a week or more (before speed bonuses)
 export const techTime = (t) => t.time || Math.round(ladder(3 + 3.6 * (t.tier - 1)));

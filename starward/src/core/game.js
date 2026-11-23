@@ -9,6 +9,7 @@ import { mods, rates, accrue, canPay, pay, give, hqLevel, bStats } from './econ.
 import { uid } from './state.js';
 import { completeSpace, sp } from './space.js';
 import { completeSolar, sol, terraStage } from './solar.js';
+import { completeStars, ist } from './stars.js';
 import { curve, round2, timeCurve } from '../util.js';
 
 export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
@@ -82,6 +83,7 @@ function complete(s, j) {
   if (j.kind === 'build') { const lot = s.bases[j.base].lots[j.lot]; lot.lvl = j.to; if (j.from === 0) s.stats.built++; else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, lot: j.lot }; }
   if (j.kind === 'research') { s.tech[j.tech] = 1; s.stats.researched++; return { kind: 'research', tech: j.tech }; }
   if (j.kind === 'ship' || j.kind === 'voyage' || j.kind === 'terra') return completeSolar(s, j);
+  if (['sail', 'drive', 'mega', 'gatebuild', 'develop', 'star'].includes(j.kind)) return completeStars(s, j);
   return completeSpace(s, j);
 }
 // advance the world to time t (handles offline gaps exactly). Returns notifications in order.
@@ -137,6 +139,12 @@ export function stepDone(s, st, R = rates(s)) {
     case 'pop': return !!s.bases[st.body] && (s.bases[st.body].pop || 0) >= st.n;
     case 'terra': return terraStage(s, st.body) >= st.n;
     case 'ship': return (sol(s).ships[st.ship] || 0) >= 1;
+    case 'starSurvey': return st.star ? !!ist(s).surveyed[st.star] : Object.keys(ist(s).surveyed).length >= st.n;
+    case 'starCol': return Object.keys(ist(s).colonies).length >= st.n;
+    case 'starLvl': return Object.values(ist(s).colonies).some((C) => C.lvl >= st.lvl);
+    case 'mega': return (ist(s).mega[st.mega] || 0) >= st.n;
+    case 'drive': return (ist(s).ships[st.ship] || 0) >= 1;
+    case 'gates': return Object.keys(ist(s).gates).length >= st.n;
     case 'buildOn': return !!s.bases[st.base] && Object.values(s.bases[st.base].lots).some((l) => l.b === st.b && l.lvl >= (st.lvl || 1));
   }
   return false;

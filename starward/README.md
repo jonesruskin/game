@@ -3,7 +3,7 @@
 
 A slow-and-steady space empire builder for web portals: Clash of Clans' tactile base building, OGame's patient asynchronous empire and a 4X's alien civilisations. Research, build and upgrade in real time (timers keep running while you're away). Launch rockets and satellites, settle the Moon and planets, terraform worlds, cross interstellar space, meet alien species (some friendly, some not) and spread across galaxies.
 
-> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-3 (Foundation & Earth, Orbit & Moon, the Solar System) are playable.**
+> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-4 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar) are playable.**
 
 - 🎮 **Play locally:** from the repo root run `python3 -m http.server 8080`, then open http://localhost:8080/starward/
 - 📦 **Build portal packages:** `node tools/build.mjs` (inside `starward/`) creates `dist/starward-{crazygames,poki,web}.zip`
@@ -38,6 +38,17 @@ A slow-and-steady space empire builder for web portals: Clash of Clans' tactile 
 - **Seven new buildings** (Greenhouse, Colony Reactor, Atmosphere Processor, Mining Control, Hydrocarbon Refinery, Fusion Plant, Space Elevator), an outer ring of 12 Earth lots (Mission Control 9-14), **24 new technologies** in a new Planetary branch and more, and Chapters 4-6 of the campaign.
 - Bot playtests: an engaged player founds Mars around day 31, Ceres around day 68 and Titan around day 112, and finishes Part 3 around day 167. Full terraforming continues as a long-term goal.
 
+## Part 4: Interstellar (done)
+- **The Neighbourhood:** a 3D map of the stars around Sol. 32 real systems out to 41 light-years sit at their true positions (from RA, Dec and distance), with their real planets: Proxima b, Teegarden b, Ross 128 b, Tau Ceti e and f, GJ 1061 c and d, TRAPPIST-1 e/f/g/d, 55 Cancri e, Ægir and more. 150 procedural neighbours with a realistic spectral mix fill out the map. Drag to orbit, pinch to zoom, and zoom far out to see the Milky Way with a "You are here" marker in the Orion Spur.
+- **Light-sail surveys** pushed by the Starshot Laser Array (a megastructure; each stage extends its range and adds a sail), revealing each system's worlds and their habitability.
+- **Starships:** the Exodus Ark (sleepers), the Pathfinder (Bussard ramjet) and the Herald (Alcubierre warp, fuelled by exotic matter), built at the Orbital Shipyard.
+- **Star colonies:** settle exoplanets (open-air at 25%+ habitability, anywhere with Dome Worlds), develop each colony to level 15 and choose its specialization (balanced, mining, research, industry or trade). Output scales with habitability. Colonial capacity grows with technology and Mission Control.
+- **Megastructures** on the Sun's panel: the Starshot Laser Array, a 10-stage **Dyson Swarm** (energy, credits and science per stage) and the **Sol Wormhole Gate**. Gated colonies are minutes away and trade 25% more.
+- **Exotic matter** from the new Casimir Foundry and from colonies on worlds that have it.
+- **The story:** the Triton signal leads to Epsilon Eridani, where a light sail finds an ancient alien relay, setting up Part 5.
+- **13 new technologies** (new Interstellar branch, 85 in all) and Chapters 7-8 of the campaign.
+- Bot playtests: Part 4 runs from about day 175 to day 393 for an engaged player, and to about day 399 for a casual one.
+
 ## Balance
 `node tools/sim.mjs` runs a bot through the campaign on the real rules (see the header for engaged, casual and first-session modes). Pacing rules are in DESIGN.md §10.1.
 
@@ -57,4 +68,7 @@ src/ui/launch.js    Launch Control: missions, satellites, station, hangar, fleet
 src/data/solar.js   the Solar System: real body data, outposts/claims/scoops, ships, Mars terraforming stages
 src/core/solar.js   orbits + launch windows, the fleet, voyages, colonies + colonists, terraforming
 src/render/system.js the Star Map (WebGL worlds + overlay)   src/ui/system.js  body panels, voyages, terraforming
+src/data/stars.js   real nearby stars + planets, procedural neighbours, drives, specialisations, megastructures
+src/core/stars.js   light sails, starships, star colonies, development, megastructures, wormhole gates
+src/render/stars.js the 3D Neighbourhood (and the Milky Way zoom-out)   src/ui/stars.js  star panels, megastructures
 ```
