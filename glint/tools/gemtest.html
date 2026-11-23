@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000;overflow:hidden}canvas{position:fixed;left:0;top:0}</style></head><body><canvas id="gl"></canvas>
+<script type="module">
+import { Renderer } from '../src/gl.js';
+import { CUTS, cutPlanes } from '../src/cuts.js';
+import { makeRough } from '../src/habits.js';
+import { rng, mMul, mRotX, mRotY } from '../src/math.js';
+const W = 1400, H = 800; const R = new Renderer(document.getElementById('gl')); if (!R.ok) document.body.innerHTML = '<pre style="color:#fff">' + R.err + '</pre>';
+R.resize(W, H, 1);
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H; const c = bg.getContext('2d'); const g = c.createRadialGradient(W/2, H*0.45, 50, W/2, H/2, W*0.7); g.addColorStop(0, '#3a2a30'); g.addColorStop(1, '#0b070a'); c.fillStyle = g; c.fillRect(0, 0, W, H); R.setBackground(bg);
+const q = new URLSearchParams(location.search); const tilt = +(q.get('tilt') || 0.55), spin = +(q.get('spin') || 0.3);
+const list = [];
+const add = (stone, x, y, r, ri, disp, sig, tint, rb) => list.push({ stone, x, y, r, ri, disp, sig, tint, rb });
+// cuts
+const ids = Object.keys(CUTS); const sp = [[1.77, 0.018, [0.9, 0.5, 0.05], [0.3, 0.5, 1]], [2.42, 0.044, [0, 0, 0], [1, 1, 1]], [1.58, 0.014, [0.9, 0.05, 0.5], [0.4, 1, 0.5]], [1.544, 0.013, [0.1, 0.6, 0.05], [0.8, 0.4, 1]], [1.76, 0.018, [0.02, 0.8, 0.7], [1, 0.2, 0.2]]];
+ids.forEach((id, i) => { const C = CUTS[id]; const planes = cutPlanes(id, { pav: C.pav, crown: C.crown, table: C.table, uG: 1, uP: 1, uC: 1, uT: 1 }); const s = sp[i % sp.length]; add({ planes, frost: planes.map(() => 0), inc: [], ver: 1 }, 140 + (i % 5) * 280, 170 + Math.floor(i / 5) * 280, 120, s[0], s[1], s[2], s[3], 1.25); });
+const rough = makeRough({ habit: q.get('habit') || 'hexpoint', size: 1, clarity: 0.6 }, rng(5));
+add({ planes: rough.planes, frost: rough.planes.map((_, i) => (+(q.get('frost') || 0.35)) * (i % 3 === 0 ? 1.6 : 0.7)), inc: rough.inc, ver: 1 }, 1260, 690, 100, 1.544, 0.013, [0.25, 0.9, 0.1], [0.75, 0.45, 1], rough.r * 1.1);
+let t = 0; window.frame = (dt = 1 / 60) => { t += dt; R.begin(); for (const it of list) { const rot = mMul(mRotX(tilt), mRotY(t * spin + it.x * 0.01)); R.gem({ ...it, rot, bounces: 8 }); } R.end({ time: t, streak: 0.6 }); };
+for (let i = 0; i < 3; i++) frame(); window.ready = true;
+</script></body></html>
