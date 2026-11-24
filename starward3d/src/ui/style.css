@@ -123,3 +123,5 @@ a.btn { text-decoration: none; }
   #nav { bottom: 8px; gap: 2px; padding: 4px; } #nav button { width: 60px; height: 52px; font-size: 10px; }
   #place { bottom: 86px; } .techs { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
+body.orbiting #obj, body.orbiting #panel, body.orbiting #bubbles { display: none !important; }
+.tab:disabled { cursor: default; }

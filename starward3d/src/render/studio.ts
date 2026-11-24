@@ -2,6 +2,8 @@
 // bot portraits and reward reveals, using the main renderer and an offscreen target.
 import * as THREE from 'three';
 import { buildModel, Look } from './models';
+import { rocketModel } from './rocket';
+import type { Design } from '../data/rockets';
 import { buildBot } from './botmodels';
 import { BUILDINGS } from '../data/buildings';
 export class Studio {
@@ -24,5 +26,6 @@ export class Studio {
   }
   building(t: string, lvl: number, look: Look) { const m = buildModel(t, lvl, look); const [w, d] = BUILDINGS[t].fp; const s = Math.max(w, d);
     return this.shoot(m.group, `b|${t}|${lvl}|${look.primary}${look.accent}${look.banner.bg}${look.banner.fg}${look.banner.emblem}`, s * 1.45 + 1.2, Math.max(0.8, m.height * 0.55)); }
+  rocket(d: Design, look: Look) { const m = rocketModel(d, look); m.group.rotation.y = 0.6; const h = m.height; return this.shoot(m.group, `r|${JSON.stringify(d)}|${look.accent}`, h * 1.45 + 1.2, h * 0.95); }
   bot(sp: string) { const m = buildBot(sp, 1); m.group.rotation.y = 0.5; const hg = m.group.getObjectByName('hoverGlow'); if (hg) hg.visible = false; return this.shoot(m.group, `bot|${sp}`, 1.75, 0.55); }
 }

@@ -14,6 +14,8 @@ import { $, fmt, esc, fmtTime } from './core/util';
 import { BUILDINGS } from './data/buildings';
 import { TECH } from './data/research';
 import { RES } from './data/resources';
+import * as SP from './core/space';
+import type { Design } from './data/rockets';
 export class App {
   version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
   private last = performance.now(); private acc = 0; private saveAt = 0; private queue: (() => void)[] = []; private placing: { b: string; move?: string } | null = null;
@@ -58,9 +60,18 @@ export class App {
   }
   private note(n: G.Note) {
     if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
+    else if (n.kind === 'rocket') { this.audio.play('done'); this.ui.toast(`${esc(n.name)} is assembled and waiting on the pad`, 'good'); this.ui.renderNav(); if (this.ui.over === 'launch') this.ui.renderOver(); }
+    else if (n.kind === 'mission') { this.audio.play('levelup'); this.platform.happytime(); if (n.first) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">MISSION ACCOMPLISHED</div><h1>${esc(n.name)}</h1>${n.reward ? `<div class="rewards">${costHTML(n.reward)}</div>` : ''}<button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); else this.ui.toast(`${esc(n.name)} complete`, 'good'); }
+    else if (n.kind === 'sat' || n.kind === 'module') { this.audio.play('levelup'); this.ui.toast(`${esc(n.name)}: in orbit and working`, 'gold'); this.ui.renderNav(); }
+    else if (n.kind === 'fail') { this.audio.play('deny'); this.ui.toast(`${esc(n.name)} failed. The engineers learned something: +${fmt(n.sci)} science`, 'bad'); }
     else if (n.kind === 'research') { this.audio.play('levelup'); this.ui.toast(`Research complete: <b>${esc(TECH[n.tech].name)}</b>`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'research') this.ui.renderOver(); }
   }
-  changed() { this.R = rates(this.s); this.world.sync(this.s); this.ui.renderObj(); this.ui.renderPanel(); this.ui.updHud(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
+  changed() { this.R = rates(this.s); this.world.sync(this.s); this.syncPad(); if (this.world.orbit) this.world.orbit.sync(SP.sp(this.s)); this.ui.renderObj(); this.ui.renderPanel(); this.ui.renderNav(); this.ui.updHud(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
+  // the next rocket in the hangar stands on the pad
+  private syncPad() { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch' && i.lvl > 0); const S = SP.sp(this.s); const id = Object.keys(S.hangar).find((k) => S.hangar[k] > 0); const d = id ? SP.designOf(this.s, id) : null; this.world.setPadRocket(this.s.at === 'earth' && !this.s.jobs.some((j) => j.kind === 'mission' && Date.now() - j.start < 12000) ? d : null, pad ? pad.id : null); }
+  launched(d: Design) { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch'); if (this.world.mode === 'orbit') this.closeOrbit(); if (pad) this.world.launchFx(d, pad.id); this.audio.play('launch'); this.ui.toast(`Liftoff! ${esc(d.name)} is on its way`, 'gold'); this.changed(); this.ui.renderNav(); }
+  openOrbit(f: 'earth' | 'station') { this.ui.select(null); this.world.openOrbit(SP.sp(this.s)); this.world.orbit!.setFocus(f); document.body.classList.add('orbiting'); this.ui.renderNav(); }
+  closeOrbit() { this.world.closeOrbit(); document.body.classList.remove('orbiting'); this.ui.renderNav(); }
   enqueue(fn: () => void) { this.queue.push(fn); }
   // ---------------- taps ----------------
   private tapped(h: { item?: string; cell?: [number, number] }) {

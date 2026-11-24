@@ -9,13 +9,16 @@ import { TECH, BRANCHES, techCost } from '../data/research';
 import { RES } from '../data/resources';
 import { CHAPTERS } from '../data/objectives';
 import type { App } from '../main';
+import { LaunchUI } from './launch';
+import * as SP from '../core/space';
 const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${RES[r]?.icon || ''}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 export class UI {
-  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' = ''; tab = 'production'; rtab = 'avail';
+  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
+    this.launch = new LaunchUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.id === 'aname') { const v = t.value.trim().slice(0, 24); if (v) { this.s.name = v; this.s.bases.earth.name = v; this.app.changed(); this.renderHud(); } } if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); });
   }
@@ -41,7 +44,9 @@ export class UI {
   // ---------------- navigation ----------------
   renderNav() {
     const r = this.s.jobs.some((j) => j.kind === 'research') ? '' : (Object.keys(TECH).some((id) => G.canResearch(this.s, id).ok) ? '<span class="rdot"></span>' : '');
-    $('#nav').innerHTML = `<button data-a="shop"><span class="g">🏗</span>Build</button><button data-a="research"><span class="g">🔬</span>Research${r}</button><button data-a="goals"><span class="g">🎯</span>Goals</button><button data-a="kard"><span class="g">☀</span>Kardashev</button>`;
+    const s = this.s, S = SP.sp(s); if (this.app.world && this.app.world.mode === 'orbit') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="orbitFocus" data-f="earth"><span class="g">🌍</span>Earth</button>${S.modules.core ? '<button data-a="orbitFocus" data-f="station"><span class="g">🛰</span>Station</button>' : ''}<button data-a="launchctl"><span class="g">🚀</span>Launch</button>`; return; }
+    const pad = G.lvlOf(s, 'earth', 'launch') > 0; const ready = Object.values(S.hangar).some((n) => n > 0) && s.jobs.every((j) => j.kind !== 'mission');
+    $('#nav').innerHTML = `<button data-a="shop"><span class="g">🏗</span>Build</button><button data-a="research"><span class="g">🔬</span>Research${r}</button>${pad ? `<button data-a="launchctl"><span class="g">🚀</span>Launch${ready ? '<span class="rdot"></span>' : ''}</button>` : ''}${S.sats.length || S.modules.core ? '<button data-a="orbit"><span class="g">🌍</span>Orbit</button>' : ''}<button data-a="goals"><span class="g">🎯</span>Goals</button><button data-a="kard"><span class="g">☀</span>Kardashev</button>`;
   }
   // ---------------- objective card ----------------
   renderObj() {
@@ -83,6 +88,7 @@ export class UI {
         if (c.reqs && c.reqs.length) h += `<ul class="reqs">${c.reqs.map(([b, n]: [string, number]) => `<li>${esc(BUILDINGS[b].name)} level ${n}</li>`).join('')}</ul>`;
         h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}</div>`; } }
     if (it.b === 'research') h += '<button class="btn" style="width:100%" data-a="research">🔬 Open research</button>';
+    if ((it.b === 'launch' || it.b === 'vab') && it.lvl > 0) h += `<button class="btn" style="width:100%" data-a="ltab" data-t="${it.b === 'vab' ? 'rockets' : 'missions'}">🚀 Launch Control</button>`;
     h += `<div class="row" style="margin-top:10px"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button>${G.canDemolish(s, s.at, it.id) ? `<button class="btn small red" data-a="demolish" data-id="${it.id}">Demolish</button>` : ''}</div>`;
     el.innerHTML = h; this.refreshPanel();
   }
@@ -108,6 +114,8 @@ export class UI {
       el.innerHTML = `<div class="head"><h1>Build</h1><span class="chip">🛸 ${G.crewsBusy(s)}/${G.crewsTotal(s, this.R.m)} drones busy</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${cats.map((c) => `<button class="tab ${c === this.tab ? 'on' : ''}" data-a="tab" data-t="${c}">${CATS[c]}</button>`).join('')}</div>
         <div class="body"><div class="grid">${list.map(([b, d]) => this.shopCard(b, d)).join('') || '<p class="muted">Nothing to build here yet.</p>'}</div></div>`; return; }
     if (this.over === 'research') { el.innerHTML = this.researchHTML(); return; }
+    if (this.over === 'launch') { el.innerHTML = this.launch.html(); return; }
+    if (this.over === 'designer') { el.innerHTML = this.launch.designerHTML(); return; }
     if (this.over === 'goals') { el.innerHTML = this.goalsHTML(); return; }
   }
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
@@ -155,8 +163,11 @@ export class UI {
       <p class="muted" style="font-size:12px">Graphics changes apply after a reload. Camera: drag to pan, scroll or pinch to zoom, right-drag, two-finger twist or Q/E to rotate.</p><div class="row" style="justify-content:center"><button class="btn red small" data-a="reset">Start over</button><button class="btn" data-a="closeModal">Close</button></div>`; }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement) {
-    const A = this.app, s = this.s; A.audio.unlock(); const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
+    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
     switch (a) {
+      case 'orbit': A.openOrbit('earth'); A.audio.play('whoosh'); break;
+      case 'base': A.closeOrbit(); A.audio.play('whoosh'); break;
+      case 'orbitFocus': A.world.orbit?.setFocus(t.dataset.f as any); A.audio.play('tap'); break;
       case 'shop': this.openOver('shop'); A.audio.play('tap'); break;
       case 'shopFor': { const d = BUILDINGS[t.dataset.b!]; this.openOver('shop', d ? d.cat : undefined); A.audio.play('tap'); break; }
       case 'research': this.openOver('research', this.rtab); A.audio.play('tap'); break;

@@ -10,7 +10,7 @@ export const CHAPTERS: Chapter[] = [
       { id: 'o2', text: 'Build a Research Center', kind: 'build', b: 'research', lvl: 1, reward: { credits: 600, metal: 500, dm: 5 } },
       { id: 'o3', text: 'Research Rocketry Fundamentals', kind: 'tech', id2: 'rocketry', reward: { science: 120, credits: 600, metal: 600 } },
       { id: 'o7', text: 'Build the Launch Complex', kind: 'build', b: 'launch', lvl: 1, reward: { fuel: 600, dm: 10 } },
-      { id: 'p1', text: 'Assemble a Kestrel sounding rocket', kind: 'rockets', n: 1, reward: { credits: 2000, fuel: 800 } },
+      { id: 'p1', text: 'Assemble your first rocket (Launch Control → Rockets)', kind: 'rockets', n: 1, reward: { credits: 2000, fuel: 800 } },
       { id: 'p2', text: 'Fly a suborbital test flight', kind: 'flag', flag: 'suborbital', reward: { science: 600, dm: 10 } },
       { id: 'o4', text: 'Build a Fuel Refinery', kind: 'build', b: 'refinery', lvl: 1, reward: { fuel: 400, metal: 800 } },
       { id: 'o5', text: 'Upgrade the Metal Mine to level 3', kind: 'build', b: 'mine', lvl: 3, reward: { credits: 800, dm: 5 } },

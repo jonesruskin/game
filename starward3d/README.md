@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 in development, Part 1 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
+> **Status: v2 in development, Parts 1-2 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
 
 ## Run it
 ```bash
@@ -31,13 +31,22 @@ Or open the prebuilt `dist/web/` through the repo's static server: `python3 -m h
 - **Research screen** with branch tabs, availability, costs, times, unlocks and a live progress card; **goals** by chapter; **the Kardashev scale** (K 0.73 today → Type III) with milestone rewards.
 - Collect, upgrade, finish with dark matter, cancel (half refund), demolish, settings, welcome-back report, phone layout.
 
+## Part 2: Rockets & orbit (done)
+- **Rocket designer:** research unlocks parts: five engines (solid, kerolox, hydrolox, methalox, nuclear thermal for upper stages), five tank sizes (S to XXL, gated by the Vehicle Assembly's level), up to three stages, 0/2/4 strap-on boosters, a probe nose, payload fairing, crew capsule or lunar lander, and reusable landing legs. Each design's lift rating sets its class and payload; parts set cost, build time and reliability. Seven templates reproduce Starward's original rockets (Kestrel to Leviathan) exactly by class; copy, edit and name your own.
+- **Assembly:** sounding rockets are built at the pad, anything bigger in the Vehicle Assembly (a second assembly line at level 10). The next rocket in the hangar stands on the pad, rendered from its design.
+- **Missions** from Starward (suborbital tests to the Lunar Outpost): crewed flights need a capsule in the design and the Moon landing a lander. Outcomes are rolled at liftoff; failures still teach the engineers something. Reusable rockets come home 85% of the time.
+- **Liftoff in 3D:** ignition, a smoke column billowing from the pad, an accelerating climb with the camera following it up.
+- **Satellites** in low orbit, geostationary orbit and at the Earth–Moon L1 point (comms, observation, weather, navigation, telescopes, solar power, deep-space relays), each upgradable by Mk, with orbital slots.
+- **The space station** grows module by module (core, laboratory, solar wings, habitat, fuel depot, shipyard, docking hub).
+- **The orbit view:** Earth from space (oceans, clouds, day/night with city lights, atmosphere), the Moon, the Sun and stars, every satellite on its orbit and your station; focus on the station to see it up close.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback, save
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), util.ts
-src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters)
-src/render/            world.ts (renderer, camera, picking, ghosts, drones), env.ts (terrain, sea, sky, clouds, flora), models.ts (buildings), kit.ts, studio.ts, botmodels.ts (robots, Part 3)
-src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), style.css, fonts
+src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), util.ts
+src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters), rockets (parts, presets), space (orbits, satellites, modules, missions)
+src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain, sea, sky, clouds, flora), models.ts (buildings), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders), kit.ts, studio.ts, botmodels.ts (robots, Part 3)
+src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```
