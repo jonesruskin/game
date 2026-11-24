@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-4 of 8 (Foundation, The Crew, The Daily Loop, The Arena) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: Parts 1-5 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
 
 ## Run it
 ```bash
@@ -59,14 +59,21 @@ Rewards at every rhythm, so there is always a reason to come back:
 - **Rival colonies** with their own names, banners and crews, matched to your team's power at three difficulties (Easy / Even / Hard). They are simulated opponents: real asynchronous PvP needs a server, which can slot in later without changing the battle rules.
 - The **Arena** building (each level +10% battle rewards), a team picker, new missions (build the Arena, first win, Silver and Gold leagues), an Arena daily mission and a Champion achievement.
 
+## Part 5: The Road to the Stars (done)
+- **The Launch Pad** with four rocket tiers (Kestrel, Meridian, Colossus, Leviathan) and up to three launch slots. Rockets lift off from the island on a flame with a smoke column.
+- **Expeditions crewed by bots** to ten real worlds: the Moon, the near-Earth asteroids, Mars, Phobos, Ceres, Europa, Ganymede, Titan, Enceladus and Pluto (30 minutes to 12 hours). The haul scales with crew power against the destination and with element matches (+15% each): credits, cells, Dark Matter and a chance of Advanced, Elite or Epic cores. First visits pay a bonus and a story beat. Bots stay away for the whole trip: no earning, helping or fighting.
+- **The Solar System in 3D:** the Sun, orbit rings, planets (Saturn's rings, moons circling Jupiter and Saturn), the asteroid belt, labels with status (new, locked, visits, outpost ready, time to return) and ships flying their arcs in real time. Drag to turn, pinch or wheel to zoom, tap a world.
+- **Outposts** on any visited world earn credits, cells or Dark Matter by the hour (8 hours of storage), even while you're away; 10 levels.
+- Six missions (Moon, outpost, Mars, Europa, Pluto), an expedition daily mission and an Explorer achievement.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals), util.ts
+src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals), space.ts (expeditions, outposts), util.ts
 src/data/              elements, rarities, species, buildings + recipes, levels + missions
 src/render/            world.ts (renderer, camera, picking, sync), sky.ts (Earth + space), island.ts,
-                       models.ts (buildings), botmodels.ts (bots), arena.ts (the holo-arena), kit.ts (merged procedural geometry), studio.ts (thumbnails)
-src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), style.css, fonts
+                       models.ts (buildings), botmodels.ts (bots), arena.ts (the holo-arena), system.ts (the Solar System map), kit.ts (merged procedural geometry), studio.ts (thumbnails)
+src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), space.ts (map HUD, destinations, returns), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

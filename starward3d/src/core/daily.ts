@@ -50,6 +50,7 @@ const MISSIONS: MDef[] = [
   { id: 'fuse', kind: 'fusions', n: () => 1, text: () => 'Fuse two bots', need: (s) => itemsOf(s, 'fusion').some((i) => i.lvl > 0) },
   { id: 'boot', kind: 'boots', n: () => 1, text: () => 'Activate a core in the Assembly Bay', need: (s) => itemsOf(s, 'assembly').some((i) => i.lvl > 0) },
   { id: 'drop', kind: 'drops', n: () => 1, text: () => 'Open a supply drop' },
+  { id: 'launch', kind: 'launches', n: () => 1, text: () => 'Launch an expedition', need: (s) => itemsOf(s, 'pad').some((i) => i.lvl > 0) },
   { id: 'arena', kind: 'arenaWins', n: () => 2, text: (n) => `Win ${n} Arena battles`, need: (s) => itemsOf(s, 'arena').some((i) => i.lvl > 0) },
 ];
 const MREWARD = (s: State, i: number): Record<string, number> => (i === 0 ? { credits: round2(500 * scale(s)) } : i === 1 ? { cells: round2(150 * scale(s)) } : { dm: 5 });
@@ -88,6 +89,7 @@ export const ACHS: Ach[] = [
   { id: 'decorator', name: 'Interior Designer', tiers: [5, 25, 75, 200], stat: (s) => s.stats.decor || 0, unit: 'decorations' },
   { id: 'veteran', name: 'Veteran', tiers: [5, 15, 30, 60], stat: (s) => s.lvl, unit: 'Commander level' },
   { id: 'champion', name: 'Arena Champion', tiers: [5, 50, 250, 1000], stat: (s) => s.stats.arenaWins || 0, unit: 'Arena wins' },
+  { id: 'explorer', name: 'Explorer', tiers: [3, 25, 150, 600], stat: (s) => s.stats.expeditions || 0, unit: 'expeditions' },
   { id: 'hoarder', name: 'Supply Hoarder', tiers: [5, 30, 150, 600], stat: (s) => s.stats.drops || 0, unit: 'supply drops' },
 ];
 export const ACH_DM = [5, 15, 40, 100];

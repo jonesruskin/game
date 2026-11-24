@@ -14,6 +14,7 @@ import { BUILDINGS, landCost, landLevel } from './data/buildings';
 import { SPECIES } from './data/species';
 import * as D from './core/daily';
 import * as AR from './core/arena';
+import * as SP from './core/space';
 import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
 export class App {
@@ -35,9 +36,9 @@ export class App {
     if (!raw) setTimeout(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">WELCOME, COMMANDER</div><h1>${esc(s.name)}</h1><p class="desc">An asteroid in low Earth orbit, a Command Center, a fabricator and one small, cheerful robot named Helio. Everything else is up to you.</p><p class="desc">Your bots earn credits in their bays. Tap a bay to collect, print Power Cells, feed your crew and grow the colony.</p><button class="btn gold" data-a="closeModal" style="min-width:180px">Let's go!</button>`, true), 400);
     window.__app = this; (window as any).__G = G;
   }
-  private dayCheck = 0;
+  private dayCheck = 0; private spaceCheck = 0;
   private loop(t: number) { const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t; const now = Date.now();
-    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); AR.tickArena(this.s, now); const sr = AR.rollSeason(this.s, now);
+    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.spaceCheck) { this.spaceCheck = now + 1000; for (const b of SP.tickSpace(this.s, now)) { this.changed(); this.enqueue(() => this.ui.space.reveal(b)); } } if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); AR.tickArena(this.s, now); const sr = AR.rollSeason(this.s, now);
       if (sr) this.enqueue(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">ARENA SEASON ENDED</div><div class="big">🏆</div><h1>${AR.LEAGUES[sr.league][0]}</h1><p class="desc">Your best league this season. Here are your rewards:</p><div class="rewards">${Object.entries(sr.reward).map(([k, n]) => `<span class="cost">${k === 'dm' ? '◆' : k === 'cells' ? '⚡' : 'C'} ${fmt(n)}</span>`).join(' ')}</div><button class="btn gold" data-a="closeModal">Collect</button>`, true)); } this.drain(); this.world.frame(dt, this.s); this.ui.frame();
     if (now > this.saveAt) { this.saveAt = now + 10000; this.save(); }
     requestAnimationFrame((tt) => this.loop(tt)); }
@@ -49,6 +50,8 @@ export class App {
       else if (e.kind === 'fused') { this.audio.play('done'); this.changed(); this.ui.toast(`Fusion complete: a ${RARITIES[SPECIES[e.sp].rarity].name} core is in the Assembly Bay`, 'gold'); }
       else if (e.kind === 'booted') { this.audio.play('claim'); this.changed(); this.ui.toast(`A ${RARITIES[SPECIES[e.sp].rarity].name} core has booted: activate it in the Assembly Bay`, 'good'); }
       else if (e.kind === 'core') { this.changed(); }
+      else if (e.kind === 'launch') { const p = SP.pad(this.s); this.changed(); if (p) { this.world.launchFx(p.id, SP.rocketTier(p.lvl)); this.audio.play('whoosh'); } }
+      else if (e.kind === 'expBack') { this.audio.play('levelup'); this.changed(); }
       else if (e.kind === 'land') this.changed(); }
     if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
   private enqueue(fn: () => void) { this.queue.push(fn); }

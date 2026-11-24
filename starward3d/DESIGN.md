@@ -67,7 +67,7 @@ Free layout; decorations (holo-trees, lamps, statues, flags, fountains, paths) e
 2. **The crew:** all 22 elements and 7 rarities, ~80 species with procedural 3D models, the Assembly Bay, the Fusion Lab, the Botdex, helpers, bots roaming the island.
 3. **Daily loop:** login calendar, daily missions, supply drops, the free daily core with a reveal animation, achievements, offline report, level-up rewards.
 4. **The Arena:** 3D turn-based battles, element moves and effectiveness, leagues and seasons, rival colonies.
-5. **The road to the stars:** Launch Pad, rockets, the station, missions crewed by bots; Moon and Mars islands; research; the Solar System in 3D.
-6. **Stars and aliens:** interstellar map, star colonies, alien civilisations and their bots, the Swarm.
+5. **The road to the stars:** Launch Pad, four rocket tiers, expeditions crewed by bots to ten real worlds (first-visit discoveries, element-matched hauls), outposts that earn on their own, the Solar System in 3D.
+6. **New islands, stars and aliens:** a second and third island (the Moon and Mars, each with its own ground, sky and bays), interstellar travel, alien civilisations and their bots, the Swarm.
 7. **Events and the Precursor Vault.**
 8. **Personal touch and ship:** paint, banners, more decor, themes; audio; store assets; CrazyGames packaging; Capacitor scaffold; review loop.

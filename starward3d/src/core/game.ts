@@ -88,7 +88,9 @@ export const botEarn = (b: BotRec) => { const sp = SPECIES[b.sp]; return RARITIE
 export const BOT_MAX = 40;
 export const feedCost = (lvl: number) => Math.round(4 * Math.pow(1.33, lvl - 1));
 export const botsIn = (s: State, bayId: string) => s.bots.filter((b) => b.bay === bayId);
-export const bayRate = (s: State, bayId: string) => botsIn(s, bayId).filter((b) => !b.post).reduce((a, b) => a + botEarn(b), 0) / 60; // credits per second
+const away = (s: State, b: BotRec) => !!((s as any).space && (s as any).space.exps.some((e: any) => e.crew.includes(b.id)));
+export const bayRate = (s: State, bayId: string) => botsIn(s, bayId).filter((b) => !b.post && !away(s, b)).reduce((a, b) => a + botEarn(b), 0) / 60; // credits per second
+export const onMission = away;
 export const bayCap = (it: Item) => bayStore(Math.max(1, it.lvl));
 export function feed(s: State, b: BotRec): Check & { lvlUp?: boolean } {
   if (b.lvl >= BOT_MAX) return { ok: false, why: 'Maximum level' }; const c = feedCost(b.lvl); if (s.res.cells < c) return { ok: false, why: 'Not enough Power Cells', cost: c };
@@ -169,6 +171,8 @@ export function stepDone(s: State, st: Step): boolean {
     case 'helper': return s.bots.some((b) => !!b.post);
     case 'dex': return dexCount(s) >= (st.n || 1);
     case 'arenaWins': return (s.stats.arenaWins || 0) >= (st.n || 1);
+    case 'visit': return !!((s as any).space && (s as any).space.visits[st.t || ''] > 0);
+    case 'outposts': return (s.stats.outposts || 0) >= (st.n || 1);
     case 'trophies': return (((s as any).arena && (s as any).arena.best) || 0) >= (st.n || 1);
   }
   return false;

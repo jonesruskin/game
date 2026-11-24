@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { Kit, shade, mix, MATS } from './kit';
 import { ELEMENTS } from '../data/elements';
-export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; }
+export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; noRocket?: boolean; }
 export interface AnimState { working?: boolean; ready?: number; cores?: { color: string; ready: boolean }[]; }
 export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: AnimState) => void; }
 const STEEL = '#c8d0da', DARK = '#3a4250', GLASSC = '#bfe9ff', WIN = '#ffe9a8';
@@ -128,6 +128,18 @@ function arenaGate(lvl: number, look: Look): Model {
   const fl = flag(look, 0.55, 0.34); fl.position.set(0.02, 2.0, 0); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(0, 1.7, 0); g.add(mast, fl);
   return { group: g, height: 2.3, anim: (t) => { ring.rotation.z = t * 0.8; ring.position.y = 1.4 + Math.sin(t * 1.5) * 0.1; fl.userData.wave(t); } };
 }
+// ---------------- Launch Pad ----------------
+export function rocketModel(tier: number) { const k = new Kit(); const h = 1.3 + tier * 0.35, r = 0.2 + tier * 0.03;
+  k.cyl(r, r, h, 12, '#f2f4f7', 0, 0.2); k.add(new THREE.ConeGeometry(r, 0.5 + tier * 0.08, 12), '#ff7a3c', 0, 0.2 + h + 0.25 + tier * 0.04, 0); k.cyl(r * 1.02, r * 1.02, 0.08, 12, '#2c3340', 0, 0.2 + h * 0.6);
+  if (tier >= 3) for (const x of [-1, 1]) { k.cyl(r * 0.45, r * 0.45, h * 0.6, 10, '#e6e9ee', x * r * 1.5, 0.2); k.add(new THREE.ConeGeometry(r * 0.45, 0.25, 10), '#ff7a3c', x * r * 1.5, 0.2 + h * 0.6 + 0.12, 0); }
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; k.box(0.04, 0.35, 0.22, '#ff7a3c', Math.cos(a) * r, 0.2, Math.sin(a) * r, { ry: -a }); } k.cyl(r * 0.7, r * 0.9, 0.2, 10, '#3a4250', 0, 0); return { group: k.build('rocket'), height: 0.2 + h + 0.7 }; }
+function launchPad(lvl: number, look: Look, rocket: boolean): Model {
+  const k = new Kit(), P = look.primary, A = look.accent; const tier = lvl >= 9 ? 4 : lvl >= 6 ? 3 : lvl >= 3 ? 2 : 1;
+  k.box(2.8, 0.25, 2.8, shade(P, -0.25), 0, 0, 0); k.cyl(0.95, 0.95, 0.06, 20, '#2c3340', 0, 0.25, 0); k.cyl(0.8, 0.8, 0.065, 20, '#ffcc33', 0, 0.25, 0); k.cyl(0.66, 0.66, 0.07, 20, '#2c3340', 0, 0.25, 0);
+  const th = 2.2 + tier * 0.4; k.box(0.3, th, 0.3, P, -1.05, 0.25, -1.0); for (let y = 0.6; y < th; y += 0.5) k.box(0.62, 0.05, 0.05, A, -0.78, 0.25 + y, -1.0); k.box(0.36, 0.1, 0.36, A, -1.05, 0.25 + th, -1.0, { glow: true });
+  k.box(0.7, 0.4, 0.5, P, 1.0, 0.25, 1.0); k.box(0.5, 0.08, 0.02, WIN, 1.0, 0.45, 1.26, { glow: true });
+  const g = k.build('pad'); let rk: THREE.Group | null = null; if (rocket) { const r = rocketModel(tier); rk = r.group; rk.position.y = 0.3; g.add(rk); }
+  return { group: g, height: 0.3 + (rocket ? 2.2 + tier * 0.5 : 1.5) }; }
 // ---------------- decorations ----------------
 function decor(t: string, look: Look): Model {
   const k = new Kit();
@@ -164,6 +176,7 @@ export function buildModel(t: string, lvl: number, el: string | undefined, look:
   if (t === 'assembly') return assembly(L, look);
   if (t === 'fusion') return fusionLab(L, look);
   if (t === 'arena') return arenaGate(L, look);
+  if (t === 'pad') return launchPad(L, look, !look.noRocket);
   return decor(t, look);
 }
 // the supply drop pod: falls from orbit on thrusters, lands, blinks until opened

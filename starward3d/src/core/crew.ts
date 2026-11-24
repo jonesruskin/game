@@ -5,7 +5,7 @@ import { SPECIES, SPECIES_ORDER } from '../data/species';
 import { RARITIES, RARITY_ORDER } from '../data/rarities';
 import { HELP_AFFINITY, helperSlots, assemblySlots, bayCapacity } from '../data/buildings';
 import type { Check } from './game';
-import { events, addXp, itemsOf, item, jobOf, botsIn } from './game';
+import { events, addXp, itemsOf, item, jobOf, botsIn, onMission } from './game';
 const rIdx = (sp: string) => RARITY_ORDER.indexOf(SPECIES[sp].rarity);
 // ---------------- the Botdex ----------------
 export const DEX_REWARD = [2, 4, 8, 15, 30, 60, 120]; // dark matter for discovering a species, by rarity
@@ -36,7 +36,7 @@ export const fuseTime = (s: State, lab: Item, sp: string) => Math.round(RARITIES
 export function canFuse(s: State, lab: Item, aId: string, bId: string): Check {
   if (lab.lvl < 1 || jobOf(s, lab.id, 'build')) return { ok: false, why: 'The Fusion Lab is under construction' }; if (jobOf(s, lab.id, 'fuse')) return { ok: false, why: 'Already fusing' };
   const a = s.bots.find((x) => x.id === aId), b = s.bots.find((x) => x.id === bId); if (!a || !b) return { ok: false, why: 'Pick two bots' }; if (a === b) return { ok: false, why: 'Pick two different bots' };
-  if (a.lvl < FUSE_LEVEL || b.lvl < FUSE_LEVEL) return { ok: false, why: `Both bots need level ${FUSE_LEVEL}` };
+  if (a.lvl < FUSE_LEVEL || b.lvl < FUSE_LEVEL) return { ok: false, why: `Both bots need level ${FUSE_LEVEL}` }; if (onMission(s, a) || onMission(s, b)) return { ok: false, why: 'A parent is away on an expedition' };
   const cost = fuseCost(a, b); if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost }; return { ok: true, cost };
 }
 export function fuse(s: State, lab: Item, aId: string, bId: string, now = Date.now(), rnd = Math.random): Check & { sp?: string } {
@@ -64,7 +64,7 @@ export function homeFor(s: State, sp: string, except?: string) { const els = SPE
 // ---------------- helpers, storage, release ----------------
 export const helpersAt = (s: State, itemId: string) => s.bots.filter((b) => b.post === itemId);
 export function canPost(s: State, b: BotRec, it: Item): Check { if (!HELP_AFFINITY[it.t]) return { ok: false, why: 'Bots cannot help here' }; if (it.lvl < 1) return { ok: false, why: 'Under construction' };
-  if (b.stored) return { ok: false, why: 'Activate it from storage first' }; if (b.post === it.id) return { ok: false, why: 'Already helping here' };
+  if (b.stored) return { ok: false, why: 'Activate it from storage first' }; if (onMission(s, b)) return { ok: false, why: 'Away on an expedition' }; if (b.post === it.id) return { ok: false, why: 'Already helping here' };
   if (helpersAt(s, it.id).length >= helperSlots(it.lvl)) return { ok: false, why: `All ${helperSlots(it.lvl)} helper slots are taken` }; return { ok: true }; }
 export function post(s: State, b: BotRec, it: Item) { const c = canPost(s, b, it); if (!c.ok) return c; b.post = it.id; s.stats.posts = (s.stats.posts || 0) + 1; return c; }
 export function unpost(b: BotRec) { delete b.post; }

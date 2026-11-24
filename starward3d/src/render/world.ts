@@ -6,6 +6,9 @@ import { IslandView, N } from './island';
 import { buildModel, scaffold, dropPod, Look, Model } from './models';
 import { daily } from '../core/daily';
 import { ArenaView, ARENA_POS } from './arena';
+import { SystemView } from './system';
+import { rocketModel } from './models';
+import { space, launchSlots } from '../core/space';
 import { buildBot, BotModel } from './botmodels';
 import { MATS } from './kit';
 import { State, Item } from '../core/state';
@@ -26,7 +29,13 @@ export class World {
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = [];
   onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) => void = () => {};
   private pod: THREE.Group | null = null; private podPick: THREE.Mesh | null = null; private podY = 0;
-  mode: 'island' | 'arena' = 'island'; arena: ArenaView | null = null; private saved: { x: number; z: number; dist: number; yaw: number } | null = null;
+  mode: 'island' | 'arena' | 'map' = 'island'; system: SystemView | null = null; private rockets: { g: THREE.Group; t: number; smoke: THREE.Points; v: Float32Array }[] = [];
+  openMap() { if (!this.system) this.system = new SystemView(this.canvas); this.system.active = true; this.mode = 'map'; this.select(null); }
+  closeMap() { if (this.system) this.system.active = false; this.mode = 'island'; }
+  // a rocket lifts off from the pad: flame, a smoke column, accelerating into the sky
+  launchFx(padId: string, tier: number) { const v = this.views.get(padId); if (!v) return; const r = rocketModel(tier); r.group.position.copy(v.root.position); r.group.position.y = 0.3; const fl = new THREE.Mesh(new THREE.ConeGeometry(0.25, 1.4, 10), new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false })); fl.rotation.x = Math.PI; fl.position.y = -0.6; r.group.add(fl);
+    const n = 160, pos = new Float32Array(n * 3).fill(0), vel = new Float32Array(n * 3); const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const smoke = new THREE.Points(sg, new THREE.PointsMaterial({ color: '#d8dde4', size: 0.6, transparent: true, opacity: 0.75, depthWrite: false }));
+    this.scene.add(r.group, smoke); this.rockets.push({ g: r.group, t: 0, smoke, v: vel }); } arena: ArenaView | null = null; private saved: { x: number; z: number; dist: number; yaw: number } | null = null;
   enterArena() { if (!this.arena) this.arena = new ArenaView(this.scene); this.mode = 'arena'; this.saved = { x: this.cam.tx, z: this.cam.tz, dist: this.cam.tdist, yaw: this.cam.tyaw }; this.cam.tx = ARENA_POS.x; this.cam.tz = ARENA_POS.z + 0.8; this.cam.tdist = 19; this.cam.tyaw = 0; this.select(null); }
   exitArena() { this.mode = 'island'; if (this.saved) { this.cam.tx = this.saved.x; this.cam.tz = this.saved.z; this.cam.tdist = this.saved.dist; this.cam.tyaw = this.saved.yaw; } }
   onGhostMove: () => void = () => {};
@@ -98,13 +107,13 @@ export class World {
     const buyable = []; for (let px = 0; px < 5; px++) for (let pz = 0; pz < 5; pz++) { const k = `${px},${pz}`; if (G.plotState(s, k) === 'buyable') buyable.push(k); }
     this.island.build(s.isl.plots, buyable); const occ = new Set<string>(); for (const it of s.isl.items) { const [w, d] = G.dims(it); for (let i = it.x; i < it.x + w; i++) for (let j = it.z; j < it.z + d; j++) occ.add(i + ',' + j); } this.island.scatter(s.isl.plots, occ);
     const seen = new Set<string>();
-    for (const it of s.isl.items) { seen.add(it.id); const job = G.jobOf(s, it.id, 'build'); const key = `${it.t}|${it.lvl}|${it.el}|${it.r}|${lookKey}|${job ? 1 : 0}`; let v = this.views.get(it.id);
-      if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it, key, !!job); this.views.set(it.id, v); }
+    for (const it of s.isl.items) { seen.add(it.id); const job = G.jobOf(s, it.id, 'build'); const padFree = it.t === 'pad' ? (space(s).exps.length < launchSlots(it.lvl) ? 1 : 0) : 0; const key = `${it.t}|${it.lvl}|${it.el}|${it.r}|${lookKey}|${job ? 1 : 0}|${padFree}`; let v = this.views.get(it.id);
+      if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it, key, !!job, it.t === 'pad' && !padFree); this.views.set(it.id, v); }
       if (this.ghost && this.ghost.move === it.id) v.root.visible = false; else v.root.visible = true; }
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
     // bots live on their bay's docking pads and wander inside its footprint
     const bseen = new Set<string>();
-    for (const b of s.bots) { const home = b.post || b.bay; if (!home) continue; const bay = G.item(s, home); if (!bay) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
+    for (const b of s.bots) { const home = b.post || b.bay; if (!home || G.onMission(s, b)) continue; const bay = G.item(s, home); if (!bay) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
       if (!bv || bv.key !== key) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
         const pick = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.45; pick.userData.bot = b.id; m.group.add(pick);
         m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: home, pick }; this.bots.set(b.id, bv); }
@@ -118,8 +127,8 @@ export class World {
   podTop() { return this.pod && this.pod.visible ? new THREE.Vector3(this.pod.position.x, this.pod.position.y + 1.6, this.pod.position.z) : null; }
   centerOf(it: Item) { const [w, d] = G.dims(it); return new THREE.Vector3(it.x + w / 2 - N / 2, 0, it.z + d / 2 - N / 2); }
   topOf(id: string) { const v = this.views.get(id); if (!v) return null; const p = v.root.position.clone(); p.y = v.model.height + 0.3; return p; }
-  private makeView(it: Item, key: string, building: boolean): View {
-    const root = new THREE.Group(); const m = buildModel(it.t, it.lvl, it.el, this.look); m.group.rotation.y = -it.r * Math.PI / 2; root.add(m.group); const [w, d] = G.dims(it);
+  private makeView(it: Item, key: string, building: boolean, noRocket = false): View {
+    const root = new THREE.Group(); const m = buildModel(it.t, it.lvl, it.el, noRocket ? { ...this.look, noRocket: true } : this.look); m.group.rotation.y = -it.r * Math.PI / 2; root.add(m.group); const [w, d] = G.dims(it);
     root.position.copy(this.centerOf(it)); const pick = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, Math.max(0.6, m.height), d * 0.95), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = Math.max(0.6, m.height) / 2; pick.userData.item = it.id; root.add(pick);
     let scaf; if (building) { scaf = scaffold(w, d, Math.max(0.8, m.height * 0.8)); root.add(scaf); if (it.lvl === 0) { m.group.scale.y = 0.25; } }
     this.scene.add(root); return { key, root, model: m, pick, scaf };
@@ -131,7 +140,11 @@ export class World {
   project(p: { x: number; y: number; z: number }) { const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera); const r = this.canvas.getBoundingClientRect(); return { x: r.left + (v.x * 0.5 + 0.5) * r.width, y: r.top + (-v.y * 0.5 + 0.5) * r.height, vis: v.z < 1 && v.z > -1 }; }
   // ---------------- frame ----------------
   frame(dt: number, s: State) {
-    this.t += dt; const t = this.t; if (this.mode === 'arena') { this.cam.tyaw = Math.sin(t * 0.15) * 0.35; this.arena?.update(dt); } this.placeCamera(); this.backdrop.update(t, this.camera); this.island.update(t);
+    this.t += dt; const t = this.t; if (this.mode === 'map' && this.system) { this.system.syncShips(space(s).exps, Date.now()); this.system.frame(dt, this.renderer); return; }
+    for (const r of [...this.rockets]) { r.t += dt; const a = Math.min(60, r.t * r.t * 2.2); r.g.position.y = 0.3 + a; r.g.rotation.y += dt * 0.4; const p = r.smoke.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < p.count; i++) { if (p.getY(i) === 0 && Math.random() < 0.3 && r.t < 3) { p.setXYZ(i, r.g.position.x, r.g.position.y - 0.4, r.g.position.z); r.v.set([(Math.random() - 0.5) * 1.2, -0.5 - Math.random(), (Math.random() - 0.5) * 1.2], i * 3); } else if (p.getY(i) !== 0) { p.setXYZ(i, p.getX(i) + r.v[i * 3] * dt, Math.max(0.05, p.getY(i) + r.v[i * 3 + 1] * dt), p.getZ(i) + r.v[i * 3 + 2] * dt); r.v[i * 3] *= 0.98; r.v[i * 3 + 2] *= 0.98; } }
+      p.needsUpdate = true; (r.smoke.material as THREE.PointsMaterial).opacity = Math.max(0, 0.75 - Math.max(0, r.t - 3) * 0.25); if (r.t > 6) { this.scene.remove(r.g, r.smoke); r.smoke.geometry.dispose(); this.rockets.splice(this.rockets.indexOf(r), 1); } }
+    if (this.mode === 'arena') { this.cam.tyaw = Math.sin(t * 0.15) * 0.35; this.arena?.update(dt); } this.placeCamera(); this.backdrop.update(t, this.camera); this.island.update(t);
     for (const [id, v] of this.views) { const working = !!(G.jobOf(s, id, 'craft') || G.jobOf(s, id, 'fuse')); const it = G.item(s, id);
       const cores = it && it.t === 'assembly' ? s.cores.filter((c) => c.state !== 'waiting').map((c) => ({ color: RARITIES[SPECIES[c.sp].rarity].color, ready: c.state === 'ready' })) : undefined;
       v.model.anim?.(t, { working, ready: s.ready[id] ? 1 : 0, cores }); if (v.scaf) { const cr = v.scaf.getObjectByName('crane'); if (cr) cr.rotation.y = t * 0.8; } }

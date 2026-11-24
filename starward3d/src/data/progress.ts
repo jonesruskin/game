@@ -34,5 +34,11 @@ export const STEPS: Step[] = [
   { id: 'c2', text: 'Win your first Arena battle', kind: 'arenaWins', n: 1, reward: { cells: 500, dm: 15 } },
   { id: 'c3', text: 'Reach the Silver league', kind: 'trophies', n: 350, reward: { dm: 30 } },
   { id: 'b11', text: 'Reach Commander level 20', kind: 'level', n: 20, reward: { dm: 50 } },
+  { id: 'd1', text: 'Build the Launch Pad (Shop → Buildings)', kind: 'build', t: 'pad', reward: { credits: 6000, dm: 20 } },
+  { id: 'd2', text: 'Send a bot crew to the Moon (Space)', kind: 'visit', t: 'moon', reward: { cells: 1500, dm: 15 } },
+  { id: 'd3', text: 'Build an outpost on a world you have visited', kind: 'outposts', n: 1, reward: { credits: 8000 } },
   { id: 'c4', text: 'Reach the Gold league', kind: 'trophies', n: 850, reward: { dm: 60 } },
+  { id: 'd4', text: 'Land a crew on Mars', kind: 'visit', t: 'mars', reward: { dm: 40 } },
+  { id: 'd5', text: 'Reach Europa\'s hidden ocean', kind: 'visit', t: 'europa', reward: { dm: 60 } },
+  { id: 'd6', text: 'Reach Pluto, the edge of the Solar System', kind: 'visit', t: 'pluto', reward: { dm: 120 } },
 ];

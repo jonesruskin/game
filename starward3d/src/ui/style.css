@@ -150,3 +150,12 @@ body.fighting #nav, body.fighting #obj, body.fighting #panel, body.fighting #dai
 .mv b { font: 700 15px Oxanium; } .mv span { font-size: 11px; color: var(--muted); } .mv em { font-style: normal; font-weight: 700; } .mv .se { color: var(--gold); } .mv .re { color: #9aa7b8; } .mv:disabled { opacity: 0.45; }
 .mv:active:not(:disabled) { transform: scale(0.97); } .bopts { display: flex; flex-direction: column; gap: 6px; }
 @media (max-width: 640px) { #battle { padding: 92px 8px 8px; } .vs { font-size: 16px; padding-top: 12px; } .bside { padding: 6px; } .bname b { font-size: 13px; } .moves { grid-template-columns: 1fr 1fr; } .mv { min-height: 50px; padding: 7px 9px; } .bopts { flex-direction: row; width: 100%; justify-content: center; } }
+
+/* ---------- the Solar System map ---------- */
+body.mapview #nav, body.mapview #obj, body.mapview #dailyHud, body.mapview #bubbles { display: none !important; }
+#mapui { position: fixed; top: 60px; left: 12px; right: 12px; z-index: 11; pointer-events: none; } #mapui > * { pointer-events: auto; }
+.maptop { display: flex; align-items: center; gap: 8px; } .exps { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.expc { min-width: 150px; text-align: left; padding: 8px 10px; border-radius: 12px; background: var(--bg); border: 1px solid rgba(124, 242, 154, 0.4); display: flex; flex-direction: column; gap: 3px; } .expc b { font: 700 13px Oxanium; } .expc span { font-size: 12px; color: var(--muted); }
+.plabel { position: fixed; z-index: 6; transform: translate(-50%, calc(-100% - 14px)); padding: 3px 9px; border-radius: 999px; background: rgba(10, 18, 34, 0.85); border: 1px solid rgba(110, 231, 255, 0.35); font: 600 11px Barlow; white-space: nowrap; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.plabel b { font: 700 11px Oxanium; } .plabel i { font-style: normal; color: var(--muted); } .plabel i.new { color: var(--gold); font-weight: 700; } .plabel i.ready { color: var(--green); } .plabel.sel { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 211, 106, 0.5); } .plabel.locked { opacity: 0.55; }
+body:not(.mapview) .plabel { display: none !important; }
