@@ -30,5 +30,9 @@ export const STEPS: Step[] = [
   { id: 'b8', text: 'Fuse an Elite bot (three elements)', kind: 'rarity', t: 'elite', reward: { dm: 40 } },
   { id: 'b9', text: 'Discover 25 species', kind: 'dex', n: 25, reward: { dm: 40 } },
   { id: 'b10', text: 'Fuse an Epic bot', kind: 'rarity', t: 'epic', reward: { dm: 60 } },
+  { id: 'c1', text: 'Build the Arena (Shop → Buildings)', kind: 'build', t: 'arena', reward: { credits: 3000, dm: 15 } },
+  { id: 'c2', text: 'Win your first Arena battle', kind: 'arenaWins', n: 1, reward: { cells: 500, dm: 15 } },
+  { id: 'c3', text: 'Reach the Silver league', kind: 'trophies', n: 350, reward: { dm: 30 } },
   { id: 'b11', text: 'Reach Commander level 20', kind: 'level', n: 20, reward: { dm: 50 } },
+  { id: 'c4', text: 'Reach the Gold league', kind: 'trophies', n: 850, reward: { dm: 60 } },
 ];

@@ -118,6 +118,16 @@ function fusionLab(lvl: number, look: Look): Model {
   return { group: g, height: top + 0.6, anim: (t, s) => { ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.5) * 0.2; ring.rotation.z = t * (s.working ? 4 : 0.4); orb.scale.setScalar(s.working ? 1 + Math.sin(t * 9) * 0.25 : 0.7);
     beam.visible = !!s.working; beam.scale.x = 1 + Math.sin(t * 20) * 0.3; (orb.material as THREE.MeshBasicMaterial).color.set(s.ready ? '#fff2a8' : '#e2c8ff'); } };
 }
+// ---------------- Arena (the island gateway) ----------------
+function arenaGate(lvl: number, look: Look): Model {
+  const k = new Kit(), P = look.primary, A = look.accent;
+  k.cyl(1.9, 2.0, 0.25, 24, shade(P, -0.2), 0, 0, 0); k.cyl(1.7, 1.7, 0.04, 32, '#2a3446', 0, 0.25, 0); k.add(new THREE.TorusGeometry(1.7, 0.05, 6, 48), A, 0, 0.29, 0, { rx: Math.PI / 2, glow: true });
+  for (const [x, c] of [[-0.8, '#4aa8ff'], [0.8, '#ff5a6a']] as [number, string][]) k.cyl(0.42, 0.42, 0.03, 18, c, x, 0.29, 0, { glow: true });
+  const n = 6 + Math.min(6, lvl); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; k.box(0.14, 0.9 + (i % 2) * 0.3, 0.14, P, Math.cos(a) * 1.75, 0.25, Math.sin(a) * 1.75); k.box(0.17, 0.08, 0.17, A, Math.cos(a) * 1.75, 1.15 + (i % 2) * 0.3, Math.sin(a) * 1.75, { glow: true }); }
+  const g = k.build('arena'); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.04, 6, 48), new THREE.MeshBasicMaterial({ color: '#7af7ff', toneMapped: false, transparent: true, opacity: 0.85 })); ring.position.y = 1.5; ring.rotation.x = Math.PI / 2; g.add(ring);
+  const fl = flag(look, 0.55, 0.34); fl.position.set(0.02, 2.0, 0); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(0, 1.7, 0); g.add(mast, fl);
+  return { group: g, height: 2.3, anim: (t) => { ring.rotation.z = t * 0.8; ring.position.y = 1.4 + Math.sin(t * 1.5) * 0.1; fl.userData.wave(t); } };
+}
 // ---------------- decorations ----------------
 function decor(t: string, look: Look): Model {
   const k = new Kit();
@@ -153,6 +163,7 @@ export function buildModel(t: string, lvl: number, el: string | undefined, look:
   if (t === 'fab') return fab(L, look);
   if (t === 'assembly') return assembly(L, look);
   if (t === 'fusion') return fusionLab(L, look);
+  if (t === 'arena') return arenaGate(L, look);
   return decor(t, look);
 }
 // the supply drop pod: falls from orbit on thrusters, lands, blinks until opened

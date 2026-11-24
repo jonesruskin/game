@@ -13,6 +13,8 @@ import { emblemPath } from '../render/models';
 import type { App } from '../main';
 import { CrewUI } from './crew';
 import { DailyUI } from './daily';
+import { ArenaUI } from './arena';
+import * as AR from '../core/arena';
 import * as C from '../core/crew';
 import { CORE_ELEMENTS } from '../data/elements';
 import { RARITY_ORDER } from '../data/rarities';
@@ -24,8 +26,8 @@ const PAINTS = [['#e9eef5', '#22c7e8'], ['#f4efe6', '#ff7a3c'], ['#dfe7d8', '#4f
 const BANNER_BG = ['#1b6fd8', '#d83a3a', '#1f9c5a', '#7a3fd6', '#e08a1a', '#14202e', '#e6e6ea', '#0fb3c9'];
 const EMBLEMS = ['star', 'planet', 'bolt', 'gear', 'rocket', 'circle'];
 export class UI {
-  sel: string | null = null; selBot: string | null = null; crew: CrewUI; daily: DailyUI; tab = 'bays'; over: '' | 'shop' | 'bots' | 'custom' | 'settings' | 'dex' | 'daily' = ''; private bubbles = new Map<string, HTMLElement>(); private lastRes = { credits: 0, cells: 0, dm: 0 }; private panelKey = ''; private tick = 0;
-  constructor(public app: App) { this.crew = new CrewUI(this); this.daily = new DailyUI(this);
+  sel: string | null = null; selBot: string | null = null; crew: CrewUI; daily: DailyUI; arena: ArenaUI; tab = 'bays'; over: '' | 'shop' | 'bots' | 'custom' | 'settings' | 'dex' | 'daily' | 'arena' = ''; private bubbles = new Map<string, HTMLElement>(); private lastRes = { credits: 0, cells: 0, dm: 0 }; private panelKey = ''; private tick = 0;
+  constructor(public app: App) { this.crew = new CrewUI(this); this.daily = new DailyUI(this); this.arena = new ArenaUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('input', (e) => { const t = e.target as HTMLInputElement; if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); if (t.id === 'cname') { this.s.name = t.value.slice(0, 24) || 'New Haven'; this.renderHud(); } });
     this.renderHud(); this.renderNav(); this.renderObj();
@@ -38,7 +40,7 @@ export class UI {
       <div class="sp"></div><span id="dailyHud" class="row" style="gap:6px;flex-wrap:nowrap">${this.daily.hudHTML()}</span><button class="ibtn" data-a="settings" title="Settings">⚙</button>`; }
   private updHud() { const s = this.s; for (const r of ['credits', 'cells', 'dm'] as const) { const v = Math.floor(s.res[r]); if (v !== Math.floor(this.lastRes[r])) { const el = $(`#r-${r}`); if (el) { el.querySelector('.v')!.textContent = fmt(v); if (v > this.lastRes[r]) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } this.lastRes[r] = v; } }
     const b = $('.lvl .badge') as HTMLElement; if (b) { b.style.setProperty('--p', (s.xp / G.xpNeedOf(s)) * 100 + '%'); b.querySelector('b')!.textContent = String(s.lvl); const i = $('.lvl .nm i'); if (i) i.textContent = `${fmt(s.xp)} / ${fmt(G.xpNeedOf(s))} XP`; } }
-  renderNav() { $('#nav').innerHTML = `<button data-a="shop" id="n-shop"><span class="g">🛒</span>Shop</button><button data-a="bots"><span class="g">🤖</span>Crew</button><button data-a="dex"><span class="g">📖</span>Botdex</button><button data-a="custom"><span class="g">🎨</span>Style</button><button data-a="zoomout"><span class="g">🛰</span>Overview</button>`; }
+  renderNav() { $('#nav').innerHTML = `<button data-a="shop" id="n-shop"><span class="g">🛒</span>Shop</button><button data-a="bots"><span class="g">🤖</span>Crew</button><button data-a="dex"><span class="g">📖</span>Botdex</button><button data-a="arena"><span class="g">⚔</span>Arena</button><button data-a="custom"><span class="g">🎨</span>Style</button><button data-a="zoomout"><span class="g">🛰</span>Overview</button>`; }
   // ---------------- objectives ----------------
   renderObj() { const s = this.s, st = G.currentStep(s); const el = $('#obj'); if (!st) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const done = G.stepDone(s, st);
     el.classList.toggle('done', done); el.innerHTML = `<div class="t">Mission ${s.obj.i + 1} of ${STEPS.length}</div><p>${esc(st.text)}</p><div class="rw">Reward: ${cost(st.reward)}</div>${done ? '<button class="btn gold claim" data-a="claim">✓ Claim reward</button>' : ''}`; }
@@ -51,7 +53,7 @@ export class UI {
     const put = (key: string, at: { x: number; y: number; z: number } | null, html: string, cls: string, act?: string, id?: string) => { if (!at) return; seen.add(key); let el = this.bubbles.get(key);
       if (!el) { el = document.createElement('div'); el.className = 'bub'; if (act) { el.dataset.a = act; if (id) el.dataset.id = id; } root.appendChild(el); this.bubbles.set(key, el); }
       if (el.dataset.h !== html + cls) { el.innerHTML = html; el.className = 'bub ' + cls; el.dataset.h = html + cls; }
-      const p = w.project(at as any); el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; el.style.display = p.vis && !w.ghost ? '' : 'none'; };
+      const p = w.project(at as any); el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; el.style.display = p.vis && !w.ghost && w.mode === 'island' ? '' : 'none'; };
     for (const it of s.isl.items) { const top = w.topOf(it.id); const job = G.jobOf(s, it.id, 'build');
       if (job) { const left = (job.end - Date.now()) / 1000, f = clamp(1 - (job.end - Date.now()) / (job.end - job.start)); put('t' + it.id, top, `<span>${left > 0 ? fmtTime(left) : 'Done!'}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer', 'select', it.id); continue; }
       if (it.t === 'bay') { const n = Math.floor(s.bay[it.id] || 0); if (n >= 1) put('c' + it.id, top, `${IC.credits}${fmt(n)}`, n >= G.bayCap(it) * 0.98 ? 'full' : '', 'collect', it.id); }
@@ -84,6 +86,8 @@ export class UI {
     else if (it.t === 'command') { const next = it.lvl + 1; h += `<p class="desc">${esc(d.desc)}</p><table class="stats"><tr><td>Bays allowed</td><td>${bayLimit(it.lvl)}</td></tr><tr><td>Fabricators allowed</td><td>${fabLimit(it.lvl)}</td></tr><tr><td>Max building level</td><td>${it.lvl}</td></tr><tr><td>Builder drones</td><td>${s.builders}</td></tr></table>`;
       if (it.lvl < d.max) h += `<div class="sub">Level ${next}: ${bayLimit(next)} bays · ${fabLimit(next)} fabricators · buildings to level ${next}${CC_REQ[next] > s.lvl ? ` · needs Commander level ${CC_REQ[next]}` : ''}</div>`;
       h += this.upgradeRow(it) + this.crew.helpersHTML(it) + `<div class="row" style="margin-top:8px"><button class="btn small" data-a="custom">🎨 Colony style</button><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button></div>`; }
+    else if (it.t === 'arena') { const AS = AR.arena(s), lg = AR.leagueOf(AS.trophies); h += `<p class="desc">${esc(d.desc)}</p><div class="row"><b class="grow" style="color:${AR.LEAGUE_COLOR[lg]}">🏆 ${AR.LEAGUES[lg][0]} · ${fmt(AS.trophies)}</b><span class="chip">🎟 ${AS.tickets}/${AR.TICKETS}</span></div><button class="btn gold" data-a="arena" style="width:100%;margin-top:8px">⚔ Enter the Arena</button>`
+        + this.upgradeRow(it, it.lvl < d.max ? `Level ${it.lvl + 1}: battle rewards +${it.lvl * 10}%` : '') + this.moveRow(it); }
     else if (it.t === 'assembly' || it.t === 'fusion') { h += (it.t === 'assembly' ? this.crew.assemblyHTML(it) : this.crew.fusionHTML(it)) + this.upgradeRow(it, it.lvl < d.max ? (it.t === 'assembly' ? `Level ${it.lvl + 1}: boots 5% faster${assemblySlots(it.lvl + 1) > assemblySlots(it.lvl) ? ', +1 pod' : ''}${helperSlots(it.lvl + 1) > helperSlots(it.lvl) ? ', +1 helper slot' : ''}` : `Level ${it.lvl + 1}: fuses 5% faster`) : '') + this.moveRow(it); }
     else if (it.t === 'bay') { const bots = G.botsIn(s, it.id), cap = bayCapacity(it.lvl), n = s.bay[it.id] || 0, rate = G.bayRate(s, it.id) * 60;
       h += `<div class="row"><div class="grow"><div class="bar gold"><i style="width:${(n / G.bayCap(it)) * 100}%"></i></div></div><b id="bayv">${fmt(n)} / ${fmt(G.bayCap(it))}</b></div><div class="row" style="margin:6px 0"><span class="grow sub">${IC.credits} ${fmt(rate)} per minute · ${bots.length}/${cap} bots</span><button class="btn gold small" data-a="collect" data-id="${it.id}" ${n >= 1 ? '' : 'disabled'}>Collect</button></div>`;
@@ -122,6 +126,7 @@ export class UI {
     else if (this.over === 'custom') { el.innerHTML = this.customHTML(); }
     else if (this.over === 'dex') { el.innerHTML = this.crew.dexHTML(); }
     else if (this.over === 'daily') { el.innerHTML = this.daily.overHTML(); }
+    else if (this.over === 'arena') { el.innerHTML = this.arena.overHTML(); }
     else if (this.over === 'settings') { const st = s.settings; el.innerHTML = `<div class="head"><h1>Settings</h1><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="card" style="max-width:420px;margin:0 auto;gap:12px">
       <label>Sound effects <input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx" style="width:100%"></label><label>Music <input type="range" min="0" max="1" step="0.05" value="${st.music}" data-set="music" style="width:100%"></label>
       <label>Graphics <select data-set="quality" style="width:100%;padding:8px;border-radius:8px;background:#0d1a2e;color:#fff;border:1px solid var(--line)">${['auto', 'high', 'low'].map((q) => `<option ${st.quality === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
@@ -156,7 +161,7 @@ export class UI {
   newBot(b: BotRec) { const d = SPECIES[b.sp]; const fresh = Date.now() - (this.s.dex[b.sp] || 0) < 4000 && Object.keys(this.s.dex).length > 1; const rc = RARITIES[d.rarity].color; const ri = RARITY_ORDER.indexOf(d.rarity);
     this.modal(`<div class="ox sub" style="letter-spacing:.2em;color:${rc}">${fresh ? '★ NEW SPECIES DISCOVERED ★' : 'NEW CREWMATE'}</div>${ri >= 2 ? `<div style="position:absolute;inset:0;border-radius:22px;box-shadow:inset 0 0 60px ${rc}66;pointer-events:none"></div>` : ''}<img src="${this.app.studio.bot(b.sp)}" style="width:180px;height:180px;margin:-6px auto -10px;display:block"><h1>${esc(d.name)}</h1><div>${elPills(d.el)} <span class="rar" style="color:${RARITIES[d.rarity].color}">${RARITIES[d.rarity].name}</span></div><p class="desc">${esc(d.desc)}</p><p class="sub">Earns ${IC.credits} ${fmt(G.botEarn(b))} per minute. Feed it Power Cells to level it up.</p><button class="btn gold" data-a="closeModal" style="min-width:160px">Welcome aboard!</button>`, true); }
   // ---------------- actions ----------------
-  act(a: string, t: HTMLElement) { const A = this.app, s = this.s; A.audio.unlock(); if (this.crew.act(a, t) || this.daily.act(a, t)) return;
+  act(a: string, t: HTMLElement) { const A = this.app, s = this.s; A.audio.unlock(); if (this.crew.act(a, t) || this.daily.act(a, t) || this.arena.act(a, t)) return;
     const id = t.dataset.id || '', it = id ? G.item(s, id) : undefined;
     switch (a) {
       case 'shop': this.openOver('shop', t.dataset.tab || this.tab); A.audio.play('tap'); break;

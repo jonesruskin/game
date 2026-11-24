@@ -13,6 +13,7 @@ import { $, fmt, esc } from './core/util';
 import { BUILDINGS, landCost, landLevel } from './data/buildings';
 import { SPECIES } from './data/species';
 import * as D from './core/daily';
+import * as AR from './core/arena';
 import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
 export class App {
@@ -36,7 +37,8 @@ export class App {
   }
   private dayCheck = 0;
   private loop(t: number) { const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t; const now = Date.now();
-    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); } this.drain(); this.world.frame(dt, this.s); this.ui.frame();
+    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); AR.tickArena(this.s, now); const sr = AR.rollSeason(this.s, now);
+      if (sr) this.enqueue(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">ARENA SEASON ENDED</div><div class="big">🏆</div><h1>${AR.LEAGUES[sr.league][0]}</h1><p class="desc">Your best league this season. Here are your rewards:</p><div class="rewards">${Object.entries(sr.reward).map(([k, n]) => `<span class="cost">${k === 'dm' ? '◆' : k === 'cells' ? '⚡' : 'C'} ${fmt(n)}</span>`).join(' ')}</div><button class="btn gold" data-a="closeModal">Collect</button>`, true)); } this.drain(); this.world.frame(dt, this.s); this.ui.frame();
     if (now > this.saveAt) { this.saveAt = now + 10000; this.save(); }
     requestAnimationFrame((tt) => this.loop(tt)); }
   private drain() { while (G.events.length) { const e = G.events.shift()!;

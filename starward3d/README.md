@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-3 of 8 (Foundation, The Crew, The Daily Loop) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: Parts 1-4 of 8 (Foundation, The Crew, The Daily Loop, The Arena) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
 
 ## Run it
 ```bash
@@ -52,14 +52,21 @@ Rewards at every rhythm, so there is always a reason to come back:
 - **Milestone levels:** every 5th Commander level pays a bonus core.
 - **Mobile reminders:** the mobile build schedules local notifications for full bays, finished recipes, landed drops and the daily reward.
 
+## Part 4: The Arena (done)
+- **3v3 turn-based battles** on a holographic platform floating in orbit (the camera flies out from the island). Bots lunge, fire element-coloured projectiles or beams, flash on impact and topple when knocked out; damage numbers, "super effective" callouts, live HP bars and bench lights.
+- **15 signature moves**, one per element, plus Strike: burns, freezes, stuns, shields, heals, drains, shield-piercing lasers, attack-weakening, always-first Cyclone, reckless Mass Driver, and Crush (stronger against healthy targets). Effectiveness follows the element chart (×1.35 / ×0.8): about a 77% edge for a good matchup, never a sure thing.
+- **Leagues** from Bronze III to Singularity by trophies, **weekly seasons** with rewards by your best league (trophies soften by a quarter at each reset), **battle tickets** (5, one back every 90 minutes), a first-win-of-the-day Dark Matter bonus, auto-battle and 1-3× speed.
+- **Rival colonies** with their own names, banners and crews, matched to your team's power at three difficulties (Easy / Even / Hard). They are simulated opponents: real asynchronous PvP needs a server, which can slot in later without changing the battle rules.
+- The **Arena** building (each level +10% battle rewards), a team picker, new missions (build the Arena, first win, Silver and Gold leagues), an Arena daily mission and a Champion achievement.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), util.ts
+src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals), util.ts
 src/data/              elements, rarities, species, buildings + recipes, levels + missions
 src/render/            world.ts (renderer, camera, picking, sync), sky.ts (Earth + space), island.ts,
-                       models.ts (buildings), botmodels.ts (bots), kit.ts (merged procedural geometry), studio.ts (thumbnails)
-src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), style.css, fonts
+                       models.ts (buildings), botmodels.ts (bots), arena.ts (the holo-arena), kit.ts (merged procedural geometry), studio.ts (thumbnails)
+src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

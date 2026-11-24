@@ -5,6 +5,7 @@ import { Backdrop } from './sky';
 import { IslandView, N } from './island';
 import { buildModel, scaffold, dropPod, Look, Model } from './models';
 import { daily } from '../core/daily';
+import { ArenaView, ARENA_POS } from './arena';
 import { buildBot, BotModel } from './botmodels';
 import { MATS } from './kit';
 import { State, Item } from '../core/state';
@@ -25,6 +26,9 @@ export class World {
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = [];
   onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) => void = () => {};
   private pod: THREE.Group | null = null; private podPick: THREE.Mesh | null = null; private podY = 0;
+  mode: 'island' | 'arena' = 'island'; arena: ArenaView | null = null; private saved: { x: number; z: number; dist: number; yaw: number } | null = null;
+  enterArena() { if (!this.arena) this.arena = new ArenaView(this.scene); this.mode = 'arena'; this.saved = { x: this.cam.tx, z: this.cam.tz, dist: this.cam.tdist, yaw: this.cam.tyaw }; this.cam.tx = ARENA_POS.x; this.cam.tz = ARENA_POS.z + 0.8; this.cam.tdist = 19; this.cam.tyaw = 0; this.select(null); }
+  exitArena() { this.mode = 'island'; if (this.saved) { this.cam.tx = this.saved.x; this.cam.tz = this.saved.z; this.cam.tdist = this.saved.dist; this.cam.tyaw = this.saved.yaw; } }
   onGhostMove: () => void = () => {};
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator as any).maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820;
@@ -45,7 +49,7 @@ export class World {
   resize() { const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
   // ---------------- camera ----------------
   private placeCamera() { const c = this.cam; const k = 0.18; c.x += (c.tx - c.x) * k; c.z += (c.tz - c.z) * k; c.dist += (c.tdist - c.dist) * k; c.yaw += (c.tyaw - c.yaw) * k;
-    const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(56, 34, clamp((c.dist - 14) / 52))); const narrow = this.camera.aspect < 0.8 ? 1.35 : 1;
+    const pitch = THREE.MathUtils.degToRad(this.mode === 'arena' ? 32 : THREE.MathUtils.lerp(56, 34, clamp((c.dist - 14) / 52))); const narrow = this.camera.aspect < 0.8 ? (this.mode === 'arena' ? 1.6 : 1.35) : 1;
     const d = c.dist * narrow; this.camera.position.set(c.x + Math.sin(c.yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, c.z + Math.cos(c.yaw) * Math.cos(pitch) * d); this.camera.lookAt(c.x, 0, c.z);
     this.sun.target.position.set(c.x, 0, c.z); this.sun.position.set(c.x - 0.55 * 40, 0.62 * 40, c.z + 0.42 * 40); }
   focus(x: number, z: number, dist?: number) { this.cam.tx = x; this.cam.tz = z; if (dist) this.cam.tdist = dist; }
@@ -55,7 +59,7 @@ export class World {
   private input() {
     const el = this.canvas; const pts = new Map<number, { x: number; y: number; sx: number; sy: number }>(); let moved = false, start = 0, last: { d: number; a: number; cx: number; cy: number } | null = null; let ghostDrag = false;
     const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 }; };
-    el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
+    el.addEventListener('pointerdown', (e) => { if (this.mode === 'arena') return; el.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
       ghostDrag = false; if (this.ghost && pts.size === 1) { const g = this.groundAt(e.clientX, e.clientY); if (g) { const [w, d] = G.dims({ t: this.ghost.t, r: this.ghost.r }); const gx = this.ghost.x - N / 2, gz = this.ghost.z - N / 2; if (g.x >= gx - 0.5 && g.x <= gx + w + 0.5 && g.z >= gz - 0.5 && g.z <= gz + d + 0.5) ghostDrag = true; } } });
     el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
       if (Math.hypot(p.x - p.sx, p.y - p.sy) > 7) moved = true; if (!moved) return;
@@ -65,7 +69,7 @@ export class World {
       else if (pts.size === 2 && last) { const n = two(); this.cam.tdist *= last.d / Math.max(1, n.d); this.cam.tyaw -= n.a - last.a; last = n; this.clampCam(); } });
     const up = (e: PointerEvent) => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) last = null; if (!p || moved || e.button === 2) return; if (performance.now() - start > 600) return; this.tap(e.clientX, e.clientY); };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => pts.delete(e.pointerId)); el.addEventListener('contextmenu', (e) => e.preventDefault());
-    el.addEventListener('wheel', (e) => { e.preventDefault(); this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
+    el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'arena') return; this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
     window.addEventListener('keydown', (e) => { if ((e.target as HTMLElement).tagName === 'INPUT') return; if (e.key === 'q' || e.key === 'Q') this.cam.tyaw += Math.PI / 4; if (e.key === 'e' || e.key === 'E') this.cam.tyaw -= Math.PI / 4; });
   }
   private tap(cx: number, cy: number) {
@@ -127,7 +131,7 @@ export class World {
   project(p: { x: number; y: number; z: number }) { const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera); const r = this.canvas.getBoundingClientRect(); return { x: r.left + (v.x * 0.5 + 0.5) * r.width, y: r.top + (-v.y * 0.5 + 0.5) * r.height, vis: v.z < 1 && v.z > -1 }; }
   // ---------------- frame ----------------
   frame(dt: number, s: State) {
-    this.t += dt; const t = this.t; this.placeCamera(); this.backdrop.update(t, this.camera); this.island.update(t);
+    this.t += dt; const t = this.t; if (this.mode === 'arena') { this.cam.tyaw = Math.sin(t * 0.15) * 0.35; this.arena?.update(dt); } this.placeCamera(); this.backdrop.update(t, this.camera); this.island.update(t);
     for (const [id, v] of this.views) { const working = !!(G.jobOf(s, id, 'craft') || G.jobOf(s, id, 'fuse')); const it = G.item(s, id);
       const cores = it && it.t === 'assembly' ? s.cores.filter((c) => c.state !== 'waiting').map((c) => ({ color: RARITIES[SPECIES[c.sp].rarity].color, ready: c.state === 'ready' })) : undefined;
       v.model.anim?.(t, { working, ready: s.ready[id] ? 1 : 0, cores }); if (v.scaf) { const cr = v.scaf.getObjectByName('crane'); if (cr) cr.rotation.y = t * 0.8; } }

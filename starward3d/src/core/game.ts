@@ -168,6 +168,8 @@ export function stepDone(s: State, st: Step): boolean {
     case 'boots': return (s.stats.boots || 0) >= (st.n || 1);
     case 'helper': return s.bots.some((b) => !!b.post);
     case 'dex': return dexCount(s) >= (st.n || 1);
+    case 'arenaWins': return (s.stats.arenaWins || 0) >= (st.n || 1);
+    case 'trophies': return (((s as any).arena && (s as any).arena.best) || 0) >= (st.n || 1);
   }
   return false;
 }

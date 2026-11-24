@@ -134,3 +134,19 @@ h1, h2, h3, .ox { font-family: Oxanium, Barlow, sans-serif; letter-spacing: 0.02
 .rc img { width: 100%; height: 100%; } .needle { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; background: var(--gold); box-shadow: 0 0 12px var(--gold); }
 .report { text-align: left; display: flex; flex-direction: column; gap: 8px; margin: 12px 0 16px; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.04); }
 @media (max-width: 640px) { .cal { gap: 4px; } .day { min-height: 76px; padding: 4px 2px; } .day .dr .cost { font-size: 9px; } .chip { height: 34px; padding: 0 8px; font-size: 11px; } #hud .ibtn { width: 34px; height: 34px; font-size: 15px; } }
+
+/* ---------- arena battle ---------- */
+body.fighting #nav, body.fighting #obj, body.fighting #panel, body.fighting #dailyHud { display: none !important; }
+#battle { position: fixed; inset: 0; z-index: 14; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 64px 12px 12px; }
+#battle > * { pointer-events: auto; }
+.btop { display: flex; gap: 10px; align-items: flex-start; } .vs { font: 700 22px Oxanium; color: var(--gold); padding-top: 18px; text-shadow: 0 0 14px rgba(255, 211, 106, 0.6); }
+.bside { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; backdrop-filter: blur(8px); } .bside.r { text-align: right; }
+.bname b { font: 700 15px Oxanium; } .hp { position: relative; height: 18px; border-radius: 9px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 5px 0; }
+.hp i { display: block; height: 100%; border-radius: 9px; transition: width 0.35s, background 0.35s; } .hp span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 11px Oxanium; text-shadow: 0 1px 2px #000; }
+.bside.r .hp i { margin-left: auto; } .bench { display: flex; gap: 4px; align-items: center; } .bside.r .bench { justify-content: flex-end; flex-direction: row-reverse; }
+.bench i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.25); } .bench i.on { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); } .bench i.ko { background: #5a2a32; }
+.bbot { display: flex; gap: 10px; align-items: flex-end; justify-content: center; flex-wrap: wrap; } .moves { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; flex: 1; max-width: 720px; }
+.mv { text-align: left; padding: 10px 12px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--mc); box-shadow: inset 4px 0 0 var(--mc); display: flex; flex-direction: column; gap: 2px; min-height: 58px; }
+.mv b { font: 700 15px Oxanium; } .mv span { font-size: 11px; color: var(--muted); } .mv em { font-style: normal; font-weight: 700; } .mv .se { color: var(--gold); } .mv .re { color: #9aa7b8; } .mv:disabled { opacity: 0.45; }
+.mv:active:not(:disabled) { transform: scale(0.97); } .bopts { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 640px) { #battle { padding: 92px 8px 8px; } .vs { font-size: 16px; padding-top: 12px; } .bside { padding: 6px; } .bname b { font-size: 13px; } .moves { grid-template-columns: 1fr 1fr; } .mv { min-height: 50px; padding: 7px 9px; } .bopts { flex-direction: row; width: 100%; justify-content: center; } }

@@ -26,6 +26,8 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     buildCost: () => 1500, upCost: (L) => round2(1800 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 0) },
   fusion: { name: 'Fusion Lab', size: [4, 3], cat: 'production', max: 10, unique: true, unlock: 5, desc: 'Fuses two bots of level 4 or more into a new core. The child may take after either parent, or be a hybrid of both: sometimes a rarer one.',
     buildCost: () => 3000, upCost: (L) => round2(3500 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
+  arena: { name: 'Arena', size: [4, 4], cat: 'production', max: 10, unique: true, unlock: 6, desc: 'Your gateway to the holo-arena in orbit: pick three bots and battle rival colonies for trophies, rewards and league glory.',
+    buildCost: () => 5000, upCost: (L) => round2(5000 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
   // decorations: the personal touch (no gameplay effect beyond XP on purchase)
   tree:     decor('Holo Tree', [1, 1], 40, 1, 'A glowing tree grown from engineered moss and fibre optics.'),
   rock:     decor('Moon Rock', [1, 1], 30, 1, 'A souvenir boulder. Every colony keeps one.'),
@@ -38,7 +40,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A monument to the bots who built the colony.'),
   arch:     { ...decor('Starlight Arch', [2, 1], 0, 1, 'A ring of light that only loyal commanders own. Earned on day 21 of the login calendar.'), exclusive: 'calendar' },
 };
-export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
+export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'arena', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
 // limits by Command Center level
 export const bayLimit = (cc: number) => 2 + cc;
 export const fabLimit = (cc: number) => 1 + Math.floor(cc / 3);
