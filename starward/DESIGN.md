@@ -117,7 +117,7 @@ Procedurally generated minor species fill the rest of the galaxy (portraits, nam
 2. ✅ **Orbit & Moon:** rockets, launch control, launches, satellites, the space station, a WebGL planet view, the lunar outpost.
 3. ✅ **The Solar System:** every major body with real data, a system map, colonies, colonists, asteroid mining, terraforming.
 4. ✅ **Interstellar:** galaxy map, real nearby stars plus a procedural Milky Way, interstellar drives, megastructures.
-5. **Contact:** alien species (handcrafted plus procedural), first contact, xenology, diplomacy.
+5. ✅ **Contact:** alien species (handcrafted plus procedural), first contact, xenology, diplomacy.
 6. **Conflict:** fleets, defences, raids, battles, conquest.
 7. **Beyond:** intergalactic travel, endgame megaprojects, Ascension (prestige), achievements, codex.
 8. **Polish & ship:** audio, tutorial, balance sim covering months of play, store assets, docs.

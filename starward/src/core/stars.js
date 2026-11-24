@@ -10,7 +10,7 @@ import { yardLevel } from './solar.js';
 export const ist = (s) => s.stars || (s.stars = { surveyed: {}, colonies: {}, ships: {}, mega: {}, gates: {}, story: {} });
 export const dist = (a, b = 'sol') => { const p = STARS[a].pos, q = STARS[b].pos; return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
 export const megaStage = (s, id) => ist(s).mega[id] || 0;
-export const surveyRange = (s) => { const L = megaStage(s, 'laser'); return L ? 6 + L * 8 : 0; };
+export const surveyRange = (s) => { const L = megaStage(s, 'laser'); return L ? 6 + L * 8 + (s.aliens && s.aliens.xt.photonicSails ? 20 : 0) : 0; };
 // ---------------- light-sail surveys ----------------
 export const sailsOut = (s) => s.jobs.filter((j) => j.kind === 'sail').length;
 export function sailSpec(s, id) { const d = dist(id); return { cost: { credits: round2(400000 * d), rare: round2(40 * d) }, time: Math.round(d * 3 * 3600 / (1 + megaStage(s, 'laser') * 0.25)) }; }
@@ -39,7 +39,7 @@ export const capacity = (s) => (s.tech.starColonies ? 2 : 0) + (s.tech.domeWorld
 // open-air colonies need a habitability of 25%+; Dome Worlds allows domed, orbital and mining settlements anywhere
 const livable = (s, pl) => pl.hab >= 0.25 || !!s.tech.domeWorlds;
 export const gated = (s, star) => !!(megaStage(s, 'gate') && ist(s).gates[star]);
-export function travel(s, star, ship) { return Math.max(300, Math.round(gated(s, star) ? 600 : dist(star) * DRIVES[ship].hpl * 3600)); }
+export function travel(s, star, ship) { const k = ship === 'warp' && s.aliens && s.aliens.xt.photonicSails ? 0.5 : 1; return Math.max(300, Math.round(gated(s, star) ? 600 : dist(star) * DRIVES[ship].hpl * 3600 * k)); }
 export function pickDrive(s) { for (const id of DRIVE_ORDER.slice().reverse()) if (drivesFree(s, id) > 0) return id; return null; }
 export function foundCost(s) { const n = Object.keys(ist(s).colonies).length; return { credits: round2(2e7 * Math.pow(1.3, n)), metal: round2(1.5e7 * Math.pow(1.3, n)), he3: round2(3000 * Math.pow(1.2, n)) }; }
 export function canFound(s, star, p) {

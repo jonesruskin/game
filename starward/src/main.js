@@ -7,6 +7,7 @@ import { OrbitView } from './render/orbit.js';
 import { SystemView } from './render/system.js';
 import { StarsView } from './render/stars.js';
 import { STARS, DRIVES, MEGA } from './data/stars.js';
+import * as AL from './core/aliens.js';
 import { BODIES, SHIPS, TERRA, SITES } from './data/solar.js';
 import * as SO from './core/solar.js';
 import * as SP from './core/space.js';
@@ -41,10 +42,13 @@ class App {
     if (v === 'moon' && !this.s.bases.moon) v = 'earth';
     const isBase = !!this.s.bases[v];
     if (isBase || v === 'orbit' || v === 'system') { if (this.scene !== v) { if (this.scene === 'system') { this.ui.sys.open(null); this.ui.stars.open(null); this.system.sel = null; this.stars.sel = null; } this.scene = v; this.ui.select(null); } if (isBase) { this.base = v; this.bv.setBase(v); } }
-    this.view = v; const tab = v === 'research' || v === 'launch' ? v : this.scene === 'orbit' || this.scene === 'system' ? this.scene : 'bases'; document.querySelectorAll('.nav [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    this.view = v; const tab = v === 'research' || v === 'launch' || v === 'contact' ? v : this.scene === 'orbit' || this.scene === 'system' ? this.scene : 'bases'; document.querySelectorAll('.nav [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     document.body.dataset.scene = this.scene; const ov = $('#overlay');
-    if (v === 'research') { this.ui.research(); Platform.gameplayStop(); } else if (v === 'launch') { this.ui.launch.open(arg); Platform.gameplayStop(); } else { ov.className = ''; ov.innerHTML = ''; if (this.started) Platform.gameplayStart(); }
+    if (v === 'research') { this.ui.research(); Platform.gameplayStop(); } else if (v === 'contact') { this.ui.contact.open(); Platform.gameplayStop(); } else if (v === 'launch') { this.ui.launch.open(arg); Platform.gameplayStop(); } else { ov.className = ''; ov.innerHTML = ''; if (this.started) Platform.gameplayStart(); }
   }
+  // requests come and go; newly discovered species knock on the door (one first-contact moment at a time)
+  alienTick() { const s = this.s; for (const e of AL.tickAliens(s, this.R)) { const d = AL.allSpecies()[e.sp]; if (e.kind === 'request') { this.audio.play('tap'); this.ui.toast(`${d.name}: a new request (Contact screen)`, 'info'); } if (e.kind === 'reqExpired') this.ui.toast(`${d.name} are disappointed: their request expired`, 'bad'); }
+    this.prompted = this.prompted || {}; if ($('#modal').classList.contains('on') || this.view === 'contact') return; const p = AL.pendingContacts(s).find((id) => !this.prompted[id]); if (p) { this.prompted[p] = 1; this.ui.contact.contact(p); } }
   // the Star Map shows either the Solar System or the stellar neighbourhood
   starsOpen() { const s = this.s; return !!(s.tech.laserSails || s.tech.exoplanetology || s.tech.starColonies || s.flags.plutoEdge || s.flags.tritonSignal); }
   setMapMode(m) { if (m === 'stars' && !this.starsOpen()) { this.ui.toast('The stars open up once you reach Pluto or research Laser Light Sails', 'info'); return; } this.audio.play('tap'); this.mapMode = m; this.ui.sys.open(null); this.ui.stars.open(null); this.system.sel = null; this.stars.sel = null; }
@@ -59,8 +63,8 @@ class App {
   frame(now) {
     const dt = Math.min(0.1, (now - this.last) / 1000); this.last = now; const s = this.s; s.stats.playS += dt;
     const notes = G.advance(s, Date.now()); if (notes.length) { this.R = G.rates(s); for (const n of notes) this.notify(n); this.ui.panelKey = ''; }
-    this.rT = (this.rT || 0) + dt; if (this.rT > 1) { this.rT = 0; this.R = G.rates(s); }
-    const showOv = this.view === 'research' || this.view === 'launch';
+    this.rT = (this.rT || 0) + dt; if (this.rT > 1) { this.rT = 0; this.R = G.rates(s); this.alienTick(); }
+    const showOv = this.view === 'research' || this.view === 'launch' || this.view === 'contact';
     if (this.scene === 'system') { if (!showOv || (this.fT = (this.fT || 0) + dt) > 0.25) { (this.mapMode === 'stars' ? this.stars : this.system).render(s, showOv ? this.fT : dt); this.fT = 0; } }
     else if (this.scene === 'orbit') { if (!showOv || (this.fT = (this.fT || 0) + dt) > 0.25) { this.orbit.render(s, showOv ? this.fT : dt); this.fT = 0; } }
     else if (!showOv || (this.fT = (this.fT || 0) + dt) > 0.25) { this.bv.render(s, G, showOv ? this.fT : dt); this.fT = 0; }
@@ -85,11 +89,16 @@ class App {
     if (n.kind === 'mega') { this.audio.play('claim'); this.ui.toast(`${MEGA[n.mega].name}: stage ${n.stage + 1} complete`, 'gold'); }
     if (n.kind === 'gatebuild') { this.audio.play('claim'); this.ui.toast(`Wormhole gate open at ${STARS[n.star].name}`, 'gold'); }
     if (n.kind === 'develop') { this.audio.play('done'); this.ui.toast(`Star colony developed to level ${n.lvl}`, 'good'); }
+    if (n.kind === 'decipher') { this.audio.play('research'); this.ui.toast(`${AL.allSpecies()[n.sp].name} language: ${n.und}% understood`, 'gold'); }
+    if (n.kind === 'embassy') { this.audio.play('done'); this.ui.toast(`Embassy to the ${AL.allSpecies()[n.sp].name}: level ${n.lvl}`, 'good'); }
+    if (n.kind === 'uplift') { this.audio.play('claim'); this.ui.toast(`The ${AL.allSpecies()[n.sp].name} have been uplifted: a new spacefaring friend`, 'gold'); }
+    if (n.kind === 'dig') { this.audio.play('claim'); this.ui.toast(`The Hollow ruins: level ${n.lvl} excavated`, 'gold'); }
+    if (n.kind === 'starcolony' && n.life) this.ui.toast(`Life on ${n.name}: the settlers have found ${n.life}`, 'gold');
     if (n.kind === 'starcolony') { this.audio.play('arrive'); this.ui.toast(`Settlers have landed on ${n.name}`, 'gold'); if (n.first) this.story('firstStar'); if (n.story) this.story(n.story); }
     if (n.kind !== 'build' && n.kind !== 'research') this.syncPad();
-    if (this.view === 'launch') this.ui.launch.render();
+    if (this.view === 'launch') this.ui.launch.render(); if (this.view === 'contact') this.ui.contact.render();
   }
-  describe(n) { switch (n.kind) { case 'build': return `${BUILDINGS[n.b].name} → level ${n.lvl}`; case 'research': return `Research: ${TECH[n.tech].name}`; case 'rocket': return `Rocket assembled: ${ROCKETS[n.rocket].name}`; case 'fail': return `Mission lost: ${n.name}`; case 'sat': case 'module': case 'mission': return `${n.name}: success`; case 'survey': return `Survey: ${BODIES[n.body].name}`; case 'ship': return `Ship built: ${SHIPS[n.ship].name}`; case 'voyage': return n.op === 'transport' ? `${n.people} colonists reached ${BODIES[n.body].name}` : `Voyage complete: ${n.name}`; case 'terra': return `Terraforming: ${TERRA[n.body].stages[n.stage].name}`; case 'sail': return `Light sail reached ${STARS[n.star].name}`; case 'drive': return `Starship built: ${DRIVES[n.ship].name}`; case 'mega': return `${MEGA[n.mega].name}: stage ${n.stage + 1}`; case 'gatebuild': return `Gate open at ${STARS[n.star].name}`; case 'develop': return `Star colony reached level ${n.lvl}`; case 'starcolony': return `New star colony: ${n.name}`; } return ''; }
+  describe(n) { switch (n.kind) { case 'build': return `${BUILDINGS[n.b].name} → level ${n.lvl}`; case 'research': return `Research: ${TECH[n.tech].name}`; case 'rocket': return `Rocket assembled: ${ROCKETS[n.rocket].name}`; case 'fail': return `Mission lost: ${n.name}`; case 'sat': case 'module': case 'mission': return `${n.name}: success`; case 'survey': return `Survey: ${BODIES[n.body].name}`; case 'ship': return `Ship built: ${SHIPS[n.ship].name}`; case 'voyage': return n.op === 'transport' ? `${n.people} colonists reached ${BODIES[n.body].name}` : `Voyage complete: ${n.name}`; case 'terra': return `Terraforming: ${TERRA[n.body].stages[n.stage].name}`; case 'sail': return `Light sail reached ${STARS[n.star].name}`; case 'drive': return `Starship built: ${DRIVES[n.ship].name}`; case 'mega': return `${MEGA[n.mega].name}: stage ${n.stage + 1}`; case 'gatebuild': return `Gate open at ${STARS[n.star].name}`; case 'develop': return `Star colony reached level ${n.lvl}`; case 'starcolony': return `New star colony: ${n.name}`; case 'decipher': return `Deciphered: ${AL.allSpecies()[n.sp].name} (${n.und}%)`; case 'embassy': return `Embassy: ${AL.allSpecies()[n.sp].name}`; case 'uplift': return `Uplifted: ${AL.allSpecies()[n.sp].name}`; case 'dig': return `Ruins excavated: level ${n.lvl}`; } return ''; }
   // story beats: new colonies and discoveries
   story(k) {
     const T = {
@@ -133,7 +142,7 @@ class App {
       if (this.scene === 'system') { if (this.mapMode === 'stars') this.ui.selectStar(this.stars.pick(x, y)); else this.ui.selectBody(this.system.pick(x, y)); } else this.ui.orbitPick(this.orbit.pick(x, y)); this.stars.drag = false; };
     fx.addEventListener('pointerup', fup); fx.addEventListener('pointercancel', fup);
     fx.addEventListener('wheel', (e) => { if (this.scene !== 'system') return; e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0015); if (this.mapMode === 'stars') this.stars.zoomAt(f); else this.system.zoomAt(f, e.clientX, e.clientY); }, { passive: false });
-    addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#modal').classList.contains('on')) this.ui.closeModal(); else if (this.view === 'research' || this.view === 'launch') this.setView('base'); else if (this.scene === 'system') { if (this.mapMode === 'stars') this.ui.selectStar(null); else this.ui.selectBody(null); } else this.ui.select(null); } });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#modal').classList.contains('on')) this.ui.closeModal(); else if (this.view === 'research' || this.view === 'launch' || this.view === 'contact') this.setView('base'); else if (this.scene === 'system') { if (this.mapMode === 'stars') this.ui.selectStar(null); else this.ui.selectBody(null); } else this.ui.select(null); } });
   }
   start() { this.audio.unlock(); if (!this.started) { this.started = true; Platform.gameplayStart(); } }
   // ---------------- story & reports ----------------

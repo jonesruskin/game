@@ -18,6 +18,8 @@ const { ROCKETS, MISSIONS } = await import(root + 'data/space.js');
 const { allSteps } = await import(root + 'data/objectives.js');
 const SO = await import(root + 'core/solar.js');
 const ST = await import(root + 'core/stars.js');
+const AL = await import(root + 'core/aliens.js');
+const { OPENINGS, XENOTECH } = await import(root + 'data/aliens.js');
 const { STARS, STAR_IDS, DRIVE_ORDER } = await import(root + 'data/stars.js');
 const { BODIES, SITES, SHIPS, SHIP_ORDER, TERRA, ZONE_CLASS } = await import(root + 'data/solar.js');
 
@@ -29,7 +31,7 @@ const when = (x) => (process.env.MIN ? Math.round((x - t0) / 60000) + ' min' : (
 const focused = () => t - t0 < FOCUS * 60000; // a new player doing exactly what the objective panel says
 const GOALS = ['rocketry', 'liquidProp', 'multistage', 'guidance', 'orbital', 'satComms', 'lifeSupport', 'crewed', 'deepSpace', 'additive', 'spaceStation', 'alloys', 'heavy', 'lunarLanders', 'closedLoop', 'isru', 'he3Mining', 'lunarHabitats',
   'planetaryProbes', 'nuclearThermal', 'orbitalShipyard', 'marsDirect', 'spaceAgriculture', 'asteroidMining', 'colonyShips', 'aerostats', 'fusionPower', 'planetaryEngineering', 'beltSettlement', 'fusionDrive', 'radiationShielding', 'cometCapture', 'magnetosphere', 'gasGiantScoops', 'xenobiology', 'cryoHabitats', 'hydrosphere', 'extremophiles', 'advancedFusion', 'ecopoiesis', 'solarFurnace', 'spaceElevator',
-  'laserSails', 'exoplanetology', 'starColonies', 'sleeperShips', 'dysonSwarm', 'casimirEffect', 'ramjets', 'domeWorlds', 'xenoarchaeology', 'interstellarTrade', 'warpTheory', 'wormholeGates', 'warpDrive'];
+  'laserSails', 'exoplanetology', 'starColonies', 'sleeperShips', 'dysonSwarm', 'casimirEffect', 'ramjets', 'domeWorlds', 'xenoarchaeology', 'interstellarTrade', 'warpTheory', 'wormholeGates', 'warpDrive', 'contactProtocols', 'xenolinguistics', 'xenodiplomacy', 'upliftEthics'];
 const closure = (id, out = []) => { if (s.tech[id] || out.includes(id)) return out; for (const r of TECH[id].req) closure(r, out); out.push(id); return out; };
 const lots = (base) => LAYOUTS[base].lots.filter((l) => G.lotOpen(s, base, l) && !(s.bases[base].lots[l.id] && s.bases[base].lots[l.id].b));
 const lotOf = (base, b) => Object.keys(s.bases[base].lots).find((k) => s.bases[base].lots[k].b === b && !G.jobAt(s, base, k));
@@ -46,7 +48,7 @@ function want(base) { // buildings worth placing on a free lot, best first
   const need = G.reqsMissing(s, base, cmd(base), G.hqLevel(s, base) + 1).map(([b]) => b).filter((b) => !Object.values(s.bases[base].lots).some((l) => l.b === b));
   if (lots(base).length <= 1 && !need.length) return []; // keep a lot spare for whatever the campaign asks next
   const R = G.rates(s); const C = R.col[base];
-  const LISTS = { earth: ['research', 'mine', 'office', 'refinery', 'solar', 'depot', 'vab', 'tracking', 'academy', 'university', 'fission', 'fusion', 'elevator', 'casimir'], moon: ['he3x', 'regolith', 'lsolar', 'ice', 'llab', 'dome', 'greenhouse', 'massDriver', 'reactor'],
+  const LISTS = { earth: ['research', 'mine', 'office', 'refinery', 'solar', 'depot', 'vab', 'tracking', 'academy', 'university', 'fission', 'fusion', 'elevator', 'casimir', 'xenolab'], moon: ['he3x', 'regolith', 'lsolar', 'ice', 'llab', 'dome', 'greenhouse', 'massDriver', 'reactor'],
     mars: ['dome', 'greenhouse', 'regolith', 'reactor', 'terraformer', 'llab', 'ice', 'lsolar', 'fusion'], ceres: ['dome', 'greenhouse', 'ice', 'reactor', 'beltControl', 'regolith', 'llab', 'fusion'], titan: ['dome', 'greenhouse', 'reactor', 'methane', 'ice', 'llab', 'fusion'] };
   const list = [...LISTS[base]]; if (C && C.pop >= C.house * 0.9) list.unshift('dome');
   if (R.gen - R.draw < 15) list.unshift(base === 'earth' ? (s.tech.fusionPower ? 'fusion' : s.tech.fission ? 'fission' : 'solar') : base === 'moon' || base === 'mars' ? 'lsolar' : 'reactor');
@@ -69,7 +71,7 @@ function construct() {
       for (const b of want(base)) { const L = free.find((l) => (l.special || null) === (BUILDINGS[b].lot || null)); if (L && G.canBuild(s, base, L.id, b).ok) { G.startBuild(s, base, L.id, b, t); acted = true; break; } }
       if (acted) break; }
     if (!acted) for (const base of Object.keys(s.bases)) { // no room for a required building: demolish a duplicate, as a player would
-      const st2 = G.currentStep(s); const need = G.reqsMissing(s, base, cmd(base), G.hqLevel(s, base) + 1).map(([b]) => b).concat(st2 && st2.kind === 'buildOn' && st2.base === base ? [st2.b] : []).filter((b) => !Object.values(s.bases[base].lots).some((l) => l.b === b) && G.canBuild(s, base, 'nope', b).why !== 'Research ' + (BUILDINGS[b].req && BUILDINGS[b].req.tech && TECH[BUILDINGS[b].req.tech] ? TECH[BUILDINGS[b].req.tech].name : ''));
+      const st2 = G.currentStep(s); const need = G.reqsMissing(s, base, cmd(base), G.hqLevel(s, base) + 1).map(([b]) => b).concat(st2 && st2.kind === 'buildOn' && st2.base === base ? [st2.b] : []).concat(st2 && st2.kind === 'build' && base === 'earth' && BUILDINGS[st2.b].bases.includes('earth') ? [st2.b] : []).filter((b) => !Object.values(s.bases[base].lots).some((l) => l.b === b) && G.canBuild(s, base, 'nope', b).why !== 'Research ' + (BUILDINGS[b].req && BUILDINGS[b].req.tech && TECH[BUILDINGS[b].req.tech] ? TECH[BUILDINGS[b].req.tech].name : ''));
       if (!need.length || lots(base).length) continue; const cnt = {}; for (const l of Object.values(s.bases[base].lots)) if (l.b) cnt[l.b] = (cnt[l.b] || 0) + 1;
       const victim = Object.keys(s.bases[base].lots).filter((k) => { const l = s.bases[base].lots[k]; return l.b && cnt[l.b] > 1 && G.canDemolish(s, base, k); }).sort((a, b) => s.bases[base].lots[a].lvl - s.bases[base].lots[b].lvl)[0];
       if (victim && need.some((b) => !BUILDINGS[b].req || !BUILDINGS[b].req.tech || s.tech[BUILDINGS[b].req.tech])) { G.demolish(s, base, victim); acted = true; break; } }
@@ -127,6 +129,21 @@ function interstellar() {
   sites.sort((a, b) => b[0] - a[0]); for (const [, k, p] of sites) { const c = ST.canFound(s, k, p); if (c.ok) { ST.startFound(s, k, p, t); break; } }
   let n = 0; for (const key in I.colonies) { const C = I.colonies[key]; if (C.spec === 'balanced') ST.setSpec(s, key, ['research', 'trade', 'mining', 'industry'][n++ % 4]); if (ST.canDevelop(s, key).ok) ST.startDevelop(s, key, t); if (ST.canGate(s, C.star).ok) ST.startGate(s, C.star, t); }
 }
+// ---- Part 5: contact and diplomacy ----
+function contact() {
+  const R = G.rates(s); AL.tickAliens(s, R, t); const A = AL.al(s);
+  for (const id of AL.pendingContacts(s)) { const best = Object.keys(OPENINGS).sort((a, b) => (OPENINGS[b].d[id] || 0) - (OPENINGS[a].d[id] || 0))[0]; AL.meet(s, id, best, t); }
+  for (const id in A.known) { const k = A.known[id], d = AL.allSpecies()[id];
+    if (d.extinct) { if (AL.canDig(s).ok) AL.startDig(s, t); continue; }
+    if (id === 'krthul') { if (!s.flags.krthulAnswered) AL.setTribute(s, true); }
+    if (k.req && AL.reqDone(s, k.req) && (k.req.k !== 'give' || (s.res[k.req.res] || 0) > k.req.n * 2)) AL.fulfil(s, id);
+    if (d.minor && d.tier < 3) { if (A.minors[id] === 'observe') s.flags.minorProtected = 1; if (!Object.values(A.minors).includes('uplift') && AL.canUplift(s, id).ok) AL.startUplift(s, id, t); continue; }
+    if (AL.canDecipher(s, id).ok) AL.startDecipher(s, id, t);
+    AL.gift(s, id, R, t);
+    for (const kd of ['trade', 'pact', 'alliance']) if (AL.canDeal(s, id, kd).ok) AL.deal(s, id, kd);
+    if (AL.canEmbassy(s, id).ok && k.embassy < 3) AL.startEmbassy(s, id, t); }
+  for (const x in XENOTECH) if (AL.canXeno(s, x).ok) AL.learnXeno(s, x);
+}
 let fails = 0; const W = { idle: 0, lab: 0, n: 0 }; let snapT = t0;
 while (t < t0 + DAYS * 86400000) {
   const h = new Date(t).getUTCHours(); const awake = h >= 8 && h < 23;
@@ -135,12 +152,12 @@ while (t < t0 + DAYS * 86400000) {
   if (process.env.SNAP && t - snapT >= 2 * 86400000) { snapT = t; const R = G.rates(s); const r = (k) => `${k} ${Math.round(s.res[k])}/${Math.round(R.cap[k])} (+${Math.round(R.prod[k])}/h)`;
     log.push(`    [${when(t)}] HQ${G.hqLevel(s)} techs ${Object.keys(s.tech).length} crews ${G.crewsTotal(s)} idle ${Math.round((W.idle / W.n) * 100)}% lab idle ${Math.round((W.lab / W.n) * 100)}% · ${['credits', 'metal', 'science', 'rare', 'he3', 'exotic'].map(r).join(' · ')} · laser ${ST.megaStage(s, 'laser')} dyson ${ST.megaStage(s, 'dyson')}`); Object.assign(W, { idle: 0, lab: 0, n: 0 }); }
   if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}`); } // like a player, save up for the megastructure or starship the campaign is asking for
-    const st0 = G.currentStep(s); const saving = st0 && ((st0.kind === 'mega' && ST.canMega(s, st0.mega).why === 'Not enough resources') || (st0.kind === 'drive' && ST.canBuildDrive(s, st0.ship).why === 'Not enough resources'));
-    if (s.tech.laserSails) interstellar(); research(); if (!saving) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
+    const st0 = G.currentStep(s); const saving = st0 && ((st0.kind === 'mega' && ST.canMega(s, st0.mega).why === 'Not enough resources') || (st0.kind === 'drive' && ST.canBuildDrive(s, st0.ship).why === 'Not enough resources')); const capOK = (c) => { const R0 = G.rates(s); return Object.entries(c || {}).every(([r, n]) => R0.cap[r] >= n); }; const savingOK = saving && capOK(st0.kind === 'mega' ? ST.megaCost(st0.mega, ST.megaStage(s, st0.mega)) : (ST.DRIVES[st0.ship] || {}).cost);
+    research(); if (s.tech.laserSails) interstellar(); if (s.tech.contactProtocols) contact(); if (!savingOK) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
   if (s.obj.i >= STEPS.length) { log.push(`${when(t).padStart(9)}  campaign complete`); break; }
   t += awake ? STEP * 1000 : 3600 * 1000;
 }
 const st = G.currentStep(s);
 console.log(log.join('\n'));
-console.log(`\nend ${when(t)} · Mission Control ${G.hqLevel(s)} · hubs ${Object.keys(s.bases).filter((b) => b !== 'earth').map((b) => b + ' ' + G.hqLevel(s, b) + ' (' + Math.floor(s.bases[b].pop) + ' pop)').join(', ') || '-'} · sites ${Object.keys(SO.sol(s).sites).length} · terra ${SO.terraStage(s, 'mars')}/7 · stars surveyed ${Object.keys(ST.ist(s).surveyed).length}, colonies ${Object.keys(ST.ist(s).colonies).length} (max lvl ${Math.max(0, ...Object.values(ST.ist(s).colonies).map((C) => C.lvl))}), dyson ${ST.megaStage(s, 'dyson')}/10, gates ${Object.keys(ST.ist(s).gates).length} · techs ${Object.keys(s.tech).length}/${Object.keys(TECH).length} · flights ${S.sp(s).flights} (lost ${fails}) · ${st ? 'STUCK on ' + st.id + ': ' + st.text : 'nothing stuck'}`);
-if (st) process.exitCode = 1;
+console.log(`\nend ${when(t)} · Mission Control ${G.hqLevel(s)} · hubs ${Object.keys(s.bases).filter((b) => b !== 'earth').map((b) => b + ' ' + G.hqLevel(s, b) + ' (' + Math.floor(s.bases[b].pop) + ' pop)').join(', ') || '-'} · sites ${Object.keys(SO.sol(s).sites).length} · terra ${SO.terraStage(s, 'mars')}/7 · stars surveyed ${Object.keys(ST.ist(s).surveyed).length}, colonies ${Object.keys(ST.ist(s).colonies).length} (max lvl ${Math.max(0, ...Object.values(ST.ist(s).colonies).map((C) => C.lvl))}), dyson ${ST.megaStage(s, 'dyson')}/10, gates ${Object.keys(ST.ist(s).gates).length} · met ${Object.keys(AL.al(s).known).length}, xenotech ${Object.keys(AL.al(s).xt).length}, deals ${Object.values(AL.al(s).known).map((k) => Object.keys(k.deals || {}).length).reduce((a, b) => a + b, 0)} · techs ${Object.keys(s.tech).length}/${Object.keys(TECH).length} · flights ${S.sp(s).flights} (lost ${fails}) · ${st ? 'STUCK on ' + st.id + ': ' + st.text : 'nothing stuck'}`);
+if (st) { process.exitCode = 1; console.log('jobs:', s.jobs.filter((j) => j.kind === 'research').map((j) => j.tech + ' ends in ' + Math.round((j.end - t) / 86400000) + 'd').join(', '), 'slots', G.slotsBusy(s), '/', G.slotsTotal(s)); console.log('unresearched:', Object.keys(TECH).filter((k) => !s.tech[k]).map((k) => k + ' (' + G.canResearch(s, k).why + ')').join(', ')); console.log('res', JSON.stringify(Object.fromEntries(['credits','metal','science','exotic','rare','xeno','influence'].map((r) => [r, Math.round(s.res[r] || 0)]))), 'cap', JSON.stringify(Object.fromEntries(['exotic','science','credits'].map((r) => [r, Math.round(G.rates(s).cap[r])])))); }

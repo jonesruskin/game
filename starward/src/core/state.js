@@ -9,7 +9,7 @@ export function fresh(t = Date.now()) {
     bases: {
       earth: { body: 'earth', name: 'Cape Horizon', lots: { hq: { b: 'hq', lvl: 1 }, L0: { b: 'mine', lvl: 1 }, L1: { b: 'solar', lvl: 1 }, L2: { b: 'office', lvl: 1 }, L3: { b: 'depot', lvl: 1 } } },
     },
-    jobs: [], tech: {}, flags: {}, space: { rockets: {}, sats: [], modules: {}, flights: 0, fails: 0, done: {} }, solar: { surveyed: {}, sites: {}, ships: {}, terra: {}, voyages: 0, story: {} }, stars: { surveyed: {}, colonies: {}, ships: {}, mega: {}, gates: {}, story: {} },
+    jobs: [], tech: {}, flags: {}, space: { rockets: {}, sats: [], modules: {}, flights: 0, fails: 0, done: {} }, solar: { surveyed: {}, sites: {}, ships: {}, terra: {}, voyages: 0, story: {} }, stars: { surveyed: {}, colonies: {}, ships: {}, mega: {}, gates: {}, story: {} }, aliens: { known: {}, xt: {}, ruins: 0, minors: {}, codex: [], seen: {} }, war: { ships: {}, def: {}, raids: [], log: [], hives: {}, next: 0, fleetAt: 'home', raidsSeen: 0, blockade: {} },
     obj: { i: 0, claimed: {} },
     stats: { built: 0, upgrades: 0, researched: 0, dmSpent: 0, playS: 0, sessions: 0, rocketsBuilt: 0 },
     log: [], settings: { sfx: 0.7, music: 0.45, quality: 'auto', dayNight: 'auto' }, tut: 0, adSkips: { day: 0, n: 0 },

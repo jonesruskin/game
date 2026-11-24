@@ -112,5 +112,30 @@ export const CHAPTERS = [
       { id: 'w8', text: 'Gate a star colony into the network', kind: 'gates', n: 1, reward: { dm: 200, credits: 800000000 } },
     ],
   },
+  {
+    id: 'ch9', name: 'Chapter 9 · Contact', intro: 'For all of history we wondered if we were alone. The answer is arriving, and it is complicated.',
+    steps: [
+      { id: 'x1', text: 'Research First Contact Protocols', kind: 'tech', id2: 'contactProtocols', reward: { science: 80000000, dm: 60 } },
+      { id: 'x2', text: 'Make first contact with an alien civilisation', kind: 'met', n: 1, reward: { xeno: 2000, dm: 100 } },
+      { id: 'x3', text: 'Research Xenolinguistics', kind: 'tech', id2: 'xenolinguistics', reward: { xeno: 2000, dm: 60 } },
+      { id: 'x4', text: 'Build the Xenology Institute on Earth', kind: 'build', b: 'xenolab', lvl: 1, reward: { influence: 1500, dm: 60 } },
+      { id: 'x5', text: 'Decipher an alien language to 50%', kind: 'und', n: 50, reward: { xeno: 4000, dm: 80 } },
+      { id: 'x6', text: 'Fulfil a request from another civilisation', kind: 'requests', n: 1, reward: { influence: 2000, dm: 80 } },
+      { id: 'x7', text: 'Learn a piece of alien knowledge', kind: 'xenotech', n: 1, reward: { dm: 120, credits: 1000000000 } },
+    ],
+  },
+  {
+    id: 'ch10', name: 'Chapter 10 · The Wider Galaxy', intro: 'Gardeners from another galaxy, merchants of light, a machine Synod, a fungal mind, a young ocean people, and a Swarm that eats worlds. Choose your friends well.',
+    steps: [
+      { id: 'y1', text: 'Meet four civilisations', kind: 'met', n: 4, reward: { xeno: 8000, dm: 100 } },
+      { id: 'y2', text: 'Research Xenodiplomacy and open an embassy', kind: 'embassy', reward: { influence: 4000, dm: 100 } },
+      { id: 'y3', text: 'Sign a trade agreement', kind: 'deal', deal: 'trade', reward: { dm: 100, exotic: 1000 } },
+      { id: 'y4', text: 'Excavate the Hollow ruins to level 3', kind: 'ruins', n: 3, reward: { xeno: 15000, dm: 120 } },
+      { id: 'y5', text: 'Decide the fate of a young species: protect or uplift it', kind: 'minorChoice', reward: { dm: 120, influence: 6000 } },
+      { id: 'y6', text: 'Sign a research pact', kind: 'deal', deal: 'pact', reward: { dm: 150, science: 300000000 } },
+      { id: 'y7', text: 'Answer the Kr\'thul: pay tribute or refuse (Contact screen)', kind: 'flag', flag: 'krthulAnswered', reward: { dm: 150, metal: 2000000000 } },
+      { id: 'y8', text: 'Form an alliance', kind: 'deal', deal: 'alliance', reward: { dm: 300, credits: 3000000000 } },
+    ],
+  },
 ];
 export const allSteps = () => CHAPTERS.flatMap((c) => c.steps.map((s) => ({ ...s, ch: c.id })));

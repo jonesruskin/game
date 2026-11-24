@@ -274,6 +274,13 @@ export const ART = {
     cyl(c, 1.0, 1.0, 0.3, 10, '#c9ced6', 10 + T * 2 + 14); fx.push({ k: 'climber', x, y: y - 30 });
     return 60 + T * 2;
   },
+  xenolab(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#b9bec6');
+    const b = box(c, 0.25, 0.9, 1.5, 0.9, 14 + T * 3, '#e6eaf0'); grid(c, b.left, 2, 5, '#9dff5c', 0.25, lights); grid(c, b.right, 2, 3, '#9dff5c', 0.25, lights);
+    const d = dome(c, 0.75, 0.55, 0.42, 20 + T * 3, '#cfe9d6', 14 + T * 3, true); fx.push({ k: 'glow', x: d.x, y: d.y + 6, col: '157,255,92' });
+    const [px, py] = P(1.5, 0.45, 0); c.fillStyle = '#c8cdd3'; c.fillRect(px - 2, py - 26 - T * 3, 4, 26 + T * 3); fx.push({ k: 'dish', x: px, y: py - 30 - T * 3, r: 14 + T * 2, sp: 0.08, big: true });
+    return 52 + T * 4;
+  },
   casimir(c, L, S, lights, fx) {
     const T = tierOf(L); pad(c, S, '#a9aeb6');
     const b = box(c, 0.2, 1.05, 1.6, 0.75, 12 + T * 2, '#d9dde2'); grid(c, b.left, 1, 5, '#ff6bd6', 0.25, lights);

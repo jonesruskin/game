@@ -10,6 +10,8 @@ import { uid } from './state.js';
 import { completeSpace, sp } from './space.js';
 import { completeSolar, sol, terraStage } from './solar.js';
 import { completeStars, ist } from './stars.js';
+import { completeAliens, al, discoverLife } from './aliens.js';
+import { completeWar, war } from './war.js';
 import { curve, round2, timeCurve } from '../util.js';
 
 export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
@@ -83,7 +85,9 @@ function complete(s, j) {
   if (j.kind === 'build') { const lot = s.bases[j.base].lots[j.lot]; lot.lvl = j.to; if (j.from === 0) s.stats.built++; else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, lot: j.lot }; }
   if (j.kind === 'research') { s.tech[j.tech] = 1; s.stats.researched++; return { kind: 'research', tech: j.tech }; }
   if (j.kind === 'ship' || j.kind === 'voyage' || j.kind === 'terra') return completeSolar(s, j);
-  if (['sail', 'drive', 'mega', 'gatebuild', 'develop', 'star'].includes(j.kind)) return completeStars(s, j);
+  if (['sail', 'drive', 'mega', 'gatebuild', 'develop', 'star'].includes(j.kind)) { const n = completeStars(s, j); if (n && n.kind === 'starcolony') n.life = discoverLife(s, n.star, +n.key.split(':')[1]); return n; }
+  if (['decipher', 'embassy', 'uplift', 'dig'].includes(j.kind)) return completeAliens(s, j);
+  if (['warship', 'defence', 'sortie'].includes(j.kind)) return completeWar(s, j);
   return completeSpace(s, j);
 }
 // advance the world to time t (handles offline gaps exactly). Returns notifications in order.
@@ -145,6 +149,18 @@ export function stepDone(s, st, R = rates(s)) {
     case 'mega': return (ist(s).mega[st.mega] || 0) >= st.n;
     case 'drive': return (ist(s).ships[st.ship] || 0) >= 1;
     case 'gates': return Object.keys(ist(s).gates).length >= st.n;
+    case 'met': return Object.keys(al(s).known).filter((k) => k !== 'hollow').length >= st.n;
+    case 'und': return Object.values(al(s).known).some((K) => K.und >= st.n);
+    case 'deal': return Object.values(al(s).known).some((K) => K.deals && K.deals[st.deal]);
+    case 'embassy': return Object.values(al(s).known).some((K) => K.embassy >= 1);
+    case 'xenotech': return Object.keys(al(s).xt).length >= st.n;
+    case 'requests': return (al(s).seen.requests || 0) >= st.n;
+    case 'ruins': return al(s).ruins >= st.n;
+    case 'minorChoice': return Object.values(al(s).minors).some((m) => m === 'uplift') || !!s.flags.minorProtected;
+    case 'warships': return Object.values(war(s).ships).reduce((a, b) => a + b, 0) >= st.n;
+    case 'defence': return Object.values(war(s).def).some((L) => L >= (st.lvl || 1));
+    case 'raidWon': return war(s).log.some((r) => r.kind === 'raid' && r.win) || !!s.flags.raidRepelled;
+    case 'hive': return !!war(s).hives[st.hive + '_done'];
     case 'buildOn': return !!s.bases[st.base] && Object.values(s.bases[st.base].lots).some((l) => l.b === st.b && l.lvl >= (st.lvl || 1));
   }
   return false;

@@ -154,6 +154,11 @@ export const BUILDINGS = {
     cost: { credits: [3e7, 1.7], metal: [2e7, 1.7], rare: [5000, 1.6] }, time: [17, 1.8], prod: { exotic: [3, 1.24] }, cap: { exotic: [300, 1.5] }, draw: [80, 1.16],
     desc: 'Stacks of nanometre-gap plates in a vacuum chamber, squeezing out exotic matter a microgram at a time.',
   },
+  xenolab: {
+    name: 'Xenology Institute', icon: 'xenolab', size: 2, bases: ['earth'], unique: true, max: 20, cat: 'science', req: { tech: 'xenolinguistics' },
+    cost: { credits: [4e7, 1.7], metal: [2.5e7, 1.7] }, time: [17, 1.8], prod: { xeno: [25, 1.24], influence: [8, 1.22] }, cap: { xeno: [10000, 1.5], influence: [4000, 1.5] }, draw: [60, 1.15],
+    desc: 'Linguists, xenobiologists and diplomats under one roof. Makes xenodata and influence; each level deciphers languages 5% faster.',
+  },
 };
 // command level → building lots open (Earth)
 export const allowedLevel = (def, hq) => Math.min(def.max, def.lot === 'hq' ? def.max : hq * 2 + (def.cat === 'core' ? 0 : 0));
@@ -161,7 +166,8 @@ export const allowedCount = (def, hq) => (def.unique ? 1 : def.count ? def.count
 // storage the player is guaranteed to have at Mission Control level h: the command centre's own vaults plus one
 // Logistics Depot at the level the command prerequisites force (2h-4). Costs are clamped under this, so no
 // upgrade, research or launch can ever cost more than the player is able to store.
-export function capRef(h, r) { const v = (d, L) => (d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.max(1, L) - 1) : 0); return v(BUILDINGS.hq, h) + v(BUILDINGS.depot, 2 * h - 4) + (r === 'science' ? v(BUILDINGS.research, 2 * h - 4) : 0); }
+// (levels are never counted above a building's maximum)
+export function capRef(h, r) { const v = (d, L) => (d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.min(d.max, Math.max(1, L)) - 1) : 0); return v(BUILDINGS.hq, h) + v(BUILDINGS.depot, 2 * h - 4) + (r === 'science' ? v(BUILDINGS.research, 2 * h - 4) : 0); }
 export const capClamp = (n, h, r) => { const c = capRef(h, r); return c > 0 ? Math.min(n, Math.floor(c * 0.85 / 100) * 100) : n; };
 // Mission Control level at which building b's level L first becomes possible
 export const unlockHq = (b, L) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; if (!d.bases.includes('earth') && !d.bases.includes('moon')) return Math.ceil(L / 2) + 10; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };

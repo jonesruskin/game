@@ -93,7 +93,7 @@ export function startVoyage(s, P, t = Date.now()) { const c = canVoyage(s, P, t)
 // ---------------- terraforming ----------------
 export const terraStage = (s, body) => sol(s).terra[body] || 0;
 export function terraState(s, body) { const T = TERRA[body]; const n = terraStage(s, body); const o = { ...T.start, house: 0, n, of: T.stages.length, p: n / T.stages.length }; for (let k = 0; k < n; k++) { Object.assign(o, T.stages[k].set); o.house += T.stages[k].house; } return o; }
-export const terraTime = (s, body) => { const st = TERRA[body].stages[terraStage(s, body)]; return Math.round((st.days * 86400) / (1 + lvlOf(s, body, 'terraformer') * 0.04)); };
+export const terraTime = (s, body) => { const st = TERRA[body].stages[terraStage(s, body)]; return Math.round((st.days * 86400 * (s.aliens && s.aliens.xt.mycelialTerra ? 0.7 : 1)) / (1 + lvlOf(s, body, 'terraformer') * 0.04)); };
 export function canTerra(s, body) {
   const T = TERRA[body]; if (!T || !s.bases[body]) return { ok: false, why: 'Found a colony first' }; const n = terraStage(s, body); if (n >= T.stages.length) return { ok: false, why: 'Terraforming complete', done: true };
   const st = T.stages[n]; if (s.jobs.some((j) => j.kind === 'terra' && j.body === body)) return { ok: false, why: 'A stage is under way', busy: true, st };

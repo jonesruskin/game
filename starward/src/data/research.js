@@ -104,6 +104,18 @@ export const TECH = {
   warpTheory: { name: 'Warp Field Theory', branch: 'interstellar', tier: 16, req: ['casimirEffect', 'ramjets'], effect: {}, desc: 'Alcubierre\'s metric, made practical: the energy budget falls from a galaxy\'s worth to a few tonnes of exotic matter.' },
   warpDrive: { name: 'Warp Drive', branch: 'rocketry', tier: 17, req: ['warpTheory'], effect: {}, unlocks: 'Herald warp ships', desc: 'Space folds ahead and unfolds behind. Light-years in an afternoon.' },
   wormholeGates: { name: 'Wormhole Gates', branch: 'interstellar', tier: 17, req: ['warpTheory', 'dysonSwarm'], effect: {}, unlocks: 'Sol Gate and colony gates', desc: 'Two throats of a wormhole, held open with exotic matter and towed apart. Step through, arrive light-years away.' },
+  // ---- Part 5: contact ----
+  contactProtocols: { name: 'First Contact Protocols', branch: 'life', tier: 16, req: ['exoplanetology', 'xenoarchaeology'], effect: {}, unlocks: 'Meeting alien civilisations', desc: 'What to say, what never to say, and who gets to speak for humanity. Written in a hurry.' },
+  xenolinguistics: { name: 'Xenolinguistics', branch: 'computing', tier: 17, req: ['contactProtocols'], effect: {}, unlocks: 'Deciphering alien languages, Xenology Institute', desc: 'Grammar without grammar, meaning without shared senses. AI linguists and a lot of patience.' },
+  xenodiplomacy: { name: 'Xenodiplomacy', branch: 'economy', tier: 18, req: ['xenolinguistics', 'interstellarTrade'], effect: {}, unlocks: 'Embassies and agreements', desc: 'Treaties with minds that do not share our instincts, our senses or our idea of a promise.' },
+  upliftEthics: { name: 'Uplift Ethics', branch: 'life', tier: 18, req: ['xenolinguistics', 'extremophiles'], effect: {}, unlocks: 'Uplifting minor species', desc: 'When, if ever, may an elder species accelerate a younger one? The debate ends with a protocol.' },
+  // ---- Part 6: conflict ----
+  navalWarfare: { name: 'Naval Warfare', branch: 'engineering', tier: 18, req: ['fusionDrive', 'ai'], effect: {}, unlocks: 'Corvettes, frigates, fleet operations', desc: 'We never wanted warships. The Swarm did not ask what we wanted.' },
+  planetaryDefence: { name: 'Planetary Defence', branch: 'engineering', tier: 19, req: ['navalWarfare'], effect: {}, unlocks: 'Defences and shields for every base and colony', desc: 'Laser batteries, missile silos and plasma shields over every world we hold.' },
+  guidedOrdnance: { name: 'Guided Ordnance', branch: 'rocketry', tier: 19, req: ['navalWarfare'], effect: {}, unlocks: 'Destroyers', desc: 'Missiles that think, swarm and pick out the biggest target.' },
+  capitalShips: { name: 'Capital Ships', branch: 'engineering', tier: 20, req: ['guidedOrdnance', 'planetaryDefence'], effect: {}, unlocks: 'Cruisers and battleships', desc: 'Kilometre-long hulls with layered armour and spinal weapons.' },
+  swarmTactics: { name: 'Swarm Tactics', branch: 'computing', tier: 20, req: ['planetaryDefence', 'xenolinguistics'], effect: {}, unlocks: '+25% damage against the Kr\'thul', desc: 'We studied how the Swarm thinks. Now we can think one move ahead of it.' },
+  carrierWarfare: { name: 'Carrier Warfare', branch: 'rocketry', tier: 21, req: ['capitalShips'], effect: {}, unlocks: 'Carriers', desc: 'Motherships launching clouds of autonomous missile drones.' },
 };
 // science 60·3.6^(T-1) and credits 200·3.2^(T-1) up to tier 8, then ×2 / ×1.9 per tier (tracks the empire's
 // income instead of exploding); clamped under the storage guaranteed at the tech's Mission Control gate
@@ -113,7 +125,9 @@ export const techCost = (t) => { if (t.cost) return t.cost; const T = t.tier, h 
 const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, deepSpace: 6, spaceStation: 6, heavy: 7, reusable: 7, closedLoop: 7, constellations: 7, lunarLanders: 8, spacePower: 8, isru: 9, he3Mining: 9, lowGravity: 9, lunarHabitats: 10, massDrivers: 10,
   planetaryProbes: 10, nuclearThermal: 10, orbitalShipyard: 10, marsDirect: 10, spaceAgriculture: 10, asteroidMining: 11, fusionPower: 11, aerostats: 11, colonyShips: 11, planetaryEngineering: 11,
   beltSettlement: 12, solarFurnace: 12, radiationShielding: 12, fusionDrive: 12, gasGiantScoops: 12, cometCapture: 12, magnetosphere: 12, xenobiology: 13, cryoHabitats: 13, hydrosphere: 13, spaceElevator: 13, extremophiles: 13, advancedFusion: 13, ecopoiesis: 14,
-  laserSails: 13, exoplanetology: 13, sleeperShips: 14, starColonies: 14, dysonSwarm: 14, casimirEffect: 15, ramjets: 15, domeWorlds: 15, xenoarchaeology: 15, interstellarTrade: 16, warpTheory: 16, warpDrive: 17, wormholeGates: 17 };
+  laserSails: 13, exoplanetology: 13, sleeperShips: 14, starColonies: 14, dysonSwarm: 14, casimirEffect: 15, ramjets: 15, domeWorlds: 15, xenoarchaeology: 15, interstellarTrade: 16, warpTheory: 16, warpDrive: 17, wormholeGates: 17,
+  contactProtocols: 16, xenolinguistics: 16, xenodiplomacy: 17, upliftEthics: 17,
+  navalWarfare: 17, planetaryDefence: 18, guidedOrdnance: 18, capitalShips: 18, swarmTactics: 19, carrierWarfare: 19 };
 for (const k in HQ_GATE) if (TECH[k]) TECH[k].hq = HQ_GATE[k];
 // tier 1 ≈ 1 min, 3 ≈ 1 h, 5 ≈ 12 h, 6 ≈ 1 day, 7 ≈ 2 days, 8 ≈ 4 days, 9+ a week or more (before speed bonuses)
 export const techTime = (t) => t.time || Math.round(ladder(3 + 3.6 * (t.tier - 1)));

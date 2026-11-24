@@ -1,0 +1,102 @@
+// STARWARD: contact and diplomacy. Species are discovered when their star is surveyed (or the relay gives them away),
+// met through a first-contact choice, understood by deciphering their language in stages, and dealt with through
+// gifts, embassies, agreements and requests. Relations drift towards each species' nature. Alien knowledge (xenotech)
+// is bought with xenodata. Minor species can be observed, uplifted or exploited, and the Veyari are watching.
+import { SPECIES, OPENINGS, UNDERSTAND, XENOTECH, REQUESTS, minorsFor, fauna } from '../data/aliens.js';
+import { STARS } from '../data/stars.js';
+import { canPay, pay, give, lvlOf } from './econ.js';
+import { uid } from './state.js';
+import { round2, ladder, clamp, hash } from '../util.js';
+import { ist, dist } from './stars.js';
+
+let ALL = null; export const allSpecies = () => ALL || (ALL = { ...SPECIES, ...minorsFor(STARS) });
+export const al = (s) => s.aliens || (s.aliens = { known: {}, xt: {}, ruins: 0, minors: {}, codex: [], seen: {} });
+export const known = (s, id) => al(s).known[id];
+// ---------------- discovery and first contact ----------------
+export function discovered(s, id) { const d = allSpecies()[id]; const I = ist(s);
+  if (id === 'hollow') return !!s.flags.relayFound; if (id === 'krthul') return !!s.flags.relayVisit;
+  if ((id === 'veyari' || id === 'lumen') && s.flags.relayVisit) return true; return !!(I.surveyed[d.star]); }
+export const pendingContacts = (s) => (s.tech.contactProtocols ? Object.keys(allSpecies()).filter((id) => !known(s, id) && discovered(s, id)) : []);
+export function meet(s, id, opening, t = Date.now()) {
+  const d = allSpecies()[id]; if (known(s, id)) return; const o = OPENINGS[opening] || OPENINGS.silence; const delta = o.d[id] !== undefined ? o.d[id] : d.minor ? (opening === 'strength' ? -30 : opening === 'silence' ? 10 : 15) : 0;
+  al(s).known[id] = { rel: clamp(d.base + delta, -100, 100), und: d.extinct ? 100 : 0, met: t, embassy: 0, deals: {}, opening, req: null, next: t + 6 * 3600e3, gift: 0 };
+  if (d.minor) al(s).minors[id] = 'observe';
+}
+// ---------------- understanding ----------------
+export const decipherCost = (s, id) => { const u = known(s, id).und; return { science: round2(2e7 * (1 + u / 25)), credits: round2(1e7 * (1 + u / 25)) }; };
+export const decipherTime = (s, id) => Math.round(ladder(19 + (known(s, id).und / 25) * 1.4) / (1 + lvlOf(s, 'earth', 'xenolab') * 0.05));
+export function canDecipher(s, id) { const k = known(s, id); if (!k) return { ok: false }; if (k.und >= 100) return { ok: false, why: 'Fully understood', done: true }; if (!s.tech.xenolinguistics) return { ok: false, why: 'Research Xenolinguistics', locked: true };
+  if (s.jobs.some((j) => j.kind === 'decipher' && j.sp === id)) return { ok: false, why: 'Linguists at work', busy: true }; const cost = decipherCost(s, id); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: decipherTime(s, id) }; }
+export function startDecipher(s, id, t = Date.now()) { const c = canDecipher(s, id); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'decipher', sp: id, start: t, end: t + c.time * 1000 }); return c; }
+// ---------------- relations ----------------
+export function target(s, id) { const d = allSpecies()[id], k = known(s, id), A = al(s); let v = d.base + (k.embassy || 0) * 4 + (k.deals.alliance ? 15 : 0) + (k.deals.pact ? 6 : 0);
+  if (id === 'krthul' && k.tribute) v += 45;
+  if (id === 'veyari') for (const m in A.minors) { if (A.minors[m] === 'exploit') v -= 30; if (A.minors[m] === 'uplift') v += 15; }
+  if (d.minor) v += A.minors[id] === 'exploit' ? -60 : A.minors[id] === 'uplift' ? 40 : 0; return clamp(v, -100, 100); }
+// relations drift towards the target (τ = 3 days; half as fast with Machine Diplomacy)
+export function drift(s, dt) { const A = s.aliens; if (!A) return; const tau = 3 * 86400 * (A.xt.machineDiplomacy ? 2 : 1); const k = 1 - Math.exp(-dt / tau); for (const id in A.known) { const K = A.known[id]; K.rel += (target(s, id) - K.rel) * k; } }
+export const giftSpec = (s, id, R) => { const r = allSpecies()[id].gifts || 'credits'; const n = round2(Math.max(5000, (R.prod[r] || 0) * 3)); return { r, n }; };
+export function gift(s, id, R, t = Date.now()) { const k = known(s, id); if (!k) return { ok: false }; if (t - (k.gift || 0) < 6 * 3600e3) return { ok: false, why: 'They are still digesting your last gift' }; const g = giftSpec(s, id, R); if ((s.res[g.r] || 0) < g.n) return { ok: false, why: 'Not enough ' + g.r };
+  s.res[g.r] -= g.n; k.gift = t; k.rel = clamp(k.rel + (id === 'lumen' ? 12 : 8), -100, 100); return { ok: true }; }
+// agreements: what each needs (understanding %, relation, influence to sign)
+export const DEALS = { trade: { name: 'Trade agreement', und: UNDERSTAND.trade, rel: 0, inf: 300 }, pact: { name: 'Research pact', und: UNDERSTAND.pact, rel: 30, inf: 1200 }, alliance: { name: 'Alliance', und: UNDERSTAND.alliance, rel: 70, inf: 5000 } };
+export function canDeal(s, id, kind) { const d = allSpecies()[id], k = known(s, id), D = DEALS[kind]; if (!k || d.extinct || d.hostile) return { ok: false, why: d.hostile ? 'They do not make deals' : '' }; if (k.deals[kind]) return { ok: false, why: 'Signed', done: true };
+  if (!s.tech.xenodiplomacy) return { ok: false, why: 'Research Xenodiplomacy', locked: true }; if (k.und < D.und) return { ok: false, why: `Needs ${D.und}% understanding`, locked: true }; if (k.rel < D.rel) return { ok: false, why: `Needs relations of ${D.rel}+`, locked: true };
+  if (kind === 'alliance' && !k.deals.pact) return { ok: false, why: 'Sign a research pact first', locked: true }; if ((s.res.influence || 0) < D.inf) return { ok: false, why: `Needs ${D.inf} influence`, cost: { influence: D.inf } }; return { ok: true }; }
+export function deal(s, id, kind) { const c = canDeal(s, id, kind); if (!c.ok) return c; s.res.influence -= DEALS[kind].inf; known(s, id).deals[kind] = 1; return { ok: true }; }
+export const dealActive = (s, id, kind) => { const k = known(s, id); return !!(k && k.deals[kind] && k.rel >= DEALS[kind].rel - 20); };
+// embassies (levels 1-5): influence, warmer relations
+export const embassyCost = (L) => ({ credits: round2(4e7 * Math.pow(1.7, L - 1)), metal: round2(2e7 * Math.pow(1.7, L - 1)) });
+export function canEmbassy(s, id) { const d = allSpecies()[id], k = known(s, id); if (!k || d.extinct || d.hostile) return { ok: false, why: 'Not possible' }; if (!s.tech.xenodiplomacy) return { ok: false, why: 'Research Xenodiplomacy', locked: true }; if (k.embassy >= 5) return { ok: false, why: 'Maximum level', done: true };
+  if (s.jobs.some((j) => j.kind === 'embassy' && j.sp === id)) return { ok: false, why: 'Under construction', busy: true }; const cost = embassyCost(k.embassy + 1); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(ladder(19 + k.embassy * 1.5)) }; }
+export function startEmbassy(s, id, t = Date.now()) { const c = canEmbassy(s, id); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'embassy', sp: id, start: t, end: t + c.time * 1000 }); return c; }
+// alien knowledge
+export function canXeno(s, x) { const X = XENOTECH[x], k = known(s, X.sp); if (al(s).xt[x]) return { ok: false, why: 'Learned', done: true }; if (!k) return { ok: false, why: 'Not met', locked: true };
+  if (X.sp === 'hollow') { const need = x === 'relicCores' ? 6 : 3; if (al(s).ruins < need) return { ok: false, why: `Excavate the ruins to level ${need}`, locked: true }; }
+  else { if (k.und < UNDERSTAND.knowledge) return { ok: false, why: `Needs ${UNDERSTAND.knowledge}% understanding`, locked: true }; if (k.rel < X.rel) return { ok: false, why: `Needs relations of ${X.rel}+`, locked: true }; }
+  if ((s.res.xeno || 0) < X.xeno) return { ok: false, why: `Needs ${X.xeno} xenodata`, cost: { xeno: X.xeno } }; return { ok: true }; }
+export function learnXeno(s, x) { const c = canXeno(s, x); if (!c.ok) return c; s.res.xeno -= XENOTECH[x].xeno; al(s).xt[x] = 1; if (x === 'precursorMaps') for (const id in STARS) if (id !== 'sol') ist(s).surveyed[id] = 1; return { ok: true }; }
+// minor species: observe (xenodata), uplift (a long project) or exploit (resources, at a moral price)
+export function setMinor(s, id, mode) { if (!known(s, id) || !allSpecies()[id].minor) return; if (mode === 'uplift') return; al(s).minors[id] = mode; }
+export const upliftCost = () => ({ credits: 1.2e8, science: 6e7, xeno: 4000 });
+export function canUplift(s, id) { if (!s.tech.upliftEthics) return { ok: false, why: 'Research Uplift Ethics', locked: true }; if (al(s).minors[id] === 'uplift') return { ok: false, why: 'Uplifted', done: true }; if (s.jobs.some((j) => j.kind === 'uplift' && j.sp === id)) return { ok: false, why: 'Under way', busy: true };
+  const cost = upliftCost(); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: 5 * 86400 }; }
+export function startUplift(s, id, t = Date.now()) { const c = canUplift(s, id); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'uplift', sp: id, start: t, end: t + c.time * 1000 }); return c; }
+// the Kr'thul: pay tribute (a share of credit income) to keep the Swarm calm
+export const tributeRate = (R) => Math.round(Math.max(0, R.prod.credits) * 0.06);
+export function setTribute(s, on) { const k = known(s, 'krthul'); if (k) { k.tribute = !!on; s.flags.krthulAnswered = 1; } }
+// the Hollow ruins at Epsilon Eridani
+export const digCost = (L) => ({ credits: round2(5e7 * Math.pow(1.5, L - 1)), science: round2(3e7 * Math.pow(1.5, L - 1)) });
+export function canDig(s) { if (!known(s, 'hollow')) return { ok: false, why: 'Find the ruins first' }; if (!s.tech.xenoarchaeology) return { ok: false, why: 'Research Xenoarchaeology', locked: true }; const L = al(s).ruins + 1; if (L > 10) return { ok: false, why: 'Fully excavated', done: true };
+  if (s.jobs.some((j) => j.kind === 'dig')) return { ok: false, why: 'The dig is under way', busy: true }; const cost = digCost(L); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(ladder(20 + L * 0.8)) }; }
+export function startDig(s, t = Date.now()) { const c = canDig(s); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'dig', lvl: al(s).ruins + 1, start: t, end: t + c.time * 1000 }); return c; }
+// ---------------- requests ----------------
+export function makeRequest(s, id, R, t) {
+  const d = allSpecies()[id], k = known(s, id); const n0 = (hash(id) + Object.keys(k).length + Math.floor(t / 86400e3)) >>> 0; let tpl = REQUESTS[n0 % REQUESTS.length];
+  if (tpl.res === 'exotic' && !(R.prod.exotic > 0)) tpl = REQUESTS[0];
+  const req = { k: tpl.k, until: t + 2 * 86400e3 };
+  if (tpl.k === 'give') { req.res = id === 'krthul' ? 'metal' : tpl.res; req.n = round2(Math.max(id === 'krthul' ? 5e6 : 1e6, (R.prod[req.res] || 0) * (id === 'krthul' ? 6 : tpl.hours))); req.text = `${d.name} ${id === 'krthul' ? 'demands' : tpl.text.split(' ')[0]} ${tpl.text.split(' ').slice(1).join(' ').replace('{n}', Math.round(req.n).toLocaleString('en-US'))}`; }
+  else if (tpl.k === 'survey') { const I = ist(s); const star = Object.keys(STARS).filter((x) => x !== 'sol' && !I.surveyed[x]).sort((a, b) => dist(a) - dist(b))[0]; if (!star) return makeRequest(s, id, R, t + 86400e3); req.star = star; req.text = `${d.name} ${tpl.text.replace('{star}', STARS[star].name)}`; }
+  else { const mx = Math.max(0, ...Object.values(ist(s).colonies).map((C) => C.lvl)); req.n = Math.min(15, mx + 1); req.text = `${d.name} ${tpl.text.replace('{n}', req.n)}`; }
+  k.req = req; return req;
+}
+export function reqDone(s, req) { if (req.k === 'give') return (s.res[req.res] || 0) >= req.n; if (req.k === 'survey') return !!ist(s).surveyed[req.star]; return Object.values(ist(s).colonies).some((C) => C.lvl >= req.n); }
+export function fulfil(s, id) { const k = known(s, id); const req = k && k.req; if (!req || !reqDone(s, req)) return { ok: false, why: 'Not yet' }; if (req.k === 'give') s.res[req.res] -= req.n;
+  const d = allSpecies()[id]; k.rel = clamp(k.rel + 15, -100, 100); const xeno = 400 * Math.max(1, d.tier); give(s, { xeno, influence: 150 }); k.req = null; k.next = Date.now() + 18 * 3600e3; al(s).seen.requests = (al(s).seen.requests || 0) + 1; return { ok: true, xeno }; }
+// once a second: issue and expire requests
+export function tickAliens(s, R, t = Date.now()) { const A = s.aliens; if (!A) return []; const out = [];
+  for (const id in A.known) { const k = A.known[id], d = allSpecies()[id]; if (d.extinct || (d.minor && A.minors[id] !== 'uplift' && d.tier < 3)) continue;
+    if (k.req && t > k.req.until) { k.rel = clamp(k.rel - 8, -100, 100); out.push({ kind: 'reqExpired', sp: id }); k.req = null; k.next = t + 12 * 3600e3; if (id === 'krthul') s.flags.krthulAngered = 1; }
+    if (!k.req && t > k.next && (id !== 'krthul' || !k.tribute)) { makeRequest(s, id, R, t); out.push({ kind: 'request', sp: id }); } }
+  return out; }
+// ---------------- completing jobs ----------------
+export function completeAliens(s, j) {
+  if (j.kind === 'decipher') { const k = known(s, j.sp); if (k) k.und = Math.min(100, k.und + 25); give(s, { xeno: 300 }); return { kind: 'decipher', sp: j.sp, und: k ? k.und : 0 }; }
+  if (j.kind === 'embassy') { const k = known(s, j.sp); if (k) k.embassy = Math.min(5, k.embassy + 1); return { kind: 'embassy', sp: j.sp, lvl: k ? k.embassy : 0 }; }
+  if (j.kind === 'uplift') { al(s).minors[j.sp] = 'uplift'; s.flags.uplifted = 1; give(s, { influence: 2000, xeno: 3000 }); return { kind: 'uplift', sp: j.sp }; }
+  if (j.kind === 'dig') { al(s).ruins = Math.max(al(s).ruins, j.lvl); give(s, { xeno: 1500 * j.lvl }); return { kind: 'dig', lvl: j.lvl }; }
+  return null;
+}
+// lower life on a newly settled world
+export function discoverLife(s, star, p) { const pl = STARS[star].planets[p]; if (pl.hab < 0.4) return null; const name = fauna(hash(star) + p * 31); al(s).codex.push({ name, world: pl.name }); give(s, { xeno: 600 }); return name; }
+export { SPECIES, OPENINGS, XENOTECH, DEALS as DEAL_INFO };

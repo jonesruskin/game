@@ -3,7 +3,7 @@
 
 A slow-and-steady space empire builder for web portals: Clash of Clans' tactile base building, OGame's patient asynchronous empire and a 4X's alien civilisations. Research, build and upgrade in real time (timers keep running while you're away). Launch rockets and satellites, settle the Moon and planets, terraform worlds, cross interstellar space, meet alien species (some friendly, some not) and spread across galaxies.
 
-> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-4 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar) are playable.**
+> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-5 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar, Contact) are playable.**
 
 - 🎮 **Play locally:** from the repo root run `python3 -m http.server 8080`, then open http://localhost:8080/starward/
 - 📦 **Build portal packages:** `node tools/build.mjs` (inside `starward/`) creates `dist/starward-{crazygames,poki,web}.zip`
@@ -49,6 +49,15 @@ A slow-and-steady space empire builder for web portals: Clash of Clans' tactile 
 - **13 new technologies** (new Interstellar branch, 85 in all) and Chapters 7-8 of the campaign.
 - Bot playtests: Part 4 runs from about day 175 to day 393 for an engaged player, and to about day 399 for a casual one.
 
+## Part 5: Contact (done)
+- **Seven civilisations, each anchored at a real star:** the **Veyari** (crystalline gardeners from the Large Magellanic Cloud, at Vega), the **Lumen Concord** (plasma traders at fast-spinning Altair), the **Synod of Iron** (machines in Fomalhaut's comet ring), the **Mycelar** (a fungal mind under Gliese 667 C's three suns), the **Oshoru** (a young ocean people on TRAPPIST-1 e), the **Kr'thul Swarm** (from the swallowed Gaia-Enceladus galaxy, at Kapteyn's Star) and **the Hollow** (extinct builders of the relay). Four procedural minor species live on other worlds.
+- **First contact** is a choice (prime numbers, music, a show of strength or silence), and each species reacts according to its nature.
+- **Xenolinguistics:** decipher each language in stages. Understanding unlocks trade (25%), research pacts (50%), alien knowledge (75%) and alliances (100%).
+- **Diplomacy:** relations from −100 to +100 that drift towards each species' nature, plus gifts, five-level embassies (influence), agreements that cost influence, and time-limited **requests** (deliveries, surveys, colony milestones).
+- **Xenotech:** eleven pieces of alien knowledge bought with xenodata, including +10% to all production, an extra research slot, photonic sails, doubled exotic matter, and star charts that reveal every system.
+- **Moral choices:** observe, exploit or uplift the minor species, and the Veyari remember what you did. Pay the **Kr'thul** tribute or refuse them (Part 6 is coming). Excavate the **Hollow ruins**, and log alien life on settled worlds in a codex.
+- **Procedural portraits** for every species, the Xenology Institute building, 4 new techs (89 in all) and Chapters 9-10.
+
 ## Balance
 `node tools/sim.mjs` runs a bot through the campaign on the real rules (see the header for engaged, casual and first-session modes). Pacing rules are in DESIGN.md §10.1.
 
@@ -71,4 +80,7 @@ src/render/system.js the Star Map (WebGL worlds + overlay)   src/ui/system.js  b
 src/data/stars.js   real nearby stars + planets, procedural neighbours, drives, specialisations, megastructures
 src/core/stars.js   light sails, starships, star colonies, development, megastructures, wormhole gates
 src/render/stars.js the 3D Neighbourhood (and the Milky Way zoom-out)   src/ui/stars.js  star panels, megastructures
+src/data/aliens.js  the civilisations, first-contact openings, xenotech, requests, minor species, fauna
+src/core/aliens.js  discovery, contact, deciphering, relations, deals, embassies, requests, uplift, ruins
+src/render/portraits.js procedural alien portraits      src/ui/contact.js  the Contact screen
 ```

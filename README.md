@@ -7,7 +7,7 @@
 | 🏎️ **Driftline** | One-thumb neon drift racer | [`driftline/`](driftline/) | `driftline/dist/driftline-*.zip` |
 | 🔥 **Emberkeep** | Idle merge tower defense, built for long-term retention | [`emberkeep/`](emberkeep/) | `emberkeep/dist/emberkeep-*.zip` |
 | 🎆 **Fuseworks** | **Flagship.** Fireworks chain-reaction roguelike: Sparks × Heat into the billions | [`fuseworks/`](fuseworks/) | `fuseworks/dist/fuseworks-*.zip` |
-| 🚀 **Starward** | **In development (Parts 1-4 of 8).** Space empire builder: from one launch pad to the universe; research, rockets, colonies, aliens | [`starward/`](starward/) | `starward/dist/starward-*.zip` |
+| 🚀 **Starward** | **In development (Parts 1-5 of 8).** Space empire builder: from one launch pad to the universe; research, rockets, colonies, aliens | [`starward/`](starward/) | `starward/dist/starward-*.zip` |
 | 💎 **Glint** | **Simulator.** Gem cutting + jewellery shop tycoon; every gem is ray-traced and priced by real light physics | [`glint/`](glint/) | `glint/dist/glint-*.zip` |
 
 Each game ships three zips: **crazygames** (CrazyGames SDK v3), **poki** (Poki SDK v2) and **web** (itch.io / own site). All games are tiny (75–175 KB) with zero image or audio files, use cosmetic-only monetization, and need $0 to build or host. **📤 Uploading:** follow [UPLOAD.md](UPLOAD.md). Each game also has a `store/` folder with covers, a Poki thumbnail, preview videos, screenshots and copy-paste listing text (`store/description.md`). [LAUNCH.md](LAUNCH.md) covers the money plan.

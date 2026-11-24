@@ -14,6 +14,8 @@ import { TW, TH } from '../render/iso.js';
 import { LaunchUI } from './launch.js';
 import { SystemUI } from './system.js';
 import { StarsUI } from './stars.js';
+import { ContactUI } from './contact.js';
+import * as AL from '../core/aliens.js';
 import * as SP from '../core/space.js';
 
 const THUMBS = {};
@@ -27,18 +29,18 @@ export const setHTML = (el, h) => { if (el.__h !== h) { el.__h = h; el.innerHTML
 const costHTML = (cost, s) => Object.entries(cost).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
 
 export class UI {
-  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); this.sys = new SystemUI(this); this.stars = new StarsUI(this); }
+  constructor(app) { this.app = app; this.tick = 0; this.sel = null; this.panelKey = ''; this.launch = new LaunchUI(this); this.sys = new SystemUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); }
   get s() { return this.app.s; }
   init() {
     $('#hud').innerHTML = `<div class="topbar"><div class="res" id="resBar"></div><div class="topr"><div class="chip dm" id="dmChip" title="Dark Matter">${icon('dm')}<b id="dmVal">0</b></div><button class="ibtn" data-a="settings" title="Settings">${icon('cog')}</button></div></div>
       <div class="side"><div class="crews" id="crews"></div><div class="colline" id="colline"></div><button class="rslot" id="rslot" data-a="research"></button><div class="obj" id="obj"></div></div>
-      <div class="basepick" id="basepick"></div><div class="maptog" id="maptog"><button data-a="maptog" data-m="sol">${icon('orbit', 'xs')} Solar System</button><button data-a="maptog" data-m="stars">${icon('star', 'xs')} Neighbourhood</button></div><nav class="nav"><button data-tab="bases" class="on" id="baseTab">${icon('earth')}<span>Earth</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="system" class="soon">${icon('map')}<span>Star Map</span></button></nav>`;
+      <div class="basepick" id="basepick"></div><div class="maptog" id="maptog"><button data-a="maptog" data-m="sol">${icon('orbit', 'xs')} Solar System</button><button data-a="maptog" data-m="stars">${icon('star', 'xs')} Neighbourhood</button></div><nav class="nav"><button data-tab="bases" class="on" id="baseTab">${icon('earth')}<span>Earth</span></button><button data-tab="orbit" class="soon">${icon('orbit')}<span>Orbit</span></button><button data-tab="launch" class="soon">${icon('rocket')}<span>Launch</span><em class="badge" id="bLaunch"></em></button><button data-tab="research">${icon('research')}<span>Research</span><em class="badge" id="bRes"></em></button><button data-tab="system" class="soon">${icon('map')}<span>Star Map</span></button><button data-tab="contact" class="gone">${icon('xeno')}<span>Contact</span><em class="badge" id="bCon"></em></button></nav>`;
     $('#hud').addEventListener('click', (e) => this.click(e)); $('#panel').addEventListener('click', (e) => this.click(e)); $('#overlay').addEventListener('click', (e) => this.click(e)); $('#modal').addEventListener('click', (e) => this.click(e));
     this.hud(true); this.side(true);
   }
   // ---------------- per frame ----------------
   frame(dt) { this.tick += dt; if (this.tick < 0.25) return; this.tick = 0; this.hud(); this.side(); if (this.app.scene === 'system') { if (this.app.mapMode === 'stars') this.stars.live(); else this.sys.live(); } else this.panelLive();
-    const mt = $('#maptog'); mt.classList.toggle('on', this.app.scene === 'system' && this.app.view === 'system'); $$('#maptog button').forEach((b) => b.classList.toggle('on', b.dataset.m === this.app.mapMode)); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); }
+    const mt = $('#maptog'); mt.classList.toggle('on', this.app.scene === 'system' && this.app.view === 'system'); $$('#maptog button').forEach((b) => b.classList.toggle('on', b.dataset.m === this.app.mapMode)); if (this.app.view === 'research') this.researchLive(); if (this.app.view === 'launch') this.launch.live(); if (this.app.view === 'contact') this.contact.live(); }
   // taps in the orbit view open the matching part of Launch Control
   // the base picker above the nav (Earth, the Moon and every colony)
   bases() { const s = this.s, el = $('#basepick'); if (el.classList.contains('on')) { el.className = 'basepick'; return; }
@@ -55,6 +57,8 @@ export class UI {
     $('#dmVal').textContent = fmt(s.res.dm || 0);
     const ready = Object.keys(TECH).filter((id) => G.canResearch(s, id).ok).length; const b = $('#bRes'); b.textContent = ready && G.slotsBusy(s) < G.slotsTotal(s, R.m) ? '!' : ''; b.style.display = b.textContent ? '' : 'none';
     const pad = SP.padLevel(s) > 0; $('.nav [data-tab=launch]').classList.toggle('soon', !pad && !s.tech.rocketry); $('.nav [data-tab=orbit]').classList.toggle('soon', !pad); $('.nav [data-tab=system]').classList.toggle('soon', !pad);
+    const cont = Object.keys(AL.allSpecies()).some((id) => AL.known(s, id) || AL.discovered(s, id)); $('.nav [data-tab=contact]').classList.toggle('gone', !cont);
+    const cb = $('#bCon'); const nreq = AL.pendingContacts(s).length + Object.values(AL.al(s).known).filter((k) => k.req && AL.reqDone(s, k.req)).length; cb.textContent = nreq ? nreq : ''; cb.style.display = nreq ? '' : 'none';
     const lb = $('#bLaunch'); const idle = pad && SP.launchesBusy(s) < SP.launchSlots(s) && Object.values(SP.sp(s).rockets).some((n) => n > 0); lb.textContent = idle ? '!' : ''; lb.style.display = idle ? '' : 'none';
   }
   side() {
@@ -69,7 +73,9 @@ export class UI {
     const st = G.currentStep(s); const o = $('#obj');
     if (!st) { setHTML(o, `<b class="ch">Programme complete</b><p>More chapters arrive with the next missions.</p>`); return; }
     const ch = CHAPTERS.find((c) => c.steps.includes(CHAPTERS.flatMap((x) => x.steps).find((x) => x.id === st.id))); const done = G.stepDone(s, st, R);
-    let prog = ''; if (st.kind === 'rate') prog = `<i class="pg">${fmt(R.prod[st.res])} / ${fmt(st.n)} per hour</i>`; if (st.kind === 'energy') prog = `<i class="pg">${fmt(R.gen - R.draw)} / ${st.n} spare</i>`; if (st.kind === 'pop' && s.bases[st.body]) prog = `<i class="pg">${Math.floor(s.bases[st.body].pop)} / ${st.n} colonists</i>`; if (st.kind === 'sites') prog = `<i class="pg">${Object.keys((s.solar && s.solar.sites) || {}).length} / ${st.n}</i>`; if (st.kind === 'terra') prog = `<i class="pg">stage ${(s.solar && s.solar.terra[st.body]) || 0} / ${st.n}</i>`;
+    let prog = ''; if ((st.kind === 'build' || st.kind === 'buildOn') && !done) { const bases = st.kind === 'buildOn' ? [st.base] : Object.keys(s.bases).filter((b) => BUILDINGS[st.b].bases.includes(b)); const has = bases.some((b) => s.bases[b] && Object.values(s.bases[b].lots).some((l) => l.b === st.b));
+      const room = bases.some((b) => s.bases[b] && LAYOUTS[b].lots.some((L) => G.lotOpen(s, b, L) && (L.special || null) === (BUILDINGS[st.b].lot || null) && !(s.bases[b].lots[L.id] && s.bases[b].lots[L.id].b))); if (!has && !room && bases.length) prog = `<i class="pg warn">No free lot: tap a building you have two of and demolish it to make room</i>`; }
+    if (st.kind === 'rate') prog = `<i class="pg">${fmt(R.prod[st.res])} / ${fmt(st.n)} per hour</i>`; if (st.kind === 'energy') prog = `<i class="pg">${fmt(R.gen - R.draw)} / ${st.n} spare</i>`; if (st.kind === 'pop' && s.bases[st.body]) prog = `<i class="pg">${Math.floor(s.bases[st.body].pop)} / ${st.n} colonists</i>`; if (st.kind === 'sites') prog = `<i class="pg">${Object.keys((s.solar && s.solar.sites) || {}).length} / ${st.n}</i>`; if (st.kind === 'terra') prog = `<i class="pg">stage ${(s.solar && s.solar.terra[st.body]) || 0} / ${st.n}</i>`;
     setHTML(o, `<b class="ch">${esc(ch ? ch.name : '')}</b><p>${icon('target', 'xs')} ${esc(st.text)}</p>${prog}<div class="rw">${Object.entries(st.reward).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('')}</div>${done ? `<button class="claim" data-a="claim">${icon('check', 'xs')} Claim reward</button>` : ''}`);
     o.classList.toggle('done', done);
   }
@@ -176,7 +182,7 @@ export class UI {
   click(e) {
     const t = e.target.closest('[data-a],[data-tab]'); if (!t) return; const A = this.app, s = this.s; A.audio.unlock();
     if (t.dataset.tab) { const v = t.dataset.tab; $('#basepick').className = 'basepick'; if (v === 'bases') { if (Object.keys(s.bases).length > 1 && (this.app.scene === 'earth' || this.app.scene === 'moon' || s.bases[this.app.scene])) { this.app.audio.play('tap'); this.bases(); return; } A.setView(Object.keys(s.bases).length > 1 ? A.base : 'earth'); return; } if (t.classList.contains('soon')) { this.toast(v === 'launch' ? 'Research Rocketry Fundamentals to open Launch Control' : v === 'orbit' ? 'Build the Launch Complex to watch your orbit fill up' : 'The Star Map opens with interplanetary travel (coming in a future update)', 'info'); return; } A.audio.play('tap'); A.setView(v); return; }
-    const a = t.dataset.a; if (this.launch.click(t)) return; if (this.sys.click(t)) return; if (this.stars.click(t)) return;
+    const a = t.dataset.a; if (this.contact.click(t)) return; if (this.launch.click(t)) return; if (this.sys.click(t)) return; if (this.stars.click(t)) return;
     if (a === 'deselect') { if (this.app.scene === 'system') { if (this.app.mapMode === 'stars') this.selectStar(null); else this.selectBody(null); } else this.select(null); }
     if (a === 'build') { const r = G.startBuild(s, A.base, this.sel, t.dataset.b); if (r.ok) { A.audio.play('build'); this.toast(`Construction started: ${BUILDINGS[t.dataset.b].name}`, 'good'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
     if (a === 'upgrade') { const r = G.startUpgrade(s, A.base, this.sel); if (r.ok) { A.audio.play('build'); A.changed(); } else this.toast(r.why, 'bad'); this.panelKey = ''; }
@@ -199,6 +205,6 @@ export class UI {
   closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; }
   settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label>
     <div class="set">Day / night<div class="chips">${[['auto', 'Local time'], ['day', 'Always day'], ['night', 'Always night']].map(([v, n]) => `<button class="chip2 ${st.dayNight === v ? 'on' : ''}" data-a="day" data-v="${v}">${n}</button>`).join('')}</div></div>
-    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.4 · Part 4 of the campaign: Interstellar.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
+    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.5 · Part 5 of the campaign: Contact.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
     $$('#modal [data-set]').forEach((el) => el.addEventListener('input', () => { st[el.dataset.set] = +el.value; this.app.applySettings(); })); }
 }
