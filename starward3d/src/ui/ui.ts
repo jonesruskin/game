@@ -11,7 +11,7 @@ import { CHAPTERS } from '../data/objectives';
 import type { App } from '../main';
 import { LaunchUI } from './launch';
 import { RobotsUI } from './robots';
-import { SolarUI } from './solar';
+import { SolarUI, worldIcon } from './solar';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
 const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
@@ -30,7 +30,7 @@ export class UI {
   // ---------------- HUD ----------------
   renderHud() {
     const s = this.s, R = this.R; const k = kardashev(s, R);
-    $('#hud').innerHTML = `<div class="kchip" data-a="kard" title="Kardashev scale"><div class="ring" id="kring"><b id="kval">${k.toFixed(2)}</b></div><div class="nm"><b>${esc(s.name)}</b><i id="ktitle">Kardashev ${k.toFixed(3)}</i></div></div>${Object.keys(s.bases).length > 1 ? `<button class="chip" data-a="bases" title="Your worlds">${s.at === 'earth' ? '🌍' : s.at === 'moon' ? '🌕' : s.at === 'mars' ? '🔴' : '🪐'} ${esc(s.bases[s.at].name)} ▾</button>` : ''}
+    $('#hud').innerHTML = `<div class="kchip" data-a="kard" title="Kardashev scale"><div class="ring" id="kring"><b id="kval">${k.toFixed(2)}</b></div><div class="nm"><b>${esc(s.name)}</b><i id="ktitle">Kardashev ${k.toFixed(3)}</i></div></div>${Object.keys(s.bases).length > 1 ? `<button class="chip" data-a="bases" title="Your worlds">${worldIcon(s.at)} ${esc(s.bases[s.at].name)} ▾</button>` : ''}
       ${HUD_RES.map((r) => `<div class="res" id="r-${r}" data-a="resinfo" data-r="${r}" style="--c:${RES[r].color}" title="${RES[r].name}"><span class="ic" style="color:${RES[r].color}">${RES[r].icon}</span><span class="v">0</span><span class="cap"><i></i></span></div>`).join('')}
       <div class="res" id="r-dm" data-a="resinfo" data-r="dm" title="Dark Matter"><span class="ic" style="color:${RES.dm.color}">${RES.dm.icon}</span><span class="v">0</span></div>
       <span class="sp"></span><span class="chip" id="energy" data-a="energy" title="Energy: generation / demand">⚡ <span>0</span></span><span class="chip" id="crews" title="Construction drones">🛸 <span>0/0</span></span><button class="ibtn" data-a="settings" title="Settings">⚙</button>`;
@@ -88,6 +88,7 @@ export class UI {
     if (job) { const c = G.dmCost((job.end - Date.now()) / 1000); h += `<div class="box"><div class="row"><b class="grow ox">${job.from === 0 ? 'Building' : `Upgrading to level ${job.to}`}</b><b data-left="${job.id}">${fmtTime((job.end - Date.now()) / 1000)}</b></div><div class="bar" style="margin:6px 0"><i data-bar="${job.id}" style="width:0%"></i></div><div class="row"><button class="btn gold small grow" data-a="finish" data-job="${job.id}" data-dm="${job.id}">${c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'}</button><button class="btn small" data-a="cancel" data-job="${job.id}">Cancel</button></div></div>`; }
     const x = this.R.item[it.id]; if (x && it.lvl > 0) h += `<div class="box"><div class="row"><span class="grow">${icon(x.r)} Stored here <b id="held" class="ox">${fmt(it.held || 0)} / ${fmt(x.hold)}</b></span><button class="btn green small" data-a="collect" data-id="${it.id}" ${(it.held || 0) >= 1 ? '' : 'disabled'}>Collect</button></div><div class="bar green" style="margin-top:6px"><i id="heldbar" style="width:${clamp((it.held || 0) / x.hold) * 100}%"></i></div><div class="muted" style="font-size:11px;margin-top:4px">Fills in ${holdHours(it.lvl).toFixed(1)} h. Come back and tap the bubble to collect.</div></div>`;
     if (it.b === 'hub') h += this.solar.colonyHTML(s.at);
+    if (it.b === 'terraformer') h += this.solar.terraHTML(s.at);
     h += this.statsHTML(it.b, Math.max(1, it.lvl), m, !job && it.lvl < d.max); h += this.robots.panelHTML(s.at, it.id);
     if (!job && it.lvl > 0) { const c = G.canUpgrade(s, s.at, it.id);
       if (c.max) h += '<p class="good ox">Maximum level reached.</p>';

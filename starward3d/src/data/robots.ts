@@ -7,7 +7,7 @@ export const AFFINITY: Record<string, string[]> = {
   mine: ['geo', 'kinetic'], regolith: ['geo', 'kinetic'], refinery: ['cryo', 'plasma'], ice: ['hydro', 'cryo'], methane: ['cryo', 'hydro'], he3x: ['geo', 'plasma'],
   office: ['neural', 'photon'], dome: ['bio', 'neural'], solar: ['solar', 'photon'], lsolar: ['solar', 'photon'], fission: ['plasma', 'volt'], fusion: ['plasma', 'volt'], reactor: ['plasma', 'volt'],
   depot: ['alloy', 'gravity'], launch: ['aero', 'gravity'], vab: ['alloy', 'gravity', 'kinetic'], tracking: ['photon', 'aero'], academy: ['neural', 'bio'],
-  greenhouse: ['bio', 'hydro'], terraformer: ['bio', 'aero'], beltControl: ['gravity', 'kinetic'], casimir: ['void', 'gravity'], antimatter: ['void', 'plasma'], elevator: ['gravity', 'alloy'], massDriver: ['kinetic', 'gravity'],
+  greenhouse: ['bio', 'hydro'], terraformer: ['bio', 'aero'], skimmer: ['aero', 'hydro'], resort: ['neural', 'photon'], beltControl: ['gravity', 'kinetic'], casimir: ['void', 'gravity'], antimatter: ['void', 'plasma'], elevator: ['gravity', 'alloy'], massDriver: ['kinetic', 'gravity'],
   workshop: ['alloy', 'kinetic'], cellplant: ['volt', 'solar'], fusionlab: ['neural', 'chrono'],
 };
 // what an operator does at each kind of building (shown in the panel)

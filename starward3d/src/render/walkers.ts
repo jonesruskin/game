@@ -19,6 +19,8 @@ export class Walkers {
     const c = new THREE.Color(); for (let i = 0; i < this.max; i++) { this.body.setColorAt(i, c.set(SHIRTS[i % SHIRTS.length])); this.head.setColorAt(i, c.set(SKIN[(i * 7) % SKIN.length])); }
     this.body.castShadow = true; this.body.count = 0; this.head.count = 0; this.group.add(this.body, this.head); scene.add(this.group);
   }
+  // airless worlds: white pressure suits and gold visors; once the sky is breathable, everyday clothes again
+  suits(on: boolean) { const c = new THREE.Color(); for (let i = 0; i < this.max; i++) { this.body.setColorAt(i, c.set(on ? (i % 5 ? '#eef0f3' : '#ff8a3c') : SHIRTS[i % SHIRTS.length])); this.head.setColorAt(i, c.set(on ? '#e8b84a' : SKIN[(i * 7) % SKIN.length])); } if (this.body.instanceColor) this.body.instanceColor.needsUpdate = true; if (this.head.instanceColor) this.head.instanceColor.needsUpdate = true; }
   // doors: the front edge of every finished building; people walk between them
   sync(s: State, base: string, robots: Robot[]) {
     const B = s.bases[base]; if (!B) return; this.doors = B.items.filter((i) => i.lvl > 0).map((i) => doorOf(i));

@@ -11,7 +11,8 @@ export interface BuildingDef {
   cost: Record<string, Curve>; time: TimeDef; prod?: Record<string, Curve>; cap?: Record<string, Curve>; gen?: Curve; draw?: Curve;
   speed?: number; house?: Curve; jobs?: Curve; grow?: Curve; collect?: boolean; fuelCut?: number; liftCut?: number; terra?: number; claims?: number;
 }
-const COL = ['moon', 'mars', 'ceres', 'titan'];
+const COL = ['moon', 'mars', 'ceres', 'titan', 'venus'];
+const GROUND = ['moon', 'mars', 'ceres', 'titan']; // colonies with ground to dig into (Venus floats)
 export const BUILDINGS: Record<string, BuildingDef> = {
   // ---------------- Earth ----------------
   hq: {
@@ -113,7 +114,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Robotic excavators scrape the soil; furnaces pull out iron, aluminium and titanium.',
   },
   ice: {
-    name: 'Ice Mine', fp: [3, 3], bases: COL, jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
+    name: 'Ice Mine', fp: [3, 3], bases: GROUND, jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
     cost: { credits: [22000, 1.74], metal: [16000, 1.74] }, time: [8.5, 1.95], prod: { fuel: [2200, 1.24] }, draw: [7, 1.14],
     desc: 'Buried ice, melted and split into hydrogen and oxygen. Water for the colonists, fuel made outside Earth\'s deep gravity well.',
   },
@@ -123,9 +124,9 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Roasts regolith to release helium-3, a fusion fuel almost absent on Earth.',
   },
   lsolar: {
-    name: 'Solar Array', fp: [3, 3], bases: ['moon', 'mars', 'ceres'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    name: 'Solar Array', fp: [3, 3], bases: ['moon', 'mars', 'ceres', 'venus'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
     cost: { credits: [12000, 1.72], metal: [14000, 1.72] }, time: [7.5, 1.95], gen: [45, 1.24],
-    desc: 'Ridge-top photovoltaic arrays. Superb on the Moon; weaker on Mars (43% of Earth\'s sunlight) and Ceres (13%).',
+    desc: 'Photovoltaic arrays. Superb on the Moon, best of all above the clouds of Venus (190% of Earth\'s sunlight); weaker on Mars (43%) and Ceres (13%).',
   },
   dome: {
     name: 'Habitat Dome', fp: [4, 4], bases: COL, house: [40, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'lunarHabitats' },
@@ -133,7 +134,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Homes under glass for colonists, and a garden the tourists pay well to see. Houses colonists.',
   },
   burrow: {
-    name: 'Underground Habitat', fp: [4, 4], bases: COL, house: [55, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'isru' },
+    name: 'Underground Habitat', fp: [4, 4], bases: GROUND, house: [55, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'isru' },
     cost: { credits: [30000, 1.77], metal: [25000, 1.77] }, time: [10.5, 1.95], draw: [5, 1.14],
     desc: 'Tunnels dug by your robots under metres of regolith: safe from radiation and meteorites, with room for more colonists than a dome. Needs a Geo or Kinetic robot to dig.',
   },
@@ -158,14 +159,24 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'A compact fission reactor buried in the regolith. Steady power through dust storms, long nights and Titan\'s gloom.',
   },
   terraformer: {
-    name: 'Atmosphere Processor', fp: [4, 4], bases: ['mars'], unique: true, max: 20, cat: 'science', req: { tech: 'planetaryEngineering' }, jobs: [12, 1.08],
+    name: 'Atmosphere Processor', fp: [4, 4], bases: ['mars', 'venus'], unique: true, max: 20, cat: 'science', req: { tech: 'planetaryEngineering' }, jobs: [12, 1.08],
     cost: { credits: [400000, 1.8], metal: [350000, 1.8] }, time: [13, 1.95], prod: { science: [3000, 1.24] }, draw: [30, 1.16], terra: 0.04,
-    desc: 'Cracks carbonates and vents greenhouse gases into the sky. Terraforming stages run 4% faster per level.',
+    desc: 'Mission control for changing a world: it vents greenhouse gases, steers the mirror and sunshade fleets and tracks every comet. Each terraforming stage needs one more level; stages run 4% faster per level.',
   },
   beltControl: {
     name: 'Mining Control', fp: [4, 4], bases: ['ceres'], unique: true, max: 20, cat: 'production', req: { tech: 'beltSettlement' }, jobs: [10, 1.08],
     cost: { credits: [500000, 1.8], metal: [300000, 1.8] }, time: [12, 1.95], prod: { rare: [10, 1.24] }, cap: { rare: [2000, 1.5] }, draw: [20, 1.15], claims: 0.05,
     desc: 'Traffic control for a thousand mining tugs. Every asteroid claim produces 5% more per level; refines rare elements.',
+  },
+  skimmer: {
+    name: 'Cloud Skimmer', fp: [3, 3], bases: ['venus'], jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
+    cost: { credits: [30000, 1.74], metal: [26000, 1.74] }, time: [8.5, 1.95], prod: { fuel: [3200, 1.24] }, draw: [9, 1.14],
+    desc: 'Long intakes dangle into the clouds below and haul up CO₂, nitrogen and sulphuric acid: fuel, and water cracked out of the acid for the colonists.',
+  },
+  resort: {
+    name: 'Sky Resort', fp: [4, 4], bases: ['venus'], unique: true, max: 20, cat: 'production', collect: true, req: { tech: 'aerostats' }, jobs: [10, 1.08],
+    cost: { credits: [120000, 1.78], metal: [90000, 1.78] }, time: [10, 1.95], prod: { credits: [7000, 1.24] }, draw: [14, 1.15],
+    desc: 'Glass promenades over an endless sea of cloud. The richest tourists in the Solar System pay a fortune to watch a Venusian sunrise.',
   },
   methane: {
     name: 'Hydrocarbon Refinery', fp: [3, 3], bases: ['titan'], max: 25, cat: 'production', count: [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], req: { tech: 'cryoHabitats' }, jobs: [8, 1.08], collect: true,

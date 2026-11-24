@@ -12,7 +12,7 @@ export const BODIES: Record<string, BodyDef> = {
   mercury: { name: 'Mercury', type: 'Planet', a: 0.387, P: 87.97, r: 2440, g: 0.38, day: '176 Earth days', temp: '−173 to 427 °C', atm: 'None (a thin exosphere)', zone: 'inner', travel: 6,
     fact: 'Its year is shorter than its day: 88 Earth days to circle the Sun, 176 from one noon to the next.', presence: 'outpost', world: 'mercury' },
   venus: { name: 'Venus', type: 'Planet', a: 0.723, P: 224.7, r: 6052, g: 0.9, day: '117 Earth days (spins backwards)', temp: '464 °C', atm: '92 bar CO₂, sulphuric-acid clouds', zone: 'inner', travel: 5,
-    fact: 'Hell on the ground, but 50 km up the pressure and temperature are almost Earth-like: the most hospitable place in the Solar System after Earth.', presence: 'outpost', world: 'venus' },
+    fact: 'Hell on the ground, but 50 km up the pressure and temperature are almost Earth-like: the most hospitable place in the Solar System after Earth.', presence: 'colony', world: 'venus', mult: { credits: 1.25 }, solar: 1.9 },
   earth: { name: 'Earth', type: 'Planet', a: 1, P: 365.25, r: 6371, g: 1, day: '24 hours', temp: '15 °C', atm: '1 bar N₂/O₂', zone: 'home', fact: 'Home. The only place we know of with life, so far.', world: 'earth' },
   moon: { name: 'The Moon', type: 'Moon', parent: 'earth', orbit: 384400, P: 27.3, r: 1737, g: 0.17, day: '29.5 Earth days', temp: '−173 to 127 °C', atm: 'None', zone: 'home', fact: 'Moving away from Earth by 3.8 cm a year.', world: 'moon' },
   mars: { name: 'Mars', type: 'Planet', a: 1.524, P: 687, r: 3390, g: 0.38, day: '24 h 37 min', temp: '−63 °C', atm: '0.006 bar CO₂', zone: 'inner', travel: 6,
@@ -62,7 +62,6 @@ export const PROBE_CLASS: Record<string, number> = { inner: 3, belt: 4, jovian: 
 // ---- what gets built where (outposts, gas-giant stations, mining claims). One entry per body. ----
 export const SITES: Record<string, SiteDef> = {
   mercury: { name: 'Helios Array', role: 'Kilometres of mirrors and panels in permanent daylight at the poles, beaming power home.', req: 'solarFurnace', gen: [500, 1.25], prod: { credits: [6000, 1.24] }, cost: { credits: [900000, 1.55], metal: [800000, 1.55], rare: [400, 1.5] } },
-  venus: { name: 'Cytherea Aerostat', role: 'A city of balloons floating 50 km up, where the air is breathable-pressure and 25 °C. Tourists pay a fortune.', req: 'aerostats', prod: { science: [3500, 1.24], credits: [9000, 1.24] }, cost: { credits: [700000, 1.55], metal: [500000, 1.55], fuel: [150000, 1.5] } },
   phobos: { name: 'Phobos Depot', role: 'A propellant depot in Martian orbit, refining Phobos dust into fuel. Mars voyages burn less.', req: 'marsDirect', prod: { fuel: [9000, 1.24] }, fuelCut: 0.04, cost: { credits: [500000, 1.55], metal: [400000, 1.55] } },
   vesta: { name: 'Vesta Mining Claim', role: 'Basalt and metal from a battered protoplanet.', req: 'asteroidMining', prod: { metal: [30000, 1.24], rare: [10, 1.24] }, cost: { credits: [600000, 1.55], metal: [300000, 1.55], fuel: [200000, 1.5] } },
   pallas: { name: 'Pallas Mining Claim', role: 'Hydrated minerals: water for fuel, metals for structures.', req: 'asteroidMining', prod: { fuel: [12000, 1.24], metal: [12000, 1.24] }, cost: { credits: [650000, 1.55], metal: [300000, 1.55], fuel: [220000, 1.5] } },
@@ -84,6 +83,10 @@ export const SITES: Record<string, SiteDef> = {
   pluto: { name: 'Tombaugh Station', role: 'Humanity\'s farthest outpost, on the shore of a nitrogen glacier. Beyond: the stars.', req: 'advancedFusion', prod: { science: [25000, 1.24], credits: [20000, 1.24] }, cost: { credits: [9000000, 1.55], metal: [6500000, 1.55], he3: [2000, 1.5] }, story: 'plutoEdge' },
 };
 export const SITE_MAX = 15;
+// ---- comms relays: a satellite network around any world you have settled or built on. Each level lifts everything
+// produced there (colony buildings, outposts, claims); you can see the satellites circling it on the map. ----
+export const RELAY = { name: 'Comms Relay Network', req: 'deepSpace', max: 10, bonus: 0.04, cost: { credits: [150000, 1.6], metal: [90000, 1.6], fuel: [45000, 1.5] } as Record<string, C>,
+  desc: 'Relay satellites in orbit: constant contact with Earth, live telemetry from every rover and claim, navigation for landers and storm warnings. Everything produced there +4% per level.' };
 
 // ---- the interplanetary fleet: reusable ships built at the Orbital Shipyard (a station module) ----
 export const SHIPS: Record<string, ShipDef> = {
@@ -104,5 +107,14 @@ export const TERRA: Record<string, TerraDef> = {
     { name: 'Liquid Oceans', req: 'hydrosphere', days: 5, cost: { credits: 20000000, metal: 8000000, he3: 4000 }, set: { temp: -2, pressure: 0.5, water: 25 }, house: 0.15, desc: 'For the first time in three billion years, rain falls on Mars and rivers find the old ocean beds.' },
     { name: 'Lichen and Algae', req: 'extremophiles', days: 4, cost: { credits: 16000000, science: 3000000, rare: 8000 }, set: { temp: 3, o2: 3, water: 28 }, house: 0.15, desc: 'Engineered lichens, mosses and algae spread from the equator. The red planet begins to turn green-grey.' },
     { name: 'Forests and Oxygen', req: 'ecopoiesis', days: 7, cost: { credits: 30000000, science: 5000000, he3: 8000, rare: 12000 }, set: { temp: 8, pressure: 0.7, o2: 14, water: 32 }, house: 0.4, desc: 'Pines and engineered grasses breathe out oxygen. Colonists walk outside with nothing but a breather mask.' },
+  ] },
+  // Venus: shade it, freeze out the CO₂, bring water, give it a day; the cloud city watches the world below change
+  venus: { start: { temp: 464, pressure: 92, water: 0, o2: 0 }, stages: [
+    { name: 'L1 Sunshade', req: 'planetaryEngineering', days: 3, cost: { credits: 8000000, metal: 7000000, rare: 3000 }, set: { temp: 300 }, house: 0.05, desc: 'A sunshade of thin film as wide as the planet hangs at the Sun–Venus L1 point. For the first time in a billion years, Venus cools.' },
+    { name: 'Carbon Snow', req: 'planetaryEngineering', days: 4, cost: { credits: 10000000, metal: 6000000, fuel: 4000000 }, set: { temp: 60, pressure: 30 }, house: 0.05, desc: 'In the shade the air chills until CO₂ snows out. Robot dozers bury the drifts under insulating rock before they can thaw.' },
+    { name: 'Hydrogen Rain', req: 'cometCapture', days: 5, cost: { credits: 14000000, fuel: 8000000, he3: 3000 }, set: { temp: 35, pressure: 8, water: 8 }, house: 0.1, desc: 'Hydrogen skimmed from Saturn burns with the leftover CO₂ into water. Rain falls on Venus and, at last, does not boil away.' },
+    { name: 'Soletta Mirrors', req: 'hydrosphere', days: 5, cost: { credits: 20000000, metal: 10000000, rare: 8000 }, set: { temp: 22, pressure: 3, water: 22 }, house: 0.15, desc: 'Orbiting mirrors give Venus the 24-hour day it never had. Oceans settle into the lowlands far below the city.' },
+    { name: 'Algal Skies', req: 'extremophiles', days: 4, cost: { credits: 16000000, science: 3000000, rare: 8000 }, set: { o2: 5, water: 24 }, house: 0.15, desc: 'Engineered algae bloom in the seas and in the cloud droplets themselves. The yellow haze turns white.' },
+    { name: 'Gardens of Venus', req: 'ecopoiesis', days: 7, cost: { credits: 32000000, science: 5000000, he3: 9000, rare: 14000 }, set: { temp: 20, pressure: 1.4, o2: 15, water: 26 }, house: 0.4, desc: 'Forests on the old highlands, a breathable sky, blue seas. The city lowers its balloons and people fly down to walk on Venus.' },
   ] },
 };

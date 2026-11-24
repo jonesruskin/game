@@ -94,3 +94,32 @@ export function rockGlobe(r: THREE.WebGLRenderer, R: number, sun: THREE.Vector3,
   return { group: g, mesh };
 }
 export const nebula = (r: THREE.WebGLRenderer, big: boolean) => tex(r, 3, big ? 1024 : 512, 2);
+// a world being terraformed, seen from space: its own surface (Mars's baked map, or Venus's hidden ground), seas that
+// fill the lowlands as water arrives, green that spreads from the equator, and clouds (Venus starts fully shrouded in
+// yellow; Mars gains white weather). Uniforms are driven by the terraforming state.
+const TERRA_FS = `uniform sampler2D uMap; uniform vec3 uSun, uCloudCol, uBase; uniform float uTime, uWater, uGreen, uCloud, uHasMap, uBands; varying vec3 vN; varying vec2 vUv;
+float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y), mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n3(p); p *= 2.03; a *= 0.5; } return s; }
+void main(){ float th = vUv.x * 6.2831853, ph = vUv.y * 3.1415926; vec3 p = vec3(cos(th) * sin(ph), cos(ph), sin(th) * sin(ph)); float lat = abs(p.y);
+  vec3 land = uHasMap > 0.5 ? texture2D(uMap, vUv).rgb : uBase * (0.7 + 0.6 * fbm(p * 4.0));
+  float hgt = fbm(p * 2.4 + 3.1); vec3 veg = mix(vec3(0.2, 0.4, 0.15), vec3(0.42, 0.5, 0.24), fbm(p * 7.0));
+  land = mix(land, veg, uGreen * smoothstep(0.95, 0.5, lat) * smoothstep(0.38, 0.58, fbm(p * 5.0 + 1.7)));
+  float lvl = 0.3 + uWater * 0.32; float sea = uWater > 0.001 ? 1.0 - smoothstep(lvl - 0.012, lvl + 0.012, hgt) : 0.0;
+  vec3 col = mix(land, mix(vec3(0.04, 0.16, 0.4), vec3(0.1, 0.33, 0.56), smoothstep(lvl - 0.14, lvl, hgt)), sea);
+  float cl = fbm(p * 3.0 + vec3(uTime * 0.02, 0.0, uTime * 0.013)); cl = mix(cl, 0.5 + 0.5 * sin(p.y * 16.0 + fbm(p * 2.5) * 5.0), uBands);
+  float cov = uCloud >= 0.99 ? 1.0 : smoothstep(1.0 - uCloud, 1.0 - uCloud + 0.16, cl); col = mix(col, uCloudCol * (0.82 + 0.3 * cl), cov);
+  float d = max(dot(normalize(vN), uSun), 0.0); gl_FragColor = vec4(col * (0.05 + d * 1.15), 1.0); }`;
+export function terraGlobe(r: THREE.WebGLRenderer, R: number, sun: THREE.Vector3, kind: 'mars' | 'venus'): Globe {
+  const mars = kind === 'mars'; const uniforms: Record<string, THREE.IUniform> = { uMap: { value: mars ? tex(r, 4, 1024, 5) : null }, uHasMap: { value: mars ? 1 : 0 }, uBase: { value: new THREE.Color('#a8784a') }, uSun: { value: sun }, uTime: { value: 0 },
+    uWater: { value: 0 }, uGreen: { value: 0 }, uCloud: { value: mars ? 0 : 1 }, uBands: { value: mars ? 0 : 0.55 }, uCloudCol: { value: new THREE.Color(mars ? '#ffffff' : '#ecc87a') } };
+  const g = new THREE.Group(); const mesh = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 32), new THREE.ShaderMaterial({ vertexShader: SIMPLE_VS, fragmentShader: TERRA_FS, uniforms })); g.add(mesh);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(R * 1.04, 48, 24), new THREE.ShaderMaterial({ vertexShader: SIMPLE_VS, fragmentShader: ATM_FS.replace('vec3(0.35,0.62,1.0)', 'uHalo').replace('uniform vec3 uSun;', 'uniform vec3 uSun; uniform vec3 uHalo; uniform float uHaloK;').replace('rim*lit*1.6, rim*lit)', 'rim*lit*1.6*uHaloK, rim*lit*uHaloK)'),
+    uniforms: { uSun: uniforms.uSun, uHalo: { value: new THREE.Color(mars ? '#ff9a6a' : '#ffd88a') }, uHaloK: { value: mars ? 0.35 : 0.9 } }, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  g.add(halo); uniforms.halo = { value: halo }; return { group: g, mesh, uniforms };
+}
+// drive a terraformed globe from the terraforming state (start: n = 0)
+export function setTerraGlobe(gl: Globe, kind: 'mars' | 'venus', T: Record<string, number> | null) { const u = gl.uniforms!; if (!T) return; const o2 = T.o2 || 0, w = T.water || 0, p = T.pressure || 0;
+  const halo = (u.halo.value as THREE.Mesh).material as THREE.ShaderMaterial;
+  if (kind === 'mars') { u.uWater.value = Math.min(1, w / 32) * 0.5; u.uGreen.value = Math.min(1, o2 / 14); u.uCloud.value = Math.min(0.42, p * 0.6); halo.uniforms.uHalo.value.set('#ff9a6a').lerp(new THREE.Color('#6aa8ff'), Math.min(1, p / 0.6)); halo.uniforms.uHaloK.value = 0.35 + Math.min(1, p / 0.6) * 0.6; }
+  else { const cool = 1 - THREE.MathUtils.smoothstep(T.temp ?? 464, 30, 464); u.uCloud.value = w > 8 ? 0.42 + (1 - Math.min(1, (w - 8) / 18)) * 0.3 : 1; u.uWater.value = Math.min(1, w / 26) * 0.62; u.uGreen.value = Math.min(1, o2 / 15); u.uBands.value = 0.55 * (1 - cool); (u.uCloudCol.value as THREE.Color).set('#ecc87a').lerp(new THREE.Color('#ffffff'), Math.min(1, cool + o2 / 5)); halo.uniforms.uHalo.value.set('#ffd88a').lerp(new THREE.Color('#8ec0ff'), Math.min(1, o2 / 15)); } }

@@ -13,6 +13,8 @@ import { OrbitView } from './orbit';
 import { SystemView } from './system';
 import { Walkers } from './walkers';
 import { rb } from '../core/robots';
+import { terraState, breathable, relayLevel } from '../core/solar';
+import { sp } from '../core/space';
 import { rocketModel, RocketModel } from './rocket';
 import type { Design } from '../data/rockets';
 import type { Space } from '../core/space';
@@ -49,8 +51,11 @@ export class World {
   closeOrbit() { this.mode = 'base'; }
   mapSel: string | null = null;
   // switch to a world (builds its environment)
-  setWorld(base: string, body: string) {
-    if (this.baseId === base) return; this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkKey = '';
+  // a base's scenery is rebuilt when you travel there or its terraforming moves on a stage
+  private worldKey = '';
+  setWorld(s: State, base: string) {
+    const body = s.bases[base].body, T = terraState(s, body); const key = `${base}:${T ? T.n : 0}`; if (this.worldKey === key) return; this.worldKey = key;
+    this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer, T); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkers.suits(body !== 'earth' && !breathable(T)); this.walkKey = '';
     for (const v of this.views.values()) this.scene.remove(v.root); this.views.clear(); for (const d of this.drones.values()) this.scene.remove(d.g); this.drones.clear();
     const L = this.env.look; this.scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar); this.sun.color.set(L.sun); this.sun.intensity = L.sunI; this.hemi.color.set(L.amb[0]); this.hemi.groundColor.set(L.amb[1]); this.hemi.intensity = L.amb[2]; this.area = { lo: -1, hi: -1 };
   }
@@ -105,6 +110,7 @@ export class World {
   // ---------------- sync with the save ----------------
   sync(s: State) {
     const B = s.bases[this.baseId]; if (!B) return; const A = G.area(s, this.baseId); if (A.lo !== this.area.lo || A.hi !== this.area.hi) { this.area = { lo: A.lo, hi: A.hi }; this.env.setArea(A.lo, A.hi); }
+    this.env.setSats(this.baseId === 'earth' ? (sp(s).sats || []).length : relayLevel(s, this.baseId) * 2);
     const lookKey = JSON.stringify(this.look); const seen = new Set<string>();
     for (const it of B.items) { seen.add(it.id); const job = G.jobOf(s, it.id); const key = `${it.b}|${it.lvl}|${it.r}|${job ? 1 : 0}|${lookKey}`; let v = this.views.get(it.id);
       if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it.id, it.b, it.lvl, it.r, !!job, key); this.views.set(it.id, v); }

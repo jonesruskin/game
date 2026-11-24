@@ -230,6 +230,59 @@ function reactor(L: number, look: Look): Model {
   k.box(0.06, 0.4, 0.06, '#f5c542', 1.2, 0.1, 1.2); k.box(0.3, 0.3, 0.02, '#f5c542', 1.2, 0.5, 1.2);
   return { group: k.build('reactor'), height: 1.4 };
 }
+// rising puffs (steam, vented gas): a few soft spheres that loop upward and fade
+function plume(color: string, n: number, h: number, size: number) { const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false });
+  for (let i = 0; i < n; i++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), m.clone()); p.userData.o = i / n; g.add(p); }
+  const step = (tt: number, on: boolean) => { g.visible = on; g.children.forEach((p) => { const f = (tt * 0.22 + (p.userData.o as number)) % 1; p.position.set(Math.sin(f * 6 + (p.userData.o as number) * 9) * 0.15, f * h, f * 0.4); p.scale.setScalar(0.5 + f * 1.4); ((p as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - f); }); };
+  return { g, step };
+}
+// Venus: intake booms that dangle into the clouds below, a compressor, acid-crackers and water tanks; the turbine spins
+function skimmer(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#d8d2c2');
+  k.cyl(0.55, 0.62, 0.6, 12, '#ece6d4', -0.55, 0.1, -0.5); k.cyl(0.57, 0.57, 0.06, 12, A, -0.55, 0.7, -0.5); k.sphere(0.55, '#f4efe2', -0.55, 0.72, -0.5, { theta: Math.PI / 2, w: 12 });
+  for (let i = 0; i < 2; i++) { k.cyl(0.24, 0.24, 0.8 + t * 0.08, 10, '#9fd3ff', 0.75, 0.1, -0.75 + i * 0.6, { glass: true }); k.cyl(0.26, 0.26, 0.05, 10, '#e9edf2', 0.75, 0.88 + t * 0.08, -0.75 + i * 0.6); }
+  k.box(1.6, 0.09, 0.09, '#c9ced5', 0.1, 0.55, 0.8); for (const x of [-0.6, 0.8]) k.cyl(0.07, 0.07, 0.55, 6, '#c9ced5', x, 0.1, 0.8); // pipe rack
+  const mh = 1.5 + t * 0.2; k.cyl(0.06, 0.09, mh, 6, '#dfe3e8', -1.0, 0.1, 0.75); k.box(0.3, 0.2, 0.3, A, -1.0, 0.1 + mh, 0.75);
+  const g = k.build('skimmer'); const rot = new THREE.Group(); const rk = new Kit(); for (let i = 0; i < 3; i++) rk.box(0.07, 0.02, 0.62, '#f6f8fb', 0, 0, 0.31, { ry: (i / 3) * Math.PI * 2 }); const rg = rk.build(); rg.rotation.x = Math.PI / 2; rot.add(rg); rot.position.set(-1.0, 0.25 + mh, 0.95); g.add(rot);
+  return { group: g, height: mh + 0.6, anim: (tt, s) => { rot.rotation.z = tt * (s.working ? 4 : 0.6); } };
+}
+// Venus: a glass pavilion on the city's edge, palm courts inside and a pleasure balloon tethered above
+function resort(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4, '#e6e0d0'); const R = 1.35 + t * 0.05;
+  k.cyl(R + 0.1, R + 0.15, 0.25, 20, '#f6f2e8', 0, 0.1, 0); k.cyl(R, R, 0.7 + t * 0.06, 20, '#9fd3ff', 0, 0.35, 0, { glass: true }); k.cyl(R + 0.08, R + 0.08, 0.1, 20, A, 0, 1.05 + t * 0.06, 0); k.add(new THREE.ConeGeometry(R + 0.1, 0.45, 20), '#fbf8f0', 0, 1.35 + t * 0.06, 0);
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.3; const x = Math.cos(a) * R * 0.55, z = Math.sin(a) * R * 0.55; k.cyl(0.03, 0.04, 0.45, 5, '#8a6a44', x, 0.35, z); k.sphere(0.2, '#4fcf5a', x, 0.85, z, { w: 7, h: 5 }); }
+  k.box(0.04, 0.04, 0.04, '#ffe7a8', 0, 0.5, 0, { glow: true }); k.cyl(0.25, 0.25, 0.05, 12, '#ffe7a8', 0, 0.36, 0, { glow: true });
+  const g = k.build('resort'); const bal = new THREE.Group(); const bk = new Kit(); bk.sphere(0.55, '#ffd36a', 0, 0, 0, { w: 14, h: 10 }); bk.sphere(0.56, '#ff8a5b', 0, 0, 0, { w: 14, h: 10, theta: 0.5 }); bk.box(0.22, 0.14, 0.22, '#8a6a44', 0, -0.85, 0); bk.cyl(0.006, 0.006, 0.4, 3, '#555', 0, -0.72, 0);
+  bal.add(bk.build()); bal.position.set(R * 0.7, 3.0, -R * 0.6); g.add(bal); const tether = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.6, 3), new THREE.MeshBasicMaterial({ color: '#cfd3d8' })); tether.position.set(R * 0.7, 1.4, -R * 0.6); g.add(tether);
+  return { group: g, height: 2.6, anim: (tt) => { bal.position.y = 3.0 + Math.sin(tt * 0.8) * 0.12; bal.rotation.y = tt * 0.2; } };
+}
+// changing a world: cracking towers venting greenhouse gas, a control block and a dish talking to the mirror fleets
+function terraformer(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4, REG);
+  k.box(2.0, 0.9, 1.3, P, -0.7, 0.1, 0.9); windows(k, 2.0, 1.3, 0.4, 0.2, -0.7, 0.9); k.box(2.05, 0.08, 1.35, A, -0.7, 1.0, 0.9);
+  const n = Math.min(3, 1 + Math.floor(t / 2)), sh = 2.2 + t * 0.3; for (let i = 0; i < n; i++) { const x = -1.2 + i * 0.85, z = -0.8; k.cyl(0.26, 0.38, sh, 10, '#d9dde2', x, 0.1, z); for (let y = 0.5; y < sh - 0.2; y += 0.6) k.cyl(0.3, 0.3, 0.05, 10, A, x, 0.1 + y, z); k.cyl(0.27, 0.27, 0.06, 10, '#ff8a3c', x, 0.1 + sh, z, { glow: true }); }
+  const g = k.build('terraformer'); const plumes = Array.from({ length: n }, (_, i) => { const p = plume('#f7e4c8', 5, 2.6, 0.32); p.g.position.set(-1.2 + i * 0.85, 0.2 + sh, -0.8); g.add(p.g); return p; });
+  const dish = new THREE.Group(); const dk = new Kit(); dk.add(new THREE.SphereGeometry(0.55, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3.2), '#f3f5f8', 0, 0, 0, { rx: Math.PI }); dk.cyl(0.08, 0.12, 0.6, 6, '#c9ced5', 0, -0.9, 0); const dg = dk.build(); dg.rotation.x = -0.9; dish.add(dg); dish.position.set(1.1, 1.0, 0.9); g.add(dish);
+  return { group: g, height: sh + 0.8, anim: (tt, s) => { plumes.forEach((p, i) => p.step(tt + i * 0.37, s.working)); dish.rotation.y = tt * 0.15; } };
+}
+// Ceres: the control tower for a thousand mining tugs, with a pad and a tug resting on it
+function beltControl(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4, REG); const th = 1.8 + t * 0.25;
+  k.cyl(0.42, 0.55, th, 10, P, -0.9, 0.1, -0.9); k.cyl(0.75, 0.6, 0.45, 10, '#d9dde2', -0.9, 0.1 + th, -0.9); k.cyl(0.76, 0.76, 0.14, 10, WIN, -0.9, 0.22 + th, -0.9, { glow: true }); k.cyl(0.78, 0.78, 0.05, 10, A, -0.9, 0.55 + th, -0.9);
+  k.cyl(1.0, 1.0, 0.06, 16, '#6a6e76', 0.7, 0.1, 0.7); k.add(new THREE.RingGeometry(0.75, 0.85, 16), '#f5c542', 0.7, 0.17, 0.7, { rx: -Math.PI / 2 }); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.78; k.box(0.08, 0.05, 0.08, '#ff5a6a', 0.7 + Math.cos(a) * 1.0, 0.16, 0.7 + Math.sin(a) * 1.0, { glow: true }); }
+  k.box(0.8, 0.32, 0.5, '#eef0f3', 0.7, 0.2, 0.7); k.box(0.3, 0.2, 0.52, '#3b4350', 1.0, 0.36, 0.7); for (const s of [-1, 1]) k.box(0.1, 0.18, 0.62, '#9aa3ad', 0.45 + s * 0.3, 0.12, 0.7);
+  const g = k.build('beltControl'); const radar = new THREE.Group(); const rk = new Kit(); rk.box(0.9, 0.22, 0.05, '#f3f5f8', 0, 0, 0); rk.cyl(0.03, 0.03, 0.3, 5, STEEL, 0, -0.3, 0); radar.add(rk.build()); radar.position.set(-0.9, 0.95 + th, -0.9); g.add(radar);
+  return { group: g, height: th + 1.2, anim: (tt) => { radar.rotation.y = tt * 1.4; } };
+}
+// Titan: spherical methane tanks, a pump house, pipework and a flare that burns off the excess
+function methane(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#8a7a66');
+  for (let i = 0; i < Math.min(3, 1 + Math.floor(t / 2)); i++) { const x = -0.75 + i * 0.75, z = -0.6; k.sphere(0.38, '#eceef1', x, 0.62, z, { w: 14, h: 10 }); for (const s of [-1, 1]) k.cyl(0.03, 0.03, 0.42, 4, STEEL, x + s * 0.25, 0.1, z); }
+  k.box(1.1, 0.5, 0.7, '#c9cdd3', -0.4, 0.1, 0.65); k.box(1.12, 0.05, 0.72, A, -0.4, 0.6, 0.65); k.box(0.09, 0.09, 1.5, '#9aa3ad', 0.65, 0.3, 0.1);
+  const fh = 1.6 + t * 0.15; k.cyl(0.05, 0.07, fh, 6, '#b8bec6', 1.05, 0.1, 0.8); const g = k.build('methane');
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 7), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, toneMapped: false })); flame.position.set(1.05, 0.3 + fh, 0.8); g.add(flame);
+  return { group: g, height: fh + 0.6, anim: (tt, s) => { flame.visible = s.working; flame.scale.set(1, 0.8 + Math.sin(tt * 11) * 0.25 + Math.sin(tt * 6.1) * 0.15, 1); } };
+}
 function massDriver(L: number, look: Look): Model {
   const k = new Kit(), t = tierOf(L); pad(k, 2, 7, REG); for (let i = 0; i < 7; i++) { const z = -3 + i; const h = 0.3 + i * 0.14; k.box(0.12, h, 0.12, '#9aa3ad', -0.5, 0.1, z); k.box(0.12, h, 0.12, '#9aa3ad', 0.5, 0.1, z); k.box(1.1, 0.06, 0.12, '#9aa3ad', 0, 0.1 + h, z); }
   k.box(0.5, 0.08, 7, '#3b4350', 0, 0.42, 0, { rx: -0.14 }); for (let i = 0; i < 7; i++) k.box(0.7, 0.05, 0.08, '#7fe4ff', 0, 0.48 + i * 0.14, -3 + i, { glow: true }); k.box(0.9, 0.5, 0.8, '#d9dde2', 0, 0.1, -3.1);
@@ -250,6 +303,7 @@ export function buildModel(b: string, L: number, look: Look): Model {
     case 'launch': return launch(L, look); case 'vab': return vab(L, look); case 'tracking': return tracking(L, look); case 'academy': return academy(L, look);
     case 'workshop': return workshop(L, look); case 'dock': return dock(L, look); case 'cellplant': return cellplant(L, look); case 'fusionlab': return fusionlab(L, look);
     case 'hub': return hub(L, look); case 'regolith': return regolith(L, look); case 'ice': return ice(L, look); case 'he3x': return he3x(L, look); case 'lsolar': return lsolar(L); case 'dome': return dome(L, look); case 'burrow': return burrow(L, look);
+    case 'skimmer': return skimmer(L, look); case 'resort': return resort(L, look); case 'terraformer': return terraformer(L, look); case 'beltControl': return beltControl(L, look); case 'methane': return methane(L, look);
     case 'llab': return llab(L, look); case 'greenhouse': return greenhouse(L, look); case 'reactor': return reactor(L, look); case 'massDriver': return massDriver(L, look); case 'fusion': return fusionPlant(L, look);
   }
   return generic(b, look);

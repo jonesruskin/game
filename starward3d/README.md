@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 in development, Parts 1-4 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
+> **Status: v2 in development, Parts 1-5 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
 
 ## Run it
 ```bash
@@ -61,13 +61,23 @@ People leave Earth. Every colony is a real base on the ground of its world, unde
 - **Fleet & shipyard:** Hermes (nuclear-thermal), Ares (80 colonists), Daedalus (fusion torch) and Odyssey (antimatter-catalysed) are built at the Orbital Shipyard station module; voyages found colonies, build outposts and carry colonists.
 - **Your worlds:** a world switcher in the HUD and a Worlds list to travel between Earth, the Moon and Mars; each base keeps its own layout, buildings and people.
 
+## Part 5: Terraforming & the Solar System (done)
+Worlds change in front of you, and every world looks and plays like itself.
+- **Terraforming Mars in seven stages** (Orbital Mirrors, Greenhouse Factories, Comet Bombardment, Magnetic Shield, Liquid Oceans, Lichen and Algae, Forests and Oxygen), each a multi-day project run from the **Atmosphere Processor** (each stage needs one more level of it; it runs stages 4% faster per level). The panel shows the stage track and the climate now and after the next stage (temperature, pressure, water, oxygen).
+- **You can see it happen:** the ground darkens with damp and real ponds appear beyond the colony, a sea fills the lowlands on the horizon, the sky turns from butterscotch to blue and clouds form, lichen turns the plains olive, then grass and young forests spread. From space the Mars globe gains seas, green and weather.
+- **People move outdoors:** colonists wear pressure suits on airless worlds; once the sky is breathable they walk around in everyday clothes, and air stops limiting the colony. Each stage also raises housing.
+- **Cytherea, the cloud city of Venus** (Aerostat Habitats): a deck on strapped lifting envelopes 50 km up, a promenade of planters and lamps, distant aerostats and two layers of yellow cloud far below. Sunlight 190% (superb solar), +25% credits from tourism, **Cloud Skimmers** (fuel and water from the clouds) and the **Sky Resort**. **Six terraforming stages** (L1 Sunshade, Carbon Snow, Hydrogen Rain, Soletta Mirrors, Algal Skies, Gardens of Venus): the clouds pale, part over new blue oceans, then turn white.
+- **Ceres (Occator Station)** with dark rock, bright salt, a horizon that drops away and the asteroid belt strung across a black sky; **Titan (Kraken Shore)** with orange haze, a methane shore, drainage channels and Saturn a ghost through the smog. New models for Mining Control, the Hydrocarbon Refinery, the Atmosphere Processor, Cloud Skimmer and Sky Resort.
+- **Comms relays around every world** you settle or build on (Deep Space Navigation): each level adds 4% to everything produced there, colonies and outposts alike; the satellites circle the world on the map and cross the colony's sky (Cape Horizon's sky shows your Earth satellites).
+- The map shows each terraformed world's current climate; Venus moved from an outpost to a colony; new chapter steps for Cytherea and relays.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback, save
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), robots.ts (cores, docks, operators, fusion, Botdex), solar.ts (orbits, launch windows, colonies, life support, ships, voyages, outposts), util.ts
+src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), robots.ts (cores, docks, operators, fusion, Botdex), solar.ts (orbits, launch windows, colonies, life support, ships, voyages, outposts, terraforming, relays), util.ts
 src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters), rockets (parts, presets), space (orbits, satellites, modules, missions), robots (affinities, boosts, recipes), solar (bodies, outposts, ships, terraforming), species, elements, rarities
-src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain per world, sea, sky, clouds, flora, close-up ground detail), models.ts (Earth and colony buildings), system.ts (the Solar System map), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders), walkers.ts (people and robots), botmodels.ts (robot models), kit.ts, studio.ts
-src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), robots.ts (crew, Workshop, Fusion, Botdex, operators), solar.ts (map panels, fleet, colony panel, worlds), style.css, fonts
+src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain per world, Venus deck and cloud sea, terraforming looks, sea, ponds, sky, clouds, flora, satellites, close-up ground detail), models.ts (Earth and colony buildings), system.ts (the Solar System map), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders, terraforming globes), walkers.ts (people and robots), botmodels.ts (robot models), kit.ts, studio.ts
+src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), robots.ts (crew, Workshop, Fusion, Botdex, operators), solar.ts (map panels, fleet, colony panel, terraforming, relays, worlds), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

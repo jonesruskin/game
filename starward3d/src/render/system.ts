@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { BODIES, BODY_ORDER } from '../data/solar';
 import { angleOf, moonAngle } from '../core/solar';
-import { earthGlobe, rockGlobe, starfield, sunSprite, nebula, Globe } from './planet';
+import { earthGlobe, rockGlobe, terraGlobe, setTerraGlobe, starfield, sunSprite, nebula, Globe } from './planet';
 import { clamp, hash, rng } from '../core/util';
 const PAL: Record<string, string> = { mercury: '#9b8f84', venus: '#e8c98a', jupiter: '#d8b48a', saturn: '#e6d29a', uranus: '#9fe0e6', neptune: '#4f78e0', pluto: '#c9b49a', io: '#e8d25a', europa: '#e6dccb', ganymede: '#a89a8a', callisto: '#6e6258', titan: '#d9a24a', enceladus: '#f4f6f8', titania: '#b8b0a8', triton: '#d8c8c0', phobos: '#7a6a60', ceres: '#8a8680', vesta: '#a09a90', pallas: '#8f8a84', psyche: '#a8a39a', hygiea: '#5e5a56', eros: '#9a8a70', bennu: '#5a5450' };
 export const distOf = (a: number) => 18 * Math.sqrt(a);
@@ -23,7 +23,8 @@ export class SystemView {
     const sunDirFrom = (p: THREE.Vector3) => p.clone().negate().normalize();
     for (const id of BODY_ORDER) { const b = BODIES[id]; if (!b) continue; const isMoon = !!b.parent; const size = isMoon ? Math.max(0.18, sizeOf(b.r) * 0.55) : sizeOf(b.r); let g: THREE.Object3D, mesh: THREE.Mesh, globe: Globe | undefined;
       if (id === 'earth') { globe = earthGlobe(renderer, size, new THREE.Vector3(1, 0, 0), big); g = globe.group; mesh = globe.mesh; }
-      else if (id === 'mars' || id === 'moon') { globe = rockGlobe(renderer, size, new THREE.Vector3(1, 0, 0), id === 'mars' ? 4 : 2, id === 'mars' ? 5 : 4, id === 'mars' ? 'vec3(0.95,0.6,0.42)' : undefined); g = globe.group; mesh = globe.mesh; }
+      else if (id === 'mars' || id === 'venus') { globe = terraGlobe(renderer, size, new THREE.Vector3(1, 0, 0), id); g = globe.group; mesh = globe.mesh; }
+      else if (id === 'moon') { globe = rockGlobe(renderer, size, new THREE.Vector3(1, 0, 0), 2, 4); g = globe.group; mesh = globe.mesh; }
       else { mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 24, 12), new THREE.MeshStandardMaterial({ color: PAL[id] || '#999', roughness: 0.9, map: b.type === 'Gas giant' ? bandTex(PAL[id] || '#ccc', hash(id)) : null })); g = mesh;
         if (b.rings) { const ring = new THREE.Mesh(new THREE.RingGeometry(size * 1.35, size * 2.3, 48), new THREE.MeshBasicMaterial({ color: '#e8d8b0', side: THREE.DoubleSide, transparent: true, opacity: 0.55 })); ring.rotation.x = Math.PI / 2.4; (g as THREE.Mesh).add(ring); } }
       mesh.userData.body = id; this.scene.add(g); this.bodies.set(id, { g, mesh, size, globe });
@@ -43,6 +44,13 @@ export class SystemView {
     const hit = ray.intersectObjects(meshes, false)[0]; if (hit) return hit.object.userData.body as string;
     // generous picking for small worlds: the nearest body to the ray within a few pixels
     let best = '', bd = 1e9; for (const [id, b] of this.bodies) { const p = b.g.position.clone().project(this.camera); const dx = ((p.x + 1) / 2) * w - x, dy = ((1 - p.y) / 2) * h - y; const d = Math.hypot(dx, dy); if (d < 22 && d < bd && p.z < 1) { bd = d; best = id; } } return best || null; }
+  // terraforming shows from space: seas, green, clouds and a bluer halo, stage by stage
+  setTerra(id: 'mars' | 'venus', T: Record<string, number> | null) { const b = this.bodies.get(id); if (b && b.globe) setTerraGlobe(b.globe, id, T); }
+  // comms relays: tiny satellites circling every world that has them (one per level, up to eight)
+  private relays = new THREE.Group(); private relayKey = '';
+  setRelays(map: Record<string, number>) { const key = JSON.stringify(map); if (key === this.relayKey) return; this.relayKey = key; this.relays.clear(); if (!this.relays.parent) this.scene.add(this.relays);
+    const mat = new THREE.MeshBasicMaterial({ color: '#9ff3ff', toneMapped: false }); for (const id in map) { const b = this.bodies.get(id); if (!b) continue; const n = Math.min(8, map[id]);
+      for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.07 + b.size * 0.03, 0), mat); m.userData = { id, r: b.size * (1.6 + (i % 3) * 0.25), a: (i / n) * Math.PI * 2, tilt: (i % 4) * 0.5 - 0.6, s: 0.6 + (i % 3) * 0.25 }; this.relays.add(m); } } }
   // ships in flight: a glowing dot that moves from Earth to its target as the voyage goes
   setFlights(list: { body: string; f: number; col: string }[]) { this.ships.clear(); for (const fl of list) { const a = this.posOf('earth'), b = this.posOf(fl.body); const mid = a.clone().lerp(b, 0.5); mid.y += a.distanceTo(b) * 0.18; const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(32)), new THREE.LineBasicMaterial({ color: fl.col, transparent: true, opacity: 0.45 })); this.ships.add(line);
@@ -50,6 +58,7 @@ export class SystemView {
   frame(dt: number, sel: string | null) {
     this.t += dt; const now = Date.now();
     for (const [id, b] of this.bodies) { const p = this.posOf(id, now); b.g.position.copy(p); b.mesh.rotation.y = this.t * 0.2; const sd = p.clone().negate().normalize().multiplyScalar(0.55).add(this.camera.position.clone().sub(p).normalize().multiplyScalar(0.8)).normalize(); if (b.globe && b.globe.uniforms) { b.globe.uniforms.uSun.value = sd; b.globe.uniforms.uTime.value = this.t; } else if (b.globe) { const u = (b.globe.mesh.material as THREE.ShaderMaterial).uniforms; if (u && u.uSun) u.uSun.value = sd; } }
+    for (const m of this.relays.children) { const d = m.userData; const c = this.bodies.get(d.id)!.g.position; const a = d.a + this.t * d.s; m.position.set(c.x + Math.cos(a) * d.r, c.y + Math.sin(a) * d.r * Math.sin(d.tilt), c.z + Math.sin(a) * d.r * Math.cos(d.tilt)); m.rotation.y = this.t; }
     if (this.focus) { const p = this.posOf(this.focus, now); this.cam.tfx = p.x; this.cam.tfz = p.z; }
     this.head.position.copy(this.camera.position); this.head.target.position.set(this.cam.fx, 0, this.cam.fz);
     if (sel && this.bodies.has(sel)) { const b = this.bodies.get(sel)!; this.sel.visible = true; this.sel.position.copy(b.g.position); this.sel.scale.setScalar(b.size * 1.75); this.sel.lookAt(this.camera.position); } else this.sel.visible = false;
