@@ -1,5 +1,6 @@
 // STARWARD: the Beyond screen. A map of the Local Group (real distances), the relay network and expeditions,
 // Ascension and its perks, achievements, and a codex of everything discovered.
+import { fundSig } from '../core/fund.js';
 import { icon } from './icons.js';
 import { fmt, fmtTime, esc, $, $$ } from '../util.js';
 import { RES } from '../data/resources.js';
@@ -11,7 +12,8 @@ import * as AL from '../core/aliens.js';
 import { ist } from '../core/stars.js';
 import { sol } from '../core/solar.js';
 
-const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
+import { costTags, fundHTML, fundClick } from './fund.js';
+const cost = costTags;
 export class BeyondUI {
   constructor(ui) { this.ui = ui; this.tab = 'group'; }
   get app() { return this.ui.app; } get s() { return this.app.s; }
@@ -26,11 +28,11 @@ export class BeyondUI {
   group() {
     const s = this.s, B = BY.bey(s); const rc = BY.canRelay(s); const rj = s.jobs.find((j) => j.kind === 'relay'); const ej = s.jobs.find((j) => j.kind === 'expedition');
     let h = `<canvas id="lgMap" class="lgmap"></canvas><div class="lcard"><div class="lc-h"><b>${icon('orbit', 'xs')} ${esc(BY.RELAY.name)} · stage ${B.relay}/${BY.RELAY.stages}</b></div><p class="desc">The Hollow built relays on the paths between galaxies. Each stage we wake reaches one galaxy further.</p>`;
-    h += !s.tech.relayNetwork ? `<p class="why">${icon('lock', 'xs')} Research ${esc(TECH.relayNetwork.name)}</p>` : rj ? `<p>Waking stage ${rj.stage + 1} · <b data-left="${rj.id}"></b></p>` : B.relay < BY.RELAY.stages ? `<div class="costs">${cost(BY.relayCost(B.relay), s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(rc.time || BY.RELAY.days * 86400)}</span></div><button class="btn gold small" data-a="relay" ${rc.ok ? '' : 'disabled'}>${icon('up', 'xs')} Wake stage ${B.relay + 1}</button>` : '';
+    h += !s.tech.relayNetwork ? `<p class="why">${icon('lock', 'xs')} Research ${esc(TECH.relayNetwork.name)}</p>` : rj ? `<p>Waking stage ${rj.stage + 1} · <b data-left="${rj.id}"></b></p>` : B.relay < BY.RELAY.stages ? `${fundHTML(s, 'relay', BY.relayCost(B.relay))}<div class="costs"><span class="cost time">${icon('clock', 'xs')}${fmtTime(rc.time || BY.RELAY.days * 86400)}</span></div><button class="btn gold small" data-a="relay" ${rc.ok ? '' : 'disabled'}>${icon('up', 'xs')} Wake stage ${B.relay + 1}</button>` : '';
     h += `</div><h3 class="orb">Expeditions</h3><div class="lc-grid">`;
     for (const id of BY.GALAXY_ORDER) { const G = BY.GALAXIES[id], E = BY.EXPEDITIONS[id]; const c = BY.canExpedition(s, id); const done = B.visited[id];
       h += `<div class="lcard ${done ? 'done' : BY.expOpen(s, id) ? '' : 'locked'}"><div class="lc-h"><b>${esc(G.name)}</b><i>${fmt(G.d)} ly</i></div><p class="muted small">${esc(G.fact)}</p><p><b>${esc(E.name)}</b>: ${esc(done ? E.story : 'Gift: ' + E.perkText)}</p>`;
-      h += done ? `<p class="cur">${icon('check', 'xs')} ${esc(E.perkText)}</p>` : ej && ej.gal === id ? `<p>Under way · <b data-left="${ej.id}"></b></p>` : `<div class="costs">${cost(E.cost, s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(E.days * 86400)}</span></div>${c.ok ? '' : `<p class="why small">${esc(c.why)}</p>`}<button class="btn gold small" data-a="expedition" data-g="${id}" ${c.ok ? '' : 'disabled'}>${icon('rocket', 'xs')} Launch the expedition</button>`;
+      h += done ? `<p class="cur">${icon('check', 'xs')} ${esc(E.perkText)}</p>` : ej && ej.gal === id ? `<p>Under way · <b data-left="${ej.id}"></b></p>` : `${BY.expOpen(s, id) && B.relay >= E.relay && s.tech.intergalacticDrive ? fundHTML(s, 'exp:' + id, E.cost) : `<div class="costs">${cost(E.cost, s)}</div>`}<div class="costs"><span class="cost time">${icon('clock', 'xs')}${fmtTime(E.days * 86400)}</span></div>${c.ok || c.fund ? '' : `<p class="why small">${esc(c.why)}</p>`}<button class="btn gold small" data-a="expedition" data-g="${id}" ${c.ok ? '' : 'disabled'}>${icon('rocket', 'xs')} Launch the expedition</button>`;
       h += '</div>'; }
     return h + '</div>';
   }
@@ -57,9 +59,10 @@ export class BeyondUI {
     const worlds = BODY_ORDER.filter((b) => S.surveyed[b] || BODIES[b].zone === 'home'); const stars = Object.keys(I.surveyed).filter((k) => !STARS[k].proc); const sp = Object.keys(Aa.known);
     const sec = (t, items) => `<div class="lcard"><b>${t} <small>(${items.length})</small></b><p class="codexl">${items.map((x) => `<span>${esc(x)}</span>`).join('') || '<i>Nothing yet.</i>'}</p></div>`;
     return `<div class="lc-grid">${sec('Worlds of the Solar System', worlds.map((b) => BODIES[b].name))}${sec('Star systems surveyed', stars.map((k) => STARS[k].name).concat(Object.keys(I.surveyed).length - stars.length > 0 ? [`+ ${Object.keys(I.surveyed).length - stars.length} catalogued systems`] : []))}${sec('Civilisations', sp.map((k) => AL.allSpecies()[k].name))}${sec('Alien life', Aa.codex.map((c) => `${c.name} (${c.world})`).concat(s.flags.europaLife ? ['Europan vent microbes (Europa)'] : []))}${sec('Galaxies', ['The Milky Way', ...Object.keys(BY.bey(s).visited).map((g) => BY.GALAXIES[g].name)])}</div>`; }
-  live() { const s = this.s; $$('#overlay [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); }); $$('#overlay .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n)); }
+  live() { const s = this.s; const sig = fundSig(s); if (this.fsig !== undefined && sig !== this.fsig && !document.querySelector('#overlay .btn:hover')) { this.fsig = sig; this.render(); return; } this.fsig = sig; $$('#overlay [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); }); $$('#overlay .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n)); }
   click(t) { const A = this.app, s = this.s, a = t.dataset.a; const done = (r, msg) => { if (r.ok) { A.audio.play('claim'); this.ui.toast(msg, 'gold'); A.changed(); } else { this.ui.toast(r.why, 'bad'); A.audio.play('deny'); } this.render(); return true; };
     if (a === 'bytab') { this.tab = t.dataset.t; A.audio.play('tap'); this.render(); return true; }
+    if (t.closest('#overlay') && fundClick(A, s, t)) { this.render(); return true; }
     if (a === 'relay') return done(BY.startRelay(s), 'The relay network stirs');
     if (a === 'expedition') return done(BY.startExpedition(s, t.dataset.g), `The expedition departs for ${BY.GALAXIES[t.dataset.g].name}`);
     if (a === 'perk') return done(BY.buyPerk(s, t.dataset.p), `${BY.PERKS[t.dataset.p].name} improved`);

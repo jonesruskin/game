@@ -12,6 +12,7 @@ import { allSpecies, dealActive, tributeRate, drift } from './aliens.js';
 import { blockaded } from './war.js';
 import { beyondMods } from './beyond.js';
 import { curve } from '../util.js';
+import { spill } from './fund.js';
 
 export function mods(s) {
   const m = { mult: {}, gen: 0, buildTime: 0, researchTime: 0, cap: 0, crews: 0, slots: 0, costs: 0, flags: new Set() };
@@ -88,7 +89,7 @@ export function rates(s, m = mods(s)) {
 export function accrue(s, R, dt) {
   if (dt <= 0) return;
   for (const bid in R.col || {}) { const c = R.col[bid], B = s.bases[bid]; if (!B) continue; const pop = B.pop || 0; if (pop < c.house) B.pop = Math.min(c.house, pop + (c.grow * dt) / 3600); } for (const r in R.prod) { const add = (R.prod[r] * dt) / 3600; if (!add) continue; const cur = s.res[r] || 0; const cap = R.cap[r];
-    if (add > 0 && cur >= cap) continue; s.res[r] = Math.max(0, Math.min(Math.max(cap, cur), cur + add)); }
+    if (add > 0 && cur >= cap) { spill(s, r, add); continue; } const lim = Math.max(cap, cur); if (add > 0 && cur + add > lim) spill(s, r, cur + add - lim); s.res[r] = Math.max(0, Math.min(lim, cur + add)); }
   drift(s, dt);
 }
 export const canPay = (s, cost) => Object.entries(cost).every(([r, n]) => (s.res[r] || 0) >= n);

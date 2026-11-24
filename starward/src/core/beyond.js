@@ -11,21 +11,25 @@ import { sol, terraStage } from './solar.js';
 import { al } from './aliens.js';
 import { war } from './war.js';
 import { TECH } from '../data/research.js';
+import * as F from './fund.js';
 
 Object.assign(MEGA, MEGA2); // the endgame megaprojects appear on the Sun's panel with the others
 export const bey = (s) => s.beyond || (s.beyond = { relay: 0, visited: {} });
 export const ascOf = (s) => s.asc || (s.asc = { points: 0, spent: {}, count: 0 });
 // ---------------- the relay network ----------------
+// what each funded project costs right now (for the funding UI and the bot)
+export function projectCost(s, key) { if (key === 'relay') return bey(s).relay < RELAY.stages ? relayCost(bey(s).relay) : null; if (key.startsWith('exp:')) { const id = key.slice(4); return bey(s).visited[id] ? null : EXPEDITIONS[id].cost; }
+  if (key.startsWith('mega:')) { const id = key.slice(5), d = MEGA[id], n = ist(s).mega[id] || 0; return n < d.stages ? Object.fromEntries(Object.entries(d.cost).map(([r, v]) => [r, round2(v * Math.pow(d.growth, n))])) : null; } return null; }
 export const relayCost = (n) => Object.fromEntries(Object.entries(RELAY.cost).map(([r, v]) => [r, round2(v * Math.pow(RELAY.growth, n))]));
 export function canRelay(s) { const n = bey(s).relay; if (n >= RELAY.stages) return { ok: false, why: 'Complete', done: true }; if (!s.tech[RELAY.req]) return { ok: false, why: 'Research Relay Network', locked: true };
-  if (s.jobs.some((j) => j.kind === 'relay')) return { ok: false, why: 'Under construction', busy: true }; const cost = relayCost(n); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(RELAY.days * 86400 * (1 + n * 0.2)) }; }
-export function startRelay(s, t = Date.now()) { const c = canRelay(s); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'relay', stage: bey(s).relay, start: t, end: t + c.time * 1000 }); return c; }
+  if (s.jobs.some((j) => j.kind === 'relay')) return { ok: false, why: 'Under construction', busy: true }; const cost = relayCost(n); if (!F.funded(s, 'relay', cost)) return { ok: false, why: 'Fund the next stage first', fund: true, cost }; return { ok: true, cost, time: Math.round(RELAY.days * 86400 * (1 + n * 0.2)) }; }
+export function startRelay(s, t = Date.now()) { const c = canRelay(s); if (!c.ok) return c; const n = bey(s).relay; F.settle(s, 'relay', c.cost, n + 1 < RELAY.stages ? { cost: relayCost(n + 1) } : null); s.jobs.push({ id: uid(s), kind: 'relay', stage: bey(s).relay, start: t, end: t + c.time * 1000 }); return c; }
 // ---------------- expeditions ----------------
 export const expOpen = (s, id) => { const i = GALAXY_ORDER.indexOf(id); return i === 0 || !!bey(s).visited[GALAXY_ORDER[i - 1]]; };
 export function canExpedition(s, id) { const E = EXPEDITIONS[id], B = bey(s); if (B.visited[id]) return { ok: false, why: 'Visited', done: true }; if (!s.tech.intergalacticDrive) return { ok: false, why: 'Research Intergalactic Drive', locked: true };
   if (!expOpen(s, id)) return { ok: false, why: 'Reach the previous galaxy first', locked: true }; if (B.relay < E.relay) return { ok: false, why: `Relay network stage ${E.relay} needed`, locked: true };
-  if (s.jobs.some((j) => j.kind === 'expedition')) return { ok: false, why: 'An expedition is already out', busy: true }; if (!canPay(s, E.cost)) return { ok: false, why: 'Not enough resources', cost: E.cost }; return { ok: true, time: E.days * 86400 }; }
-export function startExpedition(s, id, t = Date.now()) { const c = canExpedition(s, id); if (!c.ok) return c; pay(s, EXPEDITIONS[id].cost); s.jobs.push({ id: uid(s), kind: 'expedition', gal: id, start: t, end: t + c.time * 1000 }); return c; }
+  if (s.jobs.some((j) => j.kind === 'expedition')) return { ok: false, why: 'An expedition is already out', busy: true }; if (!F.funded(s, 'exp:' + id, E.cost)) return { ok: false, why: 'Fund the expedition first', fund: true, cost: E.cost }; return { ok: true, time: E.days * 86400 }; }
+export function startExpedition(s, id, t = Date.now()) { const c = canExpedition(s, id); if (!c.ok) return c; const nx = GALAXY_ORDER[GALAXY_ORDER.indexOf(id) + 1]; F.settle(s, 'exp:' + id, EXPEDITIONS[id].cost, nx ? { key: 'exp:' + nx, cost: EXPEDITIONS[nx].cost } : null); s.jobs.push({ id: uid(s), kind: 'expedition', gal: id, start: t, end: t + c.time * 1000 }); return c; }
 // permanent gifts from visited galaxies, and Ascension perks, feed the modifiers (called from econ.mods)
 export function beyondMods(s, m) {
   for (const id in (s.beyond || {}).visited || {}) { const p = EXPEDITIONS[id].perk || {}; for (const r in p.mult || {}) m.mult[r] = (m.mult[r] || 0) + p.mult[r]; if (p.researchTime) m.researchTime += p.researchTime; if (p.flag) m.flags.add(p.flag); }

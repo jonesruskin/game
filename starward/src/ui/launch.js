@@ -11,7 +11,8 @@ import * as SO from '../core/solar.js';
 import { DRIVES, DRIVE_ORDER } from '../data/stars.js';
 import * as ST from '../core/stars.js';
 
-const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
+import { costTags, fundHTML, fundClick } from './fund.js';
+const cost = costTags;
 const rw = (c) => Object.entries(c || {}).map(([r, n]) => `<span class="cost" style="--rc:${RES[r].color}">${icon(r, 'xs')}+${fmt(n)}</span>`).join('');
 const effLine = (d, L) => { const o = []; for (const r in d.prod || {}) o.push(`+${fmt(d.prod[r][0] * Math.pow(d.prod[r][1], L - 1))} ${RES[r].name}/h`); if (d.gen) o.push(`+${fmt(d.gen[0] * Math.pow(d.gen[1], L - 1))} energy`); for (const r in d.mult || {}) o.push(`${RES[r].name} +${Math.round(d.mult[r] * L * 100)}%`); if (d.rel) o.push(`launch reliability +${(d.rel * L * 100).toFixed(1)}%`); if (d.flightCut) o.push(`flights ${Math.round(d.flightCut * L * 100)}% faster`); if (d.fuelCut) o.push(`mission fuel −${Math.round(d.fuelCut * L * 100)}%`); if (d.speed) o.push(`research +${Math.round(d.speed * L * 100)}%`); for (const r in d.cap || {}) o.push(`+${fmt(d.cap[r][0] * Math.pow(d.cap[r][1], L - 1))} ${RES[r].name} storage`); return o.join(' · '); };
 

@@ -8,6 +8,7 @@ import { canPay, pay, give, lvlOf } from './econ.js';
 import { uid } from './state.js';
 import { round2, ladder, clamp, hash } from '../util.js';
 import { ist, dist } from './stars.js';
+import { fitMax } from '../data/buildings.js';
 
 let ALL = null; export const allSpecies = () => ALL || (ALL = { ...SPECIES, ...minorsFor(STARS) });
 export const al = (s) => s.aliens || (s.aliens = { known: {}, xt: {}, ruins: 0, minors: {}, codex: [], seen: {} });
@@ -46,7 +47,7 @@ export function canDeal(s, id, kind) { const d = allSpecies()[id], k = known(s, 
 export function deal(s, id, kind) { const c = canDeal(s, id, kind); if (!c.ok) return c; s.res.influence -= DEALS[kind].inf; known(s, id).deals[kind] = 1; return { ok: true }; }
 export const dealActive = (s, id, kind) => { const k = known(s, id); return !!(k && k.deals[kind] && k.rel >= DEALS[kind].rel - 20); };
 // embassies (levels 1-5): influence, warmer relations
-export const embassyCost = (L) => ({ credits: round2(4e7 * Math.pow(1.7, L - 1)), metal: round2(2e7 * Math.pow(1.7, L - 1)) });
+export const embassyCost = (L) => fitMax({ credits: round2(4e7 * Math.pow(1.7, L - 1)), metal: round2(2e7 * Math.pow(1.7, L - 1)) });
 export function canEmbassy(s, id) { const d = allSpecies()[id], k = known(s, id); if (!k || d.extinct || d.hostile) return { ok: false, why: 'Not possible' }; if (!s.tech.xenodiplomacy) return { ok: false, why: 'Research Xenodiplomacy', locked: true }; if (k.embassy >= 5) return { ok: false, why: 'Maximum level', done: true };
   if (s.jobs.some((j) => j.kind === 'embassy' && j.sp === id)) return { ok: false, why: 'Under construction', busy: true }; const cost = embassyCost(k.embassy + 1); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(ladder(19 + k.embassy * 1.5)) }; }
 export function startEmbassy(s, id, t = Date.now()) { const c = canEmbassy(s, id); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'embassy', sp: id, start: t, end: t + c.time * 1000 }); return c; }
@@ -66,7 +67,7 @@ export function startUplift(s, id, t = Date.now()) { const c = canUplift(s, id);
 export const tributeRate = (R) => Math.round(Math.max(0, R.prod.credits) * 0.06);
 export function setTribute(s, on) { const k = known(s, 'krthul'); if (k) { k.tribute = !!on; s.flags.krthulAnswered = 1; } }
 // the Hollow ruins at Epsilon Eridani
-export const digCost = (L) => ({ credits: round2(5e7 * Math.pow(1.5, L - 1)), science: round2(3e7 * Math.pow(1.5, L - 1)) });
+export const digCost = (L) => fitMax({ credits: round2(5e7 * Math.pow(1.5, L - 1)), science: round2(3e7 * Math.pow(1.5, L - 1)) });
 export function canDig(s) { if (!known(s, 'hollow')) return { ok: false, why: 'Find the ruins first' }; if (!s.tech.xenoarchaeology) return { ok: false, why: 'Research Xenoarchaeology', locked: true }; const L = al(s).ruins + 1; if (L > 10) return { ok: false, why: 'Fully excavated', done: true };
   if (s.jobs.some((j) => j.kind === 'dig')) return { ok: false, why: 'The dig is under way', busy: true }; const cost = digCost(L); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(ladder(20 + L * 0.8)) }; }
 export function startDig(s, t = Date.now()) { const c = canDig(s); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'dig', lvl: al(s).ruins + 1, start: t, end: t + c.time * 1000 }); return c; }

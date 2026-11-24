@@ -1,5 +1,6 @@
 // STARWARD: Star Map panels. Facts about each world, its launch window, survey probes, voyages (colonies,
 // outposts, mining claims, gas-giant scoops, colonist transports) and the terraforming of Mars.
+import { fundSig } from '../core/fund.js';
 import { icon } from './icons.js';
 import { fmt, fmtTime, esc, $, $$, clamp } from '../util.js';
 import { RES } from '../data/resources.js';
@@ -9,7 +10,8 @@ import * as SO from '../core/solar.js';
 import * as SP from '../core/space.js';
 import { WORLDS } from '../render/planet.js';
 
-const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
+import { costTags, fundHTML, fundClick } from './fund.js';
+const cost = costTags;
 const val = (c, L) => c[0] * Math.pow(c[1], L - 1);
 export const siteLine = (d, L) => { const o = []; for (const r in d.prod || {}) o.push(`+${fmt(val(d.prod[r], L))} ${RES[r].name}/h`); if (d.gen) o.push(`+${fmt(val(d.gen, L))} energy`); if (d.fuelCut) o.push(`Mars voyages −${Math.round(d.fuelCut * L * 100)}% fuel`); if (d.travelCut) o.push(`Jovian voyages ${Math.round(d.travelCut * L * 100)}% faster`); return o.join(' · '); };
 
@@ -31,7 +33,7 @@ export class SystemUI {
     else { h += `<div class="win" id="winLine"></div>`; h += !known ? this.surveyBlock(id) : this.presenceBlock(id); }
     p.innerHTML = h; this.key = this.keyOf(); this.thumb(); this.live();
   }
-  keyOf() { const s = this.s, S = SO.sol(s), id = this.id; return JSON.stringify([id, S.surveyed[id], S.sites[id], !!s.bases[id], SO.terraStage(s, id), s.jobs.filter((j) => j.kind === 'voyage' || j.kind === 'terra' || j.kind === 'mission' || j.kind === 'mega').map((j) => j.id), JSON.stringify((s.stars || {}).mega || {}), Object.keys(s.tech).length, JSON.stringify(S.ships)]); }
+  keyOf() { const s = this.s, S = SO.sol(s), id = this.id; return JSON.stringify([id, S.surveyed[id], S.sites[id], !!s.bases[id], SO.terraStage(s, id), s.jobs.filter((j) => j.kind === 'voyage' || j.kind === 'terra' || j.kind === 'mission' || j.kind === 'mega').map((j) => j.id), JSON.stringify((s.stars || {}).mega || {}), Object.keys(s.tech).length, JSON.stringify(S.ships), id === 'sun' ? fundSig(s) : '']); }
   // a small painted globe for the panel header (palette from the world's shader preset)
   thumb() { const cv = $('#panel canvas.bthumb'); if (!cv) return; const c = cv.getContext('2d'); const b = BODIES[this.id]; c.clearRect(0, 0, 84, 84);
     if (this.id === 'sun') { const g = c.createRadialGradient(42, 42, 0, 42, 42, 40); g.addColorStop(0, '#fffef0'); g.addColorStop(0.5, '#ffd76a'); g.addColorStop(0.75, 'rgba(255,150,40,0.6)'); g.addColorStop(1, 'rgba(255,120,30,0)'); c.fillStyle = g; c.fillRect(0, 0, 84, 84); return; }

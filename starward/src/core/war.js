@@ -9,6 +9,7 @@ import { rng, round2, clamp } from '../util.js';
 import { yardLevel } from './solar.js';
 import { ist, dist } from './stars.js';
 import { known } from './aliens.js';
+import { fitMax } from '../data/buildings.js';
 
 export const war = (s) => s.war || (s.war = { ships: {}, def: {}, raids: [], log: [], hives: {}, next: 0, fleetAt: 'home', raidsSeen: 0, blockade: {} });
 export const UNIT = (k) => WARSHIPS[k] || SWARM[k] || DEFENCE[k];
@@ -34,12 +35,29 @@ export function battle(compA, compB, seed, opt = {}) {
 export function forecast(compA, compB, opt = {}, n = 6) { if (!Object.values(compA).some((x) => x > 0)) return 0; let w = 0; for (let k = 0; k < n; k++) if (battle(compA, compB, 9001 + k * 7919, opt).win) w++; return w / n; }
 export const raidForecast = (s, raid, withFleet) => { const W = war(s); const defA = { ...defComp(s, raid.target), ...(withFleet ? W.ships : {}) }; return 1 - forecast(raid.comp, defA, { shieldB: shieldOf(s, raid.target), mulB: s.tech.swarmTactics ? 1.25 : 1 }); };
 export const assaultForecast = (s, id) => forecast(war(s).ships, hiveLeft(s, id), { mulA: s.tech.swarmTactics ? 1.25 : 1 });
+// why a fight is going badly, in one sentence: rerun the forecast battle and look at what is still standing at the end
+export function advice(compA, compB, opt = {}, avail = WARSHIP_ORDER) {
+  const res = battle(compA, compB, 9001, opt); if (res.win) return null; const ours = Object.keys(compA).filter((k) => compA[k] > 0); if (!ours.length) return null;
+  const left = Object.keys(res.leftB); if (!left.length) return null; const shK = opt.shieldB || 1;
+  // the toughest survivor, and how much of our best shot its shields soak up
+  const absorb = (u, v) => { const sh = v.sh * (u.wpn === 'rail' ? 0.5 : 1) * shK; return sh / (sh + u.atk); };
+  const worst = left.map((k) => ({ k, a: Math.min(...ours.map((o) => absorb(UNIT(o), UNIT(k)))) })).sort((x, y) => y.a - x.a)[0];
+  const name = (k) => { const n = res.leftB[k], nm = UNIT(k).name; return n === 1 ? 'The ' + nm : nm + (nm.endsWith('s') ? '' : 's'); }; const verb = (k) => (res.leftB[k] === 1 ? 's' : '');
+  const list = (ks) => ks.map((k) => UNIT(k).name + 's').join(' or ');
+  if (worst.a > 0.85) { const v = UNIT(worst.k); const better = avail.filter((k) => absorb(UNIT(k), v) < Math.min(0.7, worst.a - 0.1)).slice(-2).reverse();
+    return `${name(worst.k)} shrug${verb(worst.k)} off your guns: shields soak up ${Math.round(worst.a * 100)}% of your best shot.${better.length ? ` Hit harder with ${list(better)}.` : ' You need heavier warships: research and a bigger shipyard.'}`; }
+  if (!Object.keys(res.leftA).length) return `Your fleet is wiped out before the job is done. You need more ships, or ships that counter what you're fighting (lasers beat small hulls, missiles beat large ones).`;
+  const big = left.filter((k) => ['L', 'XL'].includes(UNIT(k).size)); const missiles = ours.some((o) => UNIT(o).wpn === 'missile'); const mk = avail.filter((k) => WARSHIPS[k].wpn === 'missile');
+  if (big.length && !missiles && mk.length) return `${name(big[0])} outlast${verb(big[0])} the fight. Missiles are strong against large hulls: add ${list(mk.slice(-1))}.`;
+  return `Not enough firepower to finish them within six rounds. Add more ships.`;
+}
+export const assaultAdvice = (s, id) => advice(war(s).ships, hiveLeft(s, id), { mulA: s.tech.swarmTactics ? 1.25 : 1 }, WARSHIP_ORDER.filter((k) => s.tech[WARSHIPS[k].req]));
 export const power = (comp) => Object.entries(comp).reduce((a, [k, n]) => a + Math.sqrt(UNIT(k).atk * UNIT(k).hp) * n, 0);
 // ---------------- warships ----------------
 export const fleet = (s) => ({ ...war(s).ships });
 export const warBusy = (s) => s.jobs.find((j) => j.kind === 'warship');
 export const warTime = (s, k, n) => Math.round(WARSHIPS[k].time * Math.pow(n, 0.8) / (1 + yardLevel(s) * 0.08));
-export const warCost = (k, n) => Object.fromEntries(Object.entries(WARSHIPS[k].cost).map(([r, v]) => [r, round2(v * n)]));
+export const warCost = (k, n) => Object.fromEntries(Object.entries(fitMax(WARSHIPS[k].cost)).map(([r, v]) => [r, round2(v * n)])); // one hull always fits in storage
 export function canWarship(s, k, n) { const d = WARSHIPS[k]; if (!s.tech[d.req]) return { ok: false, why: 'Research required', locked: true, tech: d.req }; if (yardLevel(s) < d.yard) return { ok: false, why: `Orbital Shipyard level ${d.yard}`, locked: true };
   if (warBusy(s)) return { ok: false, why: 'The war docks are busy', busy: true }; const cost = warCost(k, n); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: warTime(s, k, n) }; }
 export function startWarship(s, k, n, t = Date.now()) { const c = canWarship(s, k, n); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'warship', ship: k, n, start: t, end: t + c.time * 1000 }); return c; }
@@ -91,4 +109,4 @@ export function completeWar(s, j) { const W = war(s);
     if (res.win) { W.hives[j.hive + '_done'] = 1; delete W.hives[j.hive]; give(s, H.loot); ist(s).surveyed[H.star] = 1; rep.loot = H.loot; s.flags['hive_' + j.hive] = 1; if (H.queen) { s.flags.queenDead = 1; W.raids = []; } }
     else W.hives[j.hive] = res.leftB; s.flags.warDeclared = 1; W.log.unshift(rep); W.log = W.log.slice(0, 12); return { kind: 'assault', hive: j.hive, win: res.win, rep }; }
   return null; }
-export { WARSHIPS, WARSHIP_ORDER, SWARM, HIVES, HIVE_ORDER, DEFENCE, DEF_MAX, defCost };
+export { WARSHIPS, WARSHIP_ORDER, SWARM, HIVES, HIVE_ORDER, DEFENCE, DEF_MAX, defCost, VS };

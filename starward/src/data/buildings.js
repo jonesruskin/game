@@ -173,6 +173,11 @@ export const allowedCount = (def, hq) => (def.unique ? 1 : def.count ? def.count
 // upgrade, research or launch can ever cost more than the player is able to store.
 // (levels are never counted above a building's maximum)
 export function capRef(h, r) { const v = (d, L) => (d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.min(d.max, Math.max(1, L)) - 1) : 0); return v(BUILDINGS.hq, h) + v(BUILDINGS.depot, 2 * h - 4) + (r === 'science' ? v(BUILDINGS.research, 2 * h - 4) : 0); }
+// the most a fully built Earth can store (Mission Control 20 and every Logistics Depot at its top level). Late-game
+// level-ups are clamped under it; anything above the player's current storage says so on its price tag.
+export function capMax(r) { const v = (d, L) => (d.cap && d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.min(d.max, L) - 1) : 0); const D = BUILDINGS.depot, Rs = BUILDINGS.research;
+  return v(BUILDINGS.hq, 20) + allowedCount(D, 20) * v(D, D.max) + (r === 'science' ? allowedCount(Rs, 20) * v(Rs, Rs.max) : 0); }
+export const fitMax = (cost) => { const o = {}; for (const r in cost) { const c = capMax(r); o[r] = c > 0 ? Math.min(cost[r], Math.floor((c * 0.85) / 1e4) * 1e4) : cost[r]; } return o; };
 export const capClamp = (n, h, r) => { const c = capRef(h, r); return c > 0 ? Math.min(n, Math.floor(c * 0.85 / 100) * 100) : n; };
 // Mission Control level at which building b's level L first becomes possible
 export const unlockHq = (b, L) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; if (!d.bases.includes('earth') && !d.bases.includes('moon')) return Math.ceil(L / 2) + 10; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };

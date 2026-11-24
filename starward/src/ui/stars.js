@@ -7,7 +7,8 @@ import { TECH } from '../data/research.js';
 import { STARS, CLASS, PTYPE, SPECS, MEGA, DRIVES, COLONY_MAX } from '../data/stars.js';
 import * as ST from '../core/stars.js';
 
-const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
+import { costTags, fundHTML, fundClick } from './fund.js';
+const cost = costTags;
 const outLine = (o) => Object.entries(o).filter(([, n]) => n > 0.05).map(([r, n]) => `+${fmt(n)} ${RES[r].name}/h`).join(' · ');
 // a tiny painted world for planet rows
 export function globe(type, size = 34) { const T = PTYPE[type]; const cv = document.createElement('canvas'); cv.width = cv.height = size * 2; const c = cv.getContext('2d'); const r = size * 0.9; const C = size;
@@ -51,6 +52,7 @@ export class StarsUI {
       if (id === 'laser' && n) h += `<p class="cur">Survey range ${ST.surveyRange(s)} ly · ${n} sail${n > 1 ? 's' : ''} at a time</p>`; if (id === 'dyson' && n) h += `<p class="cur">+${fmt(d.gen * n)} energy · +${fmt(d.prod.credits * n)} credits/h · +${fmt(d.prod.science * n)} science/h</p>`;
       if (!s.tech[d.req]) h += `<p class="why">${icon('lock', 'xs')} Research ${esc(TECH[d.req].name)}</p>`;
       else if (job) h += `<div class="job"><div class="jl">Stage ${job.stage + 1} under construction · <b data-left="${job.id}"></b></div><div class="pbar"><span data-bar="${job.id}"></span></div><button class="btn gold small" data-a="finish" data-job="${job.id}">${icon('dm', 'xs')} Finish now</button></div>`;
+      else if (n < d.stages && d.fund) { const c = ST.canMega(s, id); h += `${fundHTML(s, 'mega:' + id, ST.megaCost(id, n))}<div class="lc-a"><div class="costs"><span class="cost time">${icon('clock', 'xs')}${fmtTime(ST.megaTime(id, n))}</span></div><button class="btn gold small" data-a="mega" data-mega="${id}" ${c.ok ? '' : 'disabled'}>${icon('up', 'xs')} ${n ? 'Build stage ' + (n + 1) : 'Begin construction'}</button></div>`; }
       else if (n < d.stages) { const c = ST.canMega(s, id); h += `<div class="lc-a"><div class="costs">${cost(ST.megaCost(id, n), s)}<span class="cost time">${icon('clock', 'xs')}${fmtTime(ST.megaTime(id, n))}</span></div><button class="btn gold small" data-a="mega" data-mega="${id}" ${c.ok ? '' : 'disabled'}>${icon('up', 'xs')} ${n ? 'Build stage ' + (n + 1) : 'Begin construction'}</button></div>`; }
       h += '</div>'; }
     return h;
@@ -60,6 +62,7 @@ export class StarsUI {
     $$('#panel [data-bar]').forEach((el) => { const j = s.jobs.find((x) => x.id === el.dataset.bar); if (j) el.style.width = clamp((Date.now() - j.start) / (j.end - j.start)) * 100 + '%'; });
     $$('#panel .cost[data-r]').forEach((e) => e.classList.toggle('short', (s.res[e.dataset.r] || 0) < +e.dataset.n)); }
   click(t) {
+    if (t.closest('#panel') && fundClick(this.app, this.s, t)) { if (this.ui.sys.id === 'sun') this.ui.sys.render(); else this.render(); return true; }
     const A = this.app, s = this.s, a = t.dataset.a; const done = (r, msg, snd = 'build') => { if (r.ok) { A.audio.play(snd); this.ui.toast(msg, 'gold'); A.changed(); } else { this.ui.toast(r.why, 'bad'); A.audio.play('deny'); } if (this.id) this.render(); else this.ui.sys.render(); return true; };
     if (a === 'sail') return done(ST.startSail(s, t.dataset.star), `Light sail launched towards ${STARS[t.dataset.star].name}`, 'launch');
     if (a === 'found') { const r = ST.startFound(s, t.dataset.star, +t.dataset.p); return done(r, r.ok ? `${DRIVES[r.ship].name} departs for ${STARS[t.dataset.star].name} · ${fmtTime(r.time)}` : '', 'launch'); }

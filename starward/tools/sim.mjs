@@ -5,8 +5,9 @@
 //   FOCUS=90 MIN=1 STEP=20 DAYS=0.1 node tools/sim.mjs   the first session, minute by minute
 //   SNAP=1 ...                                 add an economy snapshot every 2 days (caps, income, idle crews)
 // Use it after any balance change: nothing may get stuck, and the milestone days should stay on target
-// (DESIGN.md §10.1). Covers Parts 1-4: research, building, launches, probes, the fleet, voyages, colonies,
-// terraforming, light sails, starships, star colonies, megastructures and gates. Outcomes are random (launch failures), so run it a few times.
+// (DESIGN.md §10.1). Covers Parts 1-7: research, building, launches, probes, the fleet, voyages, colonies,
+// terraforming, light sails, starships, star colonies, megastructures, gates, contact, war and the Beyond.
+//   WARLOG=1 prints battles; DUMP=file.json saves the final state for debugging. Outcomes are random (launch failures), so run it a few times.
 const root = new URL('../src/', import.meta.url).href;
 const { fresh } = await import(root + 'core/state.js');
 const G = await import(root + 'core/game.js');
@@ -21,6 +22,7 @@ const ST = await import(root + 'core/stars.js');
 const AL = await import(root + 'core/aliens.js');
 const WR = await import(root + 'core/war.js');
 const BY = await import(root + 'core/beyond.js');
+const FU = await import(root + 'core/fund.js');
 const { OPENINGS, XENOTECH } = await import(root + 'data/aliens.js');
 const { STARS, STAR_IDS, DRIVE_ORDER } = await import(root + 'data/stars.js');
 const { BODIES, SITES, SHIPS, SHIP_ORDER, TERRA, ZONE_CLASS } = await import(root + 'data/solar.js');
@@ -149,18 +151,33 @@ function contact() {
 // ---- Part 6: the navy, defences, intercepts and the hive campaign ----
 const MIX = { corvette: 2, frigate: 2, destroyer: 2, cruiser: 1.5, battleship: 1.5, carrier: 0.4 };
 function warfare() {
+  if (SO.yardLevel(s) < 10) { const c = S.canLaunch(s, { module: 'yard' }); if (c.ok) S.launch(s, { module: 'yard' }, t); else if (c.rocket && !S.rocketBusy(s)) { const id = ['colossus', 'leviathan'].find((k) => S.canBuildRocket(s, k).ok); if (id) S.startRocket(s, id, t); } } // capital ships need a bigger shipyard
   const W = WR.war(s); for (const e of WR.tickWar(s, t)) if (e.kind === 'raidResult') warLog.push(`${when(t)} raid on ${e.rep.name}: ${e.rep.win ? 'repelled' : 'LOST'}`);
   const next = WR.HIVE_ORDER.find((id) => !W.hives[id + '_done']); const total = Object.values(W.ships).reduce((a, b) => a + b, 0);
-  const needMore = next ? WR.assaultForecast(s, next) < 0.9 && total < 1500 : total < 300; // build only what the next fight needs
-  if (needMore && !WR.warBusy(s)) { const opts = Object.keys(MIX).filter((k) => s.tech[WR.WARSHIPS[k].req] && yardOK(k)).sort((a, b) => (W.ships[a] || 0) / MIX[a] - (W.ships[b] || 0) / MIX[b]);
-    for (const k of opts) { const n = WR.WARSHIPS[k].size === 'XL' ? 2 : WR.WARSHIPS[k].size === 'L' ? 5 : 10; if (WR.canWarship(s, k, n).ok) { WR.startWarship(s, k, n, t); break; } } }
+  const needMore = next ? WR.assaultForecast(s, next) < 0.9 && WR.power(W.ships) < 3 * WR.power(WR.hiveLeft(s, next)) : total < 300; // build only what the next fight needs; past 3x the hive's power the answer is better hulls, not more of them
+  // like a player reading the forecast: build the heaviest hull the fleet is short of, and save up for it rather than padding with corvettes
+  if (needMore && !WR.warBusy(s)) { const opts = Object.keys(MIX).filter((k) => s.tech[WR.WARSHIPS[k].req] && yardOK(k)); const pw = (k) => WR.power({ [k]: 1 });
+    // follow Fleet Command's advice: only hulls that can hurt the hive's toughest unit (by damage per credit), then balance those
+    const foe = next ? Object.keys(WR.hiveLeft(s, next)).map((u) => WR.UNIT(u)).sort((x, y) => y.sh - x.sh)[0] : null;
+    const eff = (x) => { const u = WR.WARSHIPS[x]; if (!foe) return 1; const sh = foe.sh * (u.wpn === 'rail' ? 0.5 : 1); return (u.atk * WR.VS[u.wpn][foe.size] * (1 - sh / (sh + u.atk))) / u.cost.credits; };
+    const best = Math.max(...opts.map(eff)); const good = opts.filter((x) => eff(x) >= best * 0.4);
+    const k = good.filter((x) => good.length < 3 || WR.WARSHIPS[x].size !== 'S' || (W.ships.corvette || 0) < 60).sort((a, b) => (W.ships[a] || 0) * pw(a) / MIX[a] - (W.ships[b] || 0) * pw(b) / MIX[b])[0];
+    if (k) for (const n of [10, 5, 2, 1]) if (WR.canWarship(s, k, n).ok) { WR.startWarship(s, k, n, t); break; } }
   for (const tg of WR.targets(s)) if (WR.defLevel(s, tg.key) < 4 && WR.canDefence(s, tg.key).ok) { WR.startDefence(s, tg.key, t); break; }
   const raid = W.raids[0]; if (raid && WR.raidForecast(s, raid, false) < 0.7 && W.fleetAt !== raid.target && WR.canMove(s, raid.target).ok && WR.moveTime(s, raid.target) * 1000 < raid.eta - t) WR.startMove(s, raid.target, t);
   if (!raid) for (const id of WR.HIVE_ORDER) { if (W.hives[id + '_done'] || !WR.hiveOpen(s, id)) continue; if (WR.canAssault(s, id).ok && WR.assaultForecast(s, id) >= 0.8) { WR.startAssault(s, id, t); warLog.push(`${when(t)} assault on ${id} (power ${Math.round(WR.power(W.ships))} vs ${Math.round(WR.power(WR.hiveLeft(s, id)))})`); } break; }
 }
 const yardOK = (k) => SO.yardLevel(s) >= WR.WARSHIPS[k].yard; const warLog = [];
 // ---- Part 7: antimatter, relays, expeditions, endgame megaprojects ----
-function beyond() { if (BY.canRelay(s).ok) BY.startRelay(s, t); for (const id of BY.GALAXY_ORDER) if (BY.canExpedition(s, id).ok) { BY.startExpedition(s, id, t); break; } for (const id of ['matrioshka', 'ringworld']) if (ST.canMega(s, id).ok) ST.startMega(s, id, t); BY.checkAchievements(s); }
+// the funded megaprojects: route surplus into the next one on the road to the Far Shore (or the one the objective
+// asks for), and invest whatever sits above half of storage, like a player topping it up at each check-in
+function nextProject() { const st0 = G.currentStep(s); if (st0 && st0.kind === 'mega' && ST.MEGA[st0.mega] && ST.MEGA[st0.mega].fund && s.tech[ST.MEGA[st0.mega].req]) return 'mega:' + st0.mega;
+  const B = BY.bey(s); if (!s.tech.relayNetwork) return null; const gal = BY.GALAXY_ORDER.find((id) => !B.visited[id]);
+  if (gal && s.tech.intergalacticDrive && BY.expOpen(s, gal) && B.relay >= BY.EXPEDITIONS[gal].relay) return 'exp:' + gal; if (B.relay < BY.RELAY.stages) return 'relay';
+  for (const id of ['matrioshka', 'ringworld']) if (s.tech[ST.MEGA[id].req] && ST.megaStage(s, id) < ST.MEGA[id].stages) return 'mega:' + id; return null; }
+function beyond() { const st1 = G.currentStep(s); const late = s.flags.queenDead || !st1 || ['ch13', 'ch14'].includes(st1.ch); const key = late ? nextProject() : null; if (key) { const c = BY.projectCost(s, key); if (c) { if (!FU.routed(s, key)) FU.setRoute(s, key, c); const R0 = G.rates(s); const max = {}; for (const r in c) max[r] = Math.max(0, (s.res[r] || 0) - 0.5 * (R0.cap[r] || 0)); FU.invest(s, key, c, max); } }
+  if (BY.canRelay(s).ok) BY.startRelay(s, t); for (const id of BY.GALAXY_ORDER) if (BY.canExpedition(s, id).ok) { BY.startExpedition(s, id, t); break; } for (const id of ['matrioshka', 'ringworld']) if (ST.canMega(s, id).ok) ST.startMega(s, id, t); BY.checkAchievements(s); }
+const ready = {}; // READY=1: when each step first became achievable, whatever the objective order
 let fails = 0; const W = { idle: 0, lab: 0, n: 0 }; let snapT = t0;
 while (t < t0 + DAYS * 86400000) {
   const h = new Date(t).getUTCHours(); const awake = h >= 8 && h < 23;
@@ -168,13 +185,18 @@ while (t < t0 + DAYS * 86400000) {
   if (awake) { W.n++; if (G.crewsBusy(s) < G.crewsTotal(s)) W.idle++; if (G.slotsBusy(s) < G.slotsTotal(s)) W.lab++; }
   if (process.env.SNAP && t - snapT >= 2 * 86400000) { snapT = t; const R = G.rates(s); const r = (k) => `${k} ${Math.round(s.res[k])}/${Math.round(R.cap[k])} (+${Math.round(R.prod[k])}/h)`;
     log.push(`    [${when(t)}] HQ${G.hqLevel(s)} techs ${Object.keys(s.tech).length} crews ${G.crewsTotal(s)} idle ${Math.round((W.idle / W.n) * 100)}% lab idle ${Math.round((W.lab / W.n) * 100)}% · ${['credits', 'metal', 'science', 'rare', 'he3', 'exotic'].map(r).join(' · ')} · laser ${ST.megaStage(s, 'laser')} dyson ${ST.megaStage(s, 'dyson')}`); Object.assign(W, { idle: 0, lab: 0, n: 0 }); }
-  if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}`); } // like a player, save up for the megastructure or starship the campaign is asking for
+  if (awake && process.env.READY) { const R0 = G.rates(s); for (let k = s.obj.i + 1; k < Math.min(STEPS.length, s.obj.i + 40); k++) if (!ready[STEPS[k].id]) { try { if (G.stepDone(s, STEPS[k], R0)) ready[STEPS[k].id] = t; } catch (e) {} } }
+  if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}${ready[st.id] && t - ready[st.id] > 5 * 86400e3 ? `   (achievable since ${when(ready[st.id]).trim()})` : ''}`); } // like a player, save up for the megastructure or starship the campaign is asking for
     const st0 = G.currentStep(s); const saving = st0 && ((st0.kind === 'mega' && ST.canMega(s, st0.mega).why === 'Not enough resources') || (st0.kind === 'drive' && ST.canBuildDrive(s, st0.ship).why === 'Not enough resources')); const capOK = (c) => { const R0 = G.rates(s); return Object.entries(c || {}).every(([r, n]) => R0.cap[r] >= n); }; const savingOK = saving && capOK(st0.kind === 'mega' ? ST.megaCost(st0.mega, ST.megaStage(s, st0.mega)) : (ST.DRIVES[st0.ship] || {}).cost);
+    if (st0 && st0.kind === 'ruins' && AL.canDig(s).ok) AL.startDig(s, t); // the objective's dig before anything else spends the science
     research(); if (s.tech.laserSails) interstellar(); if (s.tech.contactProtocols) contact(); if (s.tech.navalWarfare || (s.war && s.war.raids.length)) warfare(); else WR.tickWar(s, t); if (s.tech.relayNetwork || s.tech.antimatterProduction) beyond(); if (!savingOK) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
   if (s.obj.i >= STEPS.length) { log.push(`${when(t).padStart(9)}  campaign complete`); break; }
   t += awake ? (t - t0 > 150 * 86400e3 ? Math.max(STEP, 1800) : STEP) * 1000 : 3600 * 1000; // late-game players check in less often
 }
 const st = G.currentStep(s);
 console.log(log.join('\n')); if (process.env.WARLOG) console.log(warLog.join('\n'));
+if (process.env.DUMP) (await import('node:fs')).writeFileSync(process.env.DUMP, JSON.stringify({ s, t }));
+if (s.fund) console.log('fund:', JSON.stringify({ route: s.fund.route && s.fund.route.key, pools: Object.fromEntries(Object.entries(s.fund.pools).map(([k, p]) => [k, Object.fromEntries(Object.entries(p).map(([r, v]) => [r, Math.round(v)]))])) }));
+if (s.tech.navalWarfare) console.log('war:', JSON.stringify({ yard: SO.yardLevel(s), yardLaunch: S.canLaunch(s, { module: 'yard' }).why || 'ok', ships: WR.war(s).ships, rockets: s.space.rockets }));
 console.log(`\nend ${when(t)} · Mission Control ${G.hqLevel(s)} · hubs ${Object.keys(s.bases).filter((b) => b !== 'earth').map((b) => b + ' ' + G.hqLevel(s, b) + ' (' + Math.floor(s.bases[b].pop) + ' pop)').join(', ') || '-'} · sites ${Object.keys(SO.sol(s).sites).length} · terra ${SO.terraStage(s, 'mars')}/7 · stars surveyed ${Object.keys(ST.ist(s).surveyed).length}, colonies ${Object.keys(ST.ist(s).colonies).length} (max lvl ${Math.max(0, ...Object.values(ST.ist(s).colonies).map((C) => C.lvl))}), dyson ${ST.megaStage(s, 'dyson')}/10, gates ${Object.keys(ST.ist(s).gates).length} · met ${Object.keys(AL.al(s).known).length}, xenotech ${Object.keys(AL.al(s).xt).length}, deals ${Object.values(AL.al(s).known).map((k) => Object.keys(k.deals || {}).length).reduce((a, b) => a + b, 0)} · fleet ${Object.values(WR.war(s).ships).reduce((a, b) => a + b, 0)} ships (power ${Math.round(WR.power(WR.war(s).ships))}), hives ${WR.HIVE_ORDER.filter((h) => WR.war(s).hives[h + '_done']).length}/4 · relay ${BY.bey(s).relay}/6, galaxies ${Object.keys(BY.bey(s).visited).length}/6, achievements ${Object.keys(s.ach || {}).length}/30, ascension points ${BY.ascensionPoints(s)} · techs ${Object.keys(s.tech).length}/${Object.keys(TECH).length} · flights ${S.sp(s).flights} (lost ${fails}) · ${st ? 'STUCK on ' + st.id + ': ' + st.text : 'nothing stuck'}`);
 if (st) { process.exitCode = 1; console.log('jobs:', s.jobs.filter((j) => j.kind === 'research').map((j) => j.tech + ' ends in ' + Math.round((j.end - t) / 86400000) + 'd').join(', '), 'slots', G.slotsBusy(s), '/', G.slotsTotal(s)); console.log('unresearched:', Object.keys(TECH).filter((k) => !s.tech[k]).map((k) => k + ' (' + G.canResearch(s, k).why + ')').join(', ')); console.log('res', JSON.stringify(Object.fromEntries(['credits','metal','science','exotic','rare','xeno','influence'].map((r) => [r, Math.round(s.res[r] || 0)]))), 'cap', JSON.stringify(Object.fromEntries(['exotic','science','credits'].map((r) => [r, Math.round(G.rates(s).cap[r])])))); }

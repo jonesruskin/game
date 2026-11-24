@@ -3,7 +3,7 @@
 
 A slow-and-steady space empire builder for web portals: Clash of Clans' tactile base building, OGame's patient asynchronous empire and a 4X's alien civilisations. Research, build and upgrade in real time (timers keep running while you're away). Launch rockets and satellites, settle the Moon and planets, terraform worlds, cross interstellar space, meet alien species (some friendly, some not) and spread across galaxies.
 
-> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-7 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar, Contact, Conflict, Beyond) are playable.** Part 8 is the polish and ship pass.
+> **Status: ready to upload (v1.0).** Built in 8 parts (see [DESIGN.md](DESIGN.md) §11): Foundation & Earth, Orbit & Moon, the Solar System, Interstellar, Contact, Conflict, Beyond, and Polish & ship. Portal zips are in `dist/`, store art and videos in `store/`, and the upload walkthrough is in [UPLOAD.md](UPLOAD.md).
 
 - 🎮 **Play locally:** from the repo root run `python3 -m http.server 8080`, then open http://localhost:8080/starward/
 - 📦 **Build portal packages:** `node tools/build.mjs` (inside `starward/`) creates `dist/starward-{crazygames,poki,web}.zip`
@@ -74,8 +74,18 @@ A slow-and-steady space empire builder for web portals: Clash of Clans' tactile 
 - **30 achievements** that pay dark matter, and a **codex** of worlds, stars, civilisations, alien life and galaxies.
 - 6 new techs (101 in all) and Chapters 13-14 (110 objectives across 14 chapters).
 
+## Part 8: Polish & ship (done)
+- **A generative score:** slow pad chords that never quite repeat, a deep drone and bell-like sparkles drifting through an echo, all synthesised live in WebAudio (no audio files). It has its own volume slider next to sound effects.
+- **Performance:** the cached colony ground is capped at about 4 MP, which took the Mars and Ceres bases from about 11 ms a frame to under 1 ms and keeps them inside phone GPU texture limits.
+- **Funded megaprojects:** the relay network, the six expeditions, the Matrioshka Brain and the Ringworld cost more than any storage can hold, so each has a funding pool. *Invest all but 10%* tops it up, and *Route surplus here* sends whatever would overflow full storage into the project, even while you're away. This fixed a hard dead end: the endgame (and with it Ascension) had been priced beyond any storage cap.
+- **Late-game affordability:** every other price fits what a fully built Earth can store (`tools/audit.mjs` checks all 534), and any price above your current storage says "build or upgrade Logistics Depots".
+- **Objective flow:** the bot's look-ahead mode found steps that waited weeks behind slower ones (contact waited about 225 days behind the Wormhole Gate). They now come up when they become achievable.
+- **Battle advice:** when an assault forecast is poor, Fleet Command says why in one line (for example, Brood Ship shields soak up 95% of corvette fire) and names the hulls that would do better.
+- **Store kit:** WebGL covers (landscape, portrait, square, Poki thumbnail), 18-second landscape and portrait trailers recorded from the live game, screenshots, listing copy (`store/description.md`) and a step-by-step [UPLOAD.md](UPLOAD.md).
+- **The balance bot** now plays all seven parts (contact, the war and the Beyond included) and can dump its final state for debugging.
+
 ## Balance
-`node tools/sim.mjs` runs a bot through the campaign on the real rules (see the header for engaged, casual and first-session modes). Pacing rules are in DESIGN.md §10.1.
+`node tools/sim.mjs` runs a bot through the campaign on the real rules (see the header for engaged, casual and first-session modes; `READY=1` reports steps that became achievable long before their turn). `node tools/audit.mjs` checks every price against storage. Pacing rules are in DESIGN.md §10.1.
 
 ## Code map
 ```

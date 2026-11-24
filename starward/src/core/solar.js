@@ -6,6 +6,7 @@ import { BODIES, SITES, SHIPS, SHIP_ORDER, TERRA, ZONE_CLASS, SITE_MAX } from '.
 import { lvlOf, canPay, pay, give } from './econ.js';
 import { uid } from './state.js';
 import { curve, round2, clamp, hash } from '../util.js';
+import { fitMax } from '../data/buildings.js';
 
 export const YEAR_MS = 2 * 86400000; const EPOCH = Date.UTC(2026, 0, 1);
 export const sol = (s) => s.solar || (s.solar = { surveyed: {}, sites: {}, ships: {}, terra: {}, voyages: 0, story: {} });
@@ -54,7 +55,7 @@ export function foundColony(s, id) { const C = COLONY[id]; if (s.bases[id]) retu
 // ---------------- voyages ----------------
 // op: 'found' (colony), 'site' (build the outpost / station / claim), 'upgrade' (next level), 'transport' (colonists)
 export const siteLevel = (s, id) => sol(s).sites[id] || 0;
-export const siteCost = (id, L) => { const d = SITES[id]; const o = {}; for (const r in d.cost) o[r] = round2(curve(d.cost[r][0], d.cost[r][1], L)); return o; };
+export const siteCost = (id, L) => { const d = SITES[id]; const o = {}; for (const r in d.cost) o[r] = round2(curve(d.cost[r][0], d.cost[r][1], L)); return fitMax(o); };
 export const liftCut = (s) => Math.min(0.45, lvlOf(s, 'earth', 'elevator') * 0.03);
 export function travelTime(s, body, ship, t = Date.now()) {
   const b = BODIES[body]; const w = windowOf(body, t); let h = b.travel / SHIPS[ship].speed * w.time;

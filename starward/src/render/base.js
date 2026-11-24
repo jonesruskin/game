@@ -50,6 +50,9 @@ export class BaseView {
   hOf(st) { const sp = this.sprites.get(this.key(st.b, st.lvl || 1)); return sp ? sp.h : 40; }
   key(b, L) { return b + ':' + L; }
   scale() { return Math.max(0.5, Math.round(this.zoom * this.dpr * 4) / 4); }
+  // the cached ground is one big bitmap: keep it under ~4.2 MP and 3072 px a side, or phones (and GPUs with small
+  // texture limits) fall off the fast path and every frame pays for it
+  gScale(w, h) { const sc = this.scale(); return Math.min(sc, 3072 / w, 3072 / h, Math.sqrt(4.2e6 / (w * h))); }
   sprite(b, L, size) {
     const k = this.key(b, L); let sp = this.sprites.get(k); if (sp) return sp;
     const sc = this.scale(); const w = size * TW + PADX * 2, h = size * TH + HMAX + 20; const cv = document.createElement('canvas'); cv.width = Math.ceil(w * sc); cv.height = Math.ceil(h * sc);
@@ -60,8 +63,8 @@ export class BaseView {
   // ---------------- ground ----------------
   buildGround(s) {
     if (this.theme !== 'earth') return this.buildColonyGround(s);
-    const N = this.lay.N, M = 7; const sc = this.scale(); this.gZoom = this.zoom;
-    const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 40, y1 = P(N + M, N + M)[1] + 40;
+    const N = this.lay.N, M = 7; this.gZoom = this.zoom;
+    const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 40, y1 = P(N + M, N + M)[1] + 40; const sc = this.gScale(x1 - x0, y1 - y0);
     const cv = document.createElement('canvas'); cv.width = Math.ceil((x1 - x0) * sc); cv.height = Math.ceil((y1 - y0) * sc); const c = cv.getContext('2d'); c.scale(sc, sc); c.translate(-x0, -y0);
     const R = rng(7);
     // island outline: a jittered rounded diamond, beach band, then grass
@@ -90,8 +93,8 @@ export class BaseView {
   themeOf(s) { const p = this.theme === 'mars' && s && s.solar ? (s.solar.terra.mars || 0) / 7 : 0; return THEMES[this.theme](p); }
   buildColonyGround(s) {
     const TH2 = this.themeOf(s); this.groundKey = this.theme + ':' + ((s && s.solar && s.solar.terra.mars) || 0);
-    const N = this.lay.N, M = 10; const sc = this.scale(); this.gZoom = this.zoom;
-    const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 60, y1 = P(N + M, N + M)[1] + 40;
+    const N = this.lay.N, M = 10; this.gZoom = this.zoom;
+    const x0 = P(-M, N + M)[0] - 40, x1 = P(N + M, -M)[0] + 40, y0 = P(-M, -M)[1] - 60, y1 = P(N + M, N + M)[1] + 40; const sc = this.gScale(x1 - x0, y1 - y0);
     const cv = document.createElement('canvas'); cv.width = Math.ceil((x1 - x0) * sc); cv.height = Math.ceil((y1 - y0) * sc); const c = cv.getContext('2d'); c.scale(sc, sc); c.translate(-x0, -y0);
     const R = rng(21); const isl = []; const steps = 64; for (let k = 0; k < steps; k++) { const a = (k / steps) * Math.PI * 2; const rr = (N / 2 + M * 0.85) * (1 + 0.05 * Math.sin(a * 5) + 0.03 * Math.sin(a * 11)); isl.push([N / 2 + Math.cos(a) * rr, N / 2 + Math.sin(a) * rr]); }
     const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, TH2.ground[0]); g.addColorStop(0.5, TH2.ground[1]); g.addColorStop(1, TH2.ground[2]); poly(c, isl.map(([i, j]) => P(i, j)), g);

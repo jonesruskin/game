@@ -208,8 +208,8 @@ export class UI {
   toast(text, kind = 'info') { const el = document.createElement('div'); el.className = 'toast ' + kind; el.innerHTML = esc(text); $('#toasts').appendChild(el); setTimeout(() => el.classList.add('out'), 3400); setTimeout(() => el.remove(), 4000); while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove(); }
   modal(html, cls = '') { const m = $('#modal'); m.className = 'on ' + cls; m.innerHTML = `<div class="card">${html}</div>`; }
   closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; }
-  settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label>
+  settings() { const st = this.s.settings; this.modal(`<h2>${icon('cog')} Settings</h2><label class="set">Sound effects<input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx"></label><label class="set">Music<input type="range" min="0" max="1" step="0.05" value="${st.music}" data-set="music"></label>
     <div class="set">Day / night<div class="chips">${[['auto', 'Local time'], ['day', 'Always day'], ['night', 'Always night']].map(([v, n]) => `<button class="chip2 ${st.dayNight === v ? 'on' : ''}" data-a="day" data-v="${v}">${n}</button>`).join('')}</div></div>
-    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 0.7 · Part 7 of the campaign: Beyond.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
+    <p class="muted small">Starward runs in real time: construction and research continue while you are away. Version 1.0.</p><div class="row"><button class="btn ghost" data-a="reset">Reset progress</button><button class="btn gold" data-a="close">Done</button></div>`);
     $$('#modal [data-set]').forEach((el) => el.addEventListener('input', () => { st[el.dataset.set] = +el.value; this.app.applySettings(); })); }
 }

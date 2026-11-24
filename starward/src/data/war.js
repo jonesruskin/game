@@ -3,6 +3,7 @@
 //   laser   → strong against small hulls (S),  weak against L/XL
 //   missile → strong against large hulls (L/XL), weak against S
 //   rail    → punches through shields (halves their effect)
+import { fitMax } from './buildings.js';
 export const SIZE_W = { S: 1, M: 2, L: 4, XL: 8 }; // how likely a hull is to be targeted
 export const VS = { laser: { S: 1.5, M: 1, L: 0.65, XL: 0.6 }, missile: { S: 0.5, M: 1, L: 1.5, XL: 1.6 }, rail: { S: 0.9, M: 1, L: 1.05, XL: 1.05 } };
 export const WARSHIPS = {
@@ -16,7 +17,7 @@ export const WARSHIPS = {
 export const WARSHIP_ORDER = ['corvette', 'frigate', 'destroyer', 'cruiser', 'battleship', 'carrier'];
 // defences per base or star colony: each level adds batteries (laser) and silos (missile); shields add absorption
 export const DEFENCE = { battery: { name: 'Laser batteries', size: 'L', wpn: 'laser', hp: 9000, sh: 900, atk: 1200 }, silo: { name: 'Missile silos', size: 'L', wpn: 'missile', hp: 9000, sh: 900, atk: 1300 } };
-export const defCost = (L) => ({ credits: Math.round(2e7 * Math.pow(1.55, L - 1)), metal: Math.round(2.5e7 * Math.pow(1.55, L - 1)) });
+export const defCost = (L) => fitMax({ credits: Math.round(2e7 * Math.pow(1.55, L - 1)), metal: Math.round(2.5e7 * Math.pow(1.55, L - 1)) });
 export const DEF_MAX = 10;
 // the Swarm
 export const SWARM = {

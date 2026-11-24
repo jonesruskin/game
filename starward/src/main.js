@@ -37,7 +37,7 @@ class App {
     if (!s.tut) this.intro(); else if (away > 90) this.report(away, before, notes);
     requestAnimationFrame((t) => this.frame(t));
   }
-  applySettings() { const st = this.s.settings; this.audio.setVolume(st.sfx); if (this.bv) this.bv.dayLock = st.dayNight === 'day' ? 1 : st.dayNight === 'night' ? 0 : null; }
+  applySettings() { const st = this.s.settings; this.audio.setVolume(st.sfx); this.audio.setMusic(st.music); if (this.bv) this.bv.dayLock = st.dayNight === 'day' ? 1 : st.dayNight === 'night' ? 0 : null; }
   layout() { const W = innerWidth, H = innerHeight; const dpr = Math.min(devicePixelRatio || 1, 2); const port = H > W; document.body.classList.toggle('port', port); this.bv.padR = port ? 0 : 0; this.bv.resize(W, H, dpr); this.orbit.resize(W, H, dpr); this.system.resize(W, H, dpr); this.stars.resize(W, H, dpr); }
   // scenes: earth / moon (isometric bases) and orbit (3D); research and launch are overlays above the scene
   setView(v, arg) {
@@ -162,7 +162,7 @@ class App {
     fx.addEventListener('wheel', (e) => { if (this.scene !== 'system') return; e.preventDefault(); const f = Math.exp(-e.deltaY * 0.0015); if (this.mapMode === 'stars') this.stars.zoomAt(f); else this.system.zoomAt(f, e.clientX, e.clientY); }, { passive: false });
     addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#modal').classList.contains('on')) this.ui.closeModal(); else if (['research', 'launch', 'contact', 'war', 'beyond'].includes(this.view)) this.setView('base'); else if (this.scene === 'system') { if (this.mapMode === 'stars') this.ui.selectStar(null); else this.ui.selectBody(null); } else this.ui.select(null); } });
   }
-  start() { this.audio.unlock(); if (!this.started) { this.started = true; Platform.gameplayStart(); } }
+  start() { this.audio.unlock(); this.audio.setMusic(this.s.settings.music); if (!this.started) { this.started = true; Platform.gameplayStart(); } }
   // ---------------- story & reports ----------------
   intro() { const ch = CHAPTERS[0]; this.ui.modal(`<div class="intro"><div class="logo">STARWARD</div><p class="tag">From one launch pad to the edge of the universe</p><h2>${ch.name}</h2><p>${ch.intro}</p><ul class="how"><li>Tap a building to upgrade it, or an empty lot to build.</li><li>Construction and research run in <b>real time</b>, even while you're away.</li><li>Follow the objectives on the left; each pays a reward.</li></ul><button class="btn gold big" data-a="close" id="beginBtn">Begin the programme</button></div>`, 'intro');
     $('#beginBtn').addEventListener('click', () => { this.s.tut = 1; this.persist(); this.start(); }); }

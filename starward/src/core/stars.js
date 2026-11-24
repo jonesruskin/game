@@ -6,6 +6,8 @@ import { canPay, pay, give, lvlOf, hqLevel } from './econ.js';
 import { uid } from './state.js';
 import { round2, ladder, curve } from '../util.js';
 import { yardLevel } from './solar.js';
+import { fitMax } from '../data/buildings.js';
+import * as F from './fund.js';
 
 export const ist = (s) => s.stars || (s.stars = { surveyed: {}, colonies: {}, ships: {}, mega: {}, gates: {}, story: {} });
 export const dist = (a, b = 'sol') => { const p = STARS[a].pos, q = STARS[b].pos; return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
@@ -13,7 +15,7 @@ export const megaStage = (s, id) => ist(s).mega[id] || 0;
 export const surveyRange = (s) => { const L = megaStage(s, 'laser'); return L ? 6 + L * 8 + (s.aliens && s.aliens.xt.photonicSails ? 20 : 0) : 0; };
 // ---------------- light-sail surveys ----------------
 export const sailsOut = (s) => s.jobs.filter((j) => j.kind === 'sail').length;
-export function sailSpec(s, id) { const d = dist(id); return { cost: { credits: round2(400000 * d), rare: round2(40 * d) }, time: Math.round(d * 3 * 3600 / (1 + megaStage(s, 'laser') * 0.25)) }; }
+export function sailSpec(s, id) { const d = dist(id); return { cost: fitMax({ credits: round2(400000 * d), rare: round2(40 * d) }), time: Math.round(d * 3 * 3600 / (1 + megaStage(s, 'laser') * 0.25)) }; }
 export function canSail(s, id) {
   const ms = sailSpec(s, id); if (ist(s).surveyed[id]) return { ok: false, why: 'Already surveyed', done: true, ms };
   if (!megaStage(s, 'laser')) return { ok: false, why: 'Build the Starshot Laser Array (tap the Sun)', locked: true, ms };
@@ -41,7 +43,7 @@ const livable = (s, pl) => pl.hab >= 0.25 || !!s.tech.domeWorlds;
 export const gated = (s, star) => !!(megaStage(s, 'gate') && ist(s).gates[star]);
 export function travel(s, star, ship) { const k = ship === 'warp' && s.aliens && s.aliens.xt.photonicSails ? 0.5 : 1; return Math.max(300, Math.round(gated(s, star) ? 600 : dist(star) * DRIVES[ship].hpl * 3600 * k)); }
 export function pickDrive(s) { for (const id of DRIVE_ORDER.slice().reverse()) if (drivesFree(s, id) > 0) return id; return null; }
-export function foundCost(s) { const n = Object.keys(ist(s).colonies).length; return { credits: round2(2e7 * Math.pow(1.3, n)), metal: round2(1.5e7 * Math.pow(1.3, n)), he3: round2(3000 * Math.pow(1.2, n)) }; }
+export function foundCost(s) { const n = Object.keys(ist(s).colonies).length; return fitMax({ credits: round2(2e7 * Math.pow(1.3, n)), metal: round2(1.5e7 * Math.pow(1.3, n)), he3: round2(3000 * Math.pow(1.2, n)) }); }
 export function canFound(s, star, p) {
   const st = STARS[star], pl = st.planets[p]; const I = ist(s); const cost = foundCost(s);
   if (!s.tech.starColonies) return { ok: false, why: 'Research Star Colonies', locked: true, tech: 'starColonies', cost };
@@ -56,7 +58,7 @@ export function canFound(s, star, p) {
 }
 export function startFound(s, star, p, t = Date.now()) { const c = canFound(s, star, p); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'star', payload: { star, p, op: 'found' }, ship: c.ship, name: `Settle ${STARS[star].planets[p].name}`, start: t, end: t + c.time * 1000 }); return c; }
 // development: each level is a local build (no crews from Earth), one at a time per colony
-export const devCost = (L) => ({ credits: round2(4e6 * Math.pow(1.62, L - 1)), metal: round2(3e6 * Math.pow(1.62, L - 1)), rare: round2(1500 * Math.pow(1.5, L - 1)) });
+export const devCost = (L) => fitMax({ credits: round2(4e6 * Math.pow(1.62, L - 1)), metal: round2(3e6 * Math.pow(1.62, L - 1)), rare: round2(1500 * Math.pow(1.5, L - 1)) });
 export const devTime = (L) => Math.round(ladder(17 + 1.3 * (L - 1)));
 export function canDevelop(s, key) { const C = ist(s).colonies[key]; if (!C) return { ok: false }; const L = C.lvl + 1; if (L > COLONY_MAX) return { ok: false, why: 'Fully developed', done: true };
   if (s.jobs.some((j) => j.kind === 'develop' && j.key === key)) return { ok: false, why: 'Already building', busy: true }; const cost = devCost(L); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: devTime(L) }; }
@@ -73,11 +75,14 @@ export function colonyOut(s, key) {
   return o;
 }
 // ---------------- megastructures and gates ----------------
-export const megaCost = (id, stage) => { const d = MEGA[id]; const o = {}; for (const r in d.cost) o[r] = round2(d.cost[r] * Math.pow(d.growth, stage)); return o; };
+// ordinary megastructures fit in storage; the funded ones (Matrioshka Brain, Ringworld) are paid in over time
+export const megaCost = (id, stage) => { const d = MEGA[id]; const o = {}; for (const r in d.cost) o[r] = round2(d.cost[r] * Math.pow(d.growth, stage)); return d.fund ? o : fitMax(o); };
 export const megaTime = (id, stage) => Math.round(MEGA[id].days * 86400 * (1 + stage * 0.12));
 export function canMega(s, id) { const d = MEGA[id]; const n = megaStage(s, id); if (n >= d.stages) return { ok: false, why: 'Complete', done: true }; if (!s.tech[d.req]) return { ok: false, why: 'Research required', locked: true, tech: d.req };
-  if (s.jobs.some((j) => j.kind === 'mega' && j.mega === id)) return { ok: false, why: 'A stage is under construction', busy: true }; const cost = megaCost(id, n); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: megaTime(id, n) }; }
-export function startMega(s, id, t = Date.now()) { const c = canMega(s, id); if (!c.ok) return c; pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'mega', mega: id, stage: megaStage(s, id), start: t, end: t + c.time * 1000 }); return c; }
+  if (s.jobs.some((j) => j.kind === 'mega' && j.mega === id)) return { ok: false, why: 'A stage is under construction', busy: true }; const cost = megaCost(id, n);
+  if (d.fund) { if (!F.funded(s, 'mega:' + id, cost)) return { ok: false, why: 'Fund the project first', fund: true, cost }; } else if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: megaTime(id, n) }; }
+export function startMega(s, id, t = Date.now()) { const c = canMega(s, id); if (!c.ok) return c; const n = megaStage(s, id);
+  if (MEGA[id].fund) F.settle(s, 'mega:' + id, c.cost, n + 1 < MEGA[id].stages ? { cost: megaCost(id, n + 1) } : null); else pay(s, c.cost); s.jobs.push({ id: uid(s), kind: 'mega', mega: id, stage: megaStage(s, id), start: t, end: t + c.time * 1000 }); return c; }
 export const gateCost = () => ({ credits: 6e7, exotic: 500 });
 export function canGate(s, star) { if (!megaStage(s, 'gate')) return { ok: false, why: 'Build the Sol Wormhole Gate first (tap the Sun)', locked: true }; if (ist(s).gates[star]) return { ok: false, why: 'Gate open', done: true };
   if (!Object.values(ist(s).colonies).some((C) => C.star === star)) return { ok: false, why: 'Settle the system first' }; if (s.jobs.some((j) => j.kind === 'gatebuild' && j.star === star)) return { ok: false, why: 'Under construction', busy: true };

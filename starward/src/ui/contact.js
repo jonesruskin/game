@@ -10,7 +10,8 @@ import { TIERS, OPENINGS, XENOTECH } from '../data/aliens.js';
 import * as AL from '../core/aliens.js';
 import { portrait } from '../render/portraits.js';
 
-const cost = (c, s) => Object.entries(c).map(([r, n]) => `<span class="cost ${(s.res[r] || 0) < n ? 'short' : ''}" data-r="${r}" data-n="${n}" style="--rc:${RES[r].color}">${icon(r, 'xs')}${fmt(n)}</span>`).join('');
+import { costTags, fundHTML, fundClick } from './fund.js';
+const cost = costTags;
 const relBar = (v) => `<div class="relbar"><i style="left:50%;width:${Math.abs(v) / 2}%;${v < 0 ? 'transform:translateX(-100%);background:var(--red)' : ''}"></i><b>${Math.round(v)}</b></div>`;
 export class ContactUI {
   constructor(ui) { this.ui = ui; this.sel = null; }

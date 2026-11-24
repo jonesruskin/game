@@ -11,6 +11,7 @@ const GAMES = {
   emberkeep: { dir: 'emberkeep', key: 'emberkeep_profile_v1', profile: { tutorialDone: true, coins: 0, deck: ['flame', 'storm', 'stone', 'void', 'arc'], cards: { flame: 3, frost: 3, storm: 3, stone: 3, gold: 2, venom: 2, sun: 2, void: 2, arc: 3 }, workshop: { wispDmg: 8, speed: 5, crit: 5, hp: 15, regen: 10, embers: 15, startEmbers: 10, nova: 2 }, lab: { levels: { autoSummon: 1, autoMerge: 1, autoPower: 1, speed2: 1 }, active: [] }, login: { last: 99999999, streak: 1, pending: false }, settings: { sfx: 0, music: 0 } } },
   fuseworks: { dir: 'fuseworks', key: 'fuseworks_profile_v1', profile: { tutorialDone: true, settings: { sfx: 0, music: 0, lowFx: false, reaches: true, fast: false } } },
   glint: { dir: 'glint', key: 'glint_profile_v1', profile: { v: 1, tut: 2, tier: 1, money: 2400, rep: 60, up: { machine: 2, refract: 1, loupe: 2, hammer: 2 }, cases: [null, null, null, null, null], settings: { sfx: 0, music: 0, quality: 'high', hints: true } } },
+  starward: { dir: 'starward', key: 'starward_save_v1', profile: { v: 1, tut: 1, created: Date.now(), last: Date.now() + 3600e3, settings: { sfx: 0, music: 0, quality: 'auto', dayNight: 'day' } } },
   driftline: { dir: 'driftline', key: 'driftline_profile_v1', profile: { tutorialDone: true, car: 'wraith', equip: { paint: 'p_synth', decal: 'd_bolt', glow: 'g_cyan', smoke: 's_pink' }, owned: { p_synth: true, d_bolt: true, g_cyan: true, s_pink: true, p_red: true, d_none: true, g_none: true, s_white: true }, stats: { races: 10 }, settings: { sfx: 0, music: 0 } } },
 };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json' };
@@ -103,6 +104,39 @@ const DRIVERS = {
       };
     });
     return { preroll: 1, shots: [70, 220, 360] };
+  },
+  async starward(pg) {
+    // a guided tour of a mid-campaign empire: liftoff → orbit → the Solar System → the stars → first contact → a battle replay
+    await pg.evaluate(async () => {
+      const a = window.__app; const s = a.s; const imp = (m) => import('/starward/src/' + m);
+      const [{ TECH }, S, SO, ST, AL, W] = await Promise.all([imp('data/research.js'), imp('core/space.js'), imp('core/solar.js'), imp('core/stars.js'), imp('core/aliens.js'), imp('core/war.js')]);
+      for (const k in TECH) if (TECH[k].tier <= 18) s.tech[k] = 1;
+      const L = s.bases.earth.lots; L.hq.lvl = 14; L.pad = { b: 'launch', lvl: 16 };
+      [['L0', 'mine', 20], ['L1', 'solar', 20], ['L2', 'office', 20], ['L3', 'depot', 20], ['L4', 'research', 18], ['L5', 'vab', 16], ['L6', 'tracking', 14], ['L7', 'academy', 14], ['L8', 'refinery', 18], ['L9', 'mine', 18], ['L10', 'office', 18], ['L11', 'fission', 14], ['L12', 'university', 12], ['L13', 'depot', 16], ['X0', 'fusion', 6], ['X1', 'elevator', 4], ['X2', 'xenolab', 4]].forEach(([id, b, lvl]) => (L[id] = { b, lvl }));
+      Object.assign(s.res, { credits: 4e9, metal: 4e9, fuel: 1e9, science: 1e9, he3: 1e6, rare: 1e6, exotic: 2e4, influence: 1e4, xeno: 1e4, dm: 600 });
+      s.space.rockets = { kestrel: 3, meridian: 2, colossus: 2, leviathan: 2 }; s.space.modules = { core: 6, lab: 5, solar: 5, habitat: 3, yard: 6, dock: 3 }; s.space.sats = [{ type: 'comms', lvl: 6 }, { type: 'observe', lvl: 5 }, { type: 'weather', lvl: 4 }, { type: 'telescope', lvl: 4 }, { type: 'nav', lvl: 3 }, { type: 'power', lvl: 2 }];
+      s.flags.moonBase = 1; s.bases.moon = { body: 'moon', name: 'Tranquility Base', lots: { hq: { b: 'hub', lvl: 6 }, M0: { b: 'regolith', lvl: 10 }, M1: { b: 'lsolar', lvl: 10 }, M2: { b: 'ice', lvl: 9 }, M3: { b: 'he3x', lvl: 8 }, M4: { b: 'dome', lvl: 8 }, M5: { b: 'llab', lvl: 6 } }, pop: 300 };
+      const so = SO.sol(s); for (const b of ['mars', 'phobos', 'ceres', 'psyche', 'vesta', 'venus', 'jupiter', 'europa', 'titan', 'saturn', 'enceladus']) so.surveyed[b] = 1; so.sites = { phobos: 6, psyche: 5, venus: 4, vesta: 4, jupiter: 3, europa: 2, enceladus: 2 }; so.ships = { hermes: 2, ares: 1, daedalus: 1 };
+      SO.foundColony(s, 'mars'); s.bases.mars.lots.hq.lvl = 5; so.terra.mars = 4; SO.foundColony(s, 'ceres'); SO.foundColony(s, 'titan');
+      const I = ST.ist(s); I.mega = { laser: 3, dyson: 4 }; for (const k of ['proxima', 'acen', 'barnard', 'tauceti', 'teegarden', 'vega', 'altair', 'epseri']) I.surveyed[k] = 1; I.colonies['proxima:0'] = { star: 'proxima', p: 0, lvl: 5, spec: 'research' }; I.colonies['teegarden:0'] = { star: 'teegarden', p: 0, lvl: 3, spec: 'trade' };
+      s.flags.relayVisit = 1; AL.meet(s, 'veyari', 'silence'); AL.meet(s, 'lumen', 'music'); AL.known(s, 'veyari').und = 75; AL.known(s, 'veyari').rel = 55;
+      SO.startVoyage(s, { body: 'vesta', op: 'upgrade' }); ST.startSail(s, 'barnard');
+      const { allSteps } = await imp('data/objectives.js'); const steps = allSteps(); const wi = steps.findIndex((x) => x.id === 'w4'); steps.slice(0, wi).forEach((x) => (s.obj.claimed[x.id] = 1)); s.obj.i = wi; const BY = await imp('core/beyond.js'); BY.checkAchievements(s);
+      a.prompted = Object.fromEntries(Object.keys(AL.allSpecies()).map((k) => [k, 1])); a.syncPad(); a.changed(); a.ui.closeModal();
+      const rep = { kind: 'assault', name: 'Hive at Ross 154', win: true, t: Date.now(), res: W.battle({ corvette: 120, frigate: 60, destroyer: 50, cruiser: 30, battleship: 12 }, { drone: 150, warrior: 22, brood: 3 }, 777) };
+      const orig = Object.getPrototypeOf(a).frame; a.frame = () => {}; let now = performance.now(), f = 0;
+      window.__step = (render) => { f++;
+        if (f === 2) { a.setView('earth'); const r = S.launch(s, { mission: 'suborbital' }); if (r.ok) a.launched(r); a.ui.closeModal(); }
+        if (f === 135) a.setView('orbit');
+        if (f === 220) { a.setView('system'); a.system.zoom = 1.15; }
+        if (f === 260) a.ui.selectBody('mars');
+        if (f === 305) { a.ui.selectBody(null); a.setMapMode('stars'); a.stars.zoom = 2.4; }
+        if (f === 385) { a.ui.contact.sel = 'veyari'; a.setView('contact'); }
+        if (f === 445) { a.ui.war.replay(rep); }
+        now += 1000 / 30; orig.call(a, now);
+      };
+    });
+    return { preroll: 1, shots: [70, 250, 420] };
   },
   async driftline(pg) {
     await pg.evaluate(async () => {
