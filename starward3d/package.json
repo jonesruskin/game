@@ -9,7 +9,9 @@
     "build": "node tools/build.mjs",
     "build:crazygames": "node tools/build.mjs crazygames",
     "build:web": "node tools/build.mjs web",
-    "build:mobile": "node tools/build.mjs mobile"
+    "build:mobile": "node tools/build.mjs mobile",
+    "test:server": "tsx server/test/run.ts",
+    "war:local": "tsx server/test/serve.ts 8787"
   },
   "dependencies": {
     "three": "0.187.0"

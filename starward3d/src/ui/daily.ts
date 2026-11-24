@@ -4,6 +4,7 @@
 import { esc, fmt, fmtTime } from '../core/util';
 import * as D from '../core/daily';
 import * as RB from '../core/robots';
+import * as WG from '../core/war';
 import { SPECIES } from '../data/species';
 import { RARITIES, RARITY_ORDER } from '../data/rarities';
 import { RES } from '../data/resources';
@@ -18,7 +19,7 @@ export class DailyUI {
   // ---------------- the side rail ----------------
   renderRail(force = false) { let el = document.getElementById('rail'); if (!el) { el = document.createElement('div'); el.id = 'rail'; document.body.appendChild(el); }
     const s = this.s, at = D.attention(s), dd = D.daily(s); const drop = dd.drops > 0 ? `Open${dd.drops > 1 ? ' ×' + dd.drops : ''}` : fmtTime(Math.max(0, (dd.drop - Date.now()) / 1000));
-    const html = `<button class="rb" data-a="daily" title="Daily rewards"><span>📅</span><i>Daily</i>${dot(at.day || at.missions || at.ach)}</button><button class="rb" data-a="spin" title="Daily core spin"><span>🎡</span><i>Spin</i>${dot(at.spin)}</button><button class="rb" data-a="dailyEv" title="${esc(D.themeOf().name)}" style="--ec:${D.themeOf().col}"><span>🏆</span><i>Event</i>${dot(at.ev)}</button><button class="rb ${dd.drops ? 'hot' : ''}" data-a="dropInfo" title="Supply capsule"><span>📦</span><i id="dropT">${drop}</i></button>`;
+    const html = `<button class="rb" data-a="daily" title="Daily rewards"><span>📅</span><i>Daily</i>${dot(at.day || at.missions || at.ach)}</button><button class="rb" data-a="spin" title="Daily core spin"><span>🎡</span><i>Spin</i>${dot(at.spin)}</button><button class="rb" data-a="dailyEv" title="${esc(D.themeOf().name)}" style="--ec:${D.themeOf().col}"><span>🏆</span><i>Event</i>${dot(at.ev)}</button><button class="rb ${dd.drops ? 'hot' : ''}" data-a="dropInfo" title="Supply capsule"><span>📦</span><i id="dropT">${drop}</i></button>${WG.unlocked(s) ? `<button class="rb" data-a="war" title="War Games"><span>⚔</span><i>War</i>${dot(WG.war(s).sorties > 0 || WG.unclaimed(s) > 0 || !!WG.war(s).seasonPay)}</button>` : ''}`;
     if (force || html !== this.railKey) { this.railKey = html; el.innerHTML = html; } }
   // ---------------- the overlay ----------------
   html() { const s = this.s, dd = D.daily(s), at = D.attention(s); D.refreshMissions(s);

@@ -11,6 +11,8 @@ import { GRID } from '../data/buildings';
 import { clamp } from '../core/util';
 import { OrbitView } from './orbit';
 import { SystemView } from './system';
+import { BattleView } from './battle';
+import type { BattleInput } from '../core/battle';
 import { Walkers } from './walkers';
 import { rb } from '../core/robots';
 import { terraState, breathable, relayLevel } from '../core/solar';
@@ -26,7 +28,7 @@ export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
   cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
-  mode: 'base' | 'orbit' | 'system' = 'base'; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
+  mode: 'base' | 'orbit' | 'system' | 'battle' = 'base'; battle: BattleView | null = null; onBattleTap: (x: number, z: number) => void = () => {}; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
@@ -45,7 +47,9 @@ export class World {
     this.selRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48), new THREE.MeshBasicMaterial({ color: '#6ee7ff', transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); this.selRing.rotation.x = -Math.PI / 2; this.selRing.visible = false; this.scene.add(this.selRing);
     this.resize(); window.addEventListener('resize', () => this.resize()); this.input();
   }
-  resize() { const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.orbit?.resize(w, h); this.system?.resize(w, h); }
+  resize() { const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.orbit?.resize(w, h); this.system?.resize(w, h); this.battle?.resize(w, h); }
+  openBattle(input: BattleInput, look: Look, live: boolean) { if (!this.battle) { this.battle = new BattleView(this.renderer, this.quality); this.resize(); } this.battle.load(input, look, live); this.mode = 'battle'; this.select(null); return this.battle; }
+  closeBattle() { this.battle?.clear(); this.mode = 'base'; }
   openSystem() { if (!this.system) { this.system = new SystemView(this.renderer, this.quality === 'high'); this.resize(); } this.mode = 'system'; this.select(null); }
   openOrbit(S: Space) { if (!this.orbit) { this.orbit = new OrbitView(this.renderer, this.quality === 'high'); this.resize(); } this.orbit.sync(S); this.mode = 'orbit'; this.select(null); }
   closeOrbit() { this.mode = 'base'; }
@@ -77,6 +81,7 @@ export class World {
       ghostDrag = false; if (this.ghost && pts.size === 1) { const g = this.groundAt(e.clientX, e.clientY); if (g) { const [w, d] = G.dims(this.ghost.b, this.ghost.r); const gx = this.ghost.x - C, gz = this.ghost.z - C; if (g.x >= gx - 0.6 && g.x <= gx + w + 0.6 && g.z >= gz - 0.6 && g.z <= gz + d + 0.6) ghostDrag = true; } } });
     el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
       if (Math.hypot(p.x - p.sx, p.y - p.sy) > 7) moved = true; if (!moved) return;
+      if (this.mode === 'battle' && this.battle) { if (pts.size === 1) this.battle.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.battle.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (this.mode === 'system' && this.system) { if (pts.size === 1) this.system.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.system.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (this.mode === 'orbit' && this.orbit) { if (pts.size === 1) this.orbit.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.orbit.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (pts.size === 1) { if (ghostDrag && this.ghost) { this.ghostTo(e.clientX, e.clientY); return; }
@@ -85,10 +90,11 @@ export class World {
       else if (pts.size === 2 && last) { const n = two(); this.cam.tdist *= last.d / Math.max(1, n.d); this.cam.tyaw -= n.a - last.a; last = n; this.clampCam(); } });
     const up = (e: PointerEvent) => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) last = null; if (!p || moved || e.button === 2) return; if (performance.now() - start > 600) return; this.tap(e.clientX, e.clientY); };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => pts.delete(e.pointerId)); el.addEventListener('contextmenu', (e) => e.preventDefault());
-    el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'system' && this.system) { this.system.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
+    el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'system' && this.system) { this.system.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'battle' && this.battle) { this.battle.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
     window.addEventListener('keydown', (e) => { if ((e.target as HTMLElement).tagName === 'INPUT') return; if (e.key === 'q' || e.key === 'Q') this.cam.tyaw += Math.PI / 4; if (e.key === 'e' || e.key === 'E') this.cam.tyaw -= Math.PI / 4; });
   }
   private tap(cx: number, cy: number) {
+    if (this.mode === 'battle' && this.battle) { const r = this.canvas.getBoundingClientRect(); const g = this.battle.groundAt(cx - r.left, cy - r.top, r.width, r.height); if (g) this.onBattleTap(g.x, g.z); return; }
     if (this.mode === 'system' && this.system) { const r = this.canvas.getBoundingClientRect(); this.onPick(this.system.pick(cx - r.left, cy - r.top, r.width, r.height)); return; }
     if (this.mode === 'orbit') return; if (this.ghost) { this.ghostTo(cx, cy); return; }
     if (this.capsule) { const r = this.canvas.getBoundingClientRect(); this.ray.setFromCamera(new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), this.camera); if (this.ray.intersectObject(this.capsule.pick, false).length) { this.onTap({ drop: true }); return; } }
@@ -177,6 +183,7 @@ export class World {
   frame(s: State, dt: number, working: (id: string) => boolean) {
     this.t += dt; const t = this.t;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
+    if (this.mode === 'battle' && this.battle) { this.battle.frame(dt); this.renderer.render(this.battle.scene, this.battle.camera); return; }
     if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
     this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }

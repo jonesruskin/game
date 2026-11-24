@@ -35,35 +35,35 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   warroom: {
     name: 'War Room', fp: [3, 3], bases: ['earth'], unique: true, max: 15, cat: 'defense', req: { hq: 3 },
     cost: { credits: [3000, 1.8], metal: [2500, 1.8] }, time: [10, 1.95], draw: [4, 1.12],
-    desc: 'Your seat on the Defence Council. Daily War Games against other commanders\' bases (holographic, nothing is ever destroyed); each level adds a robot to your strike squad.',
+    desc: 'Your seat on the Defence Council. Daily War Games against other commanders\' bases (holographic, nothing is ever destroyed); every second level adds a robot to your strike squad.',
   },
   turret: {
-    name: 'Point-Defence Turret', fp: [2, 2], bases: ['earth'], max: 15, cat: 'defense', count: [0, 0, 2, 2, 3, 3, 4, 4, 5, 5], req: { hq: 3 },
+    name: 'Point-Defence Turret', fp: [2, 2], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 2, 2, 3, 3, 4, 4, 5, 5], req: { hq: 3 },
     cost: { credits: [2000, 1.74], metal: [3000, 1.74] }, time: [8, 1.95], draw: [3, 1.12],
     desc: 'Twin rapid-fire cannons on a fast turret. Hits ground robots and flyers alike; short range, quick to swing.',
   },
   laser: {
-    name: 'Laser Battery', fp: [2, 2], bases: ['earth'], max: 15, cat: 'defense', count: [0, 0, 0, 1, 2, 2, 3, 3, 4, 4], req: { hq: 4 },
+    name: 'Laser Battery', fp: [2, 2], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 0, 1, 2, 2, 3, 3, 4, 4], req: { hq: 4 },
     cost: { credits: [5000, 1.76], metal: [6000, 1.76] }, time: [10, 1.95], draw: [8, 1.13],
     desc: 'A focused beam that burns through one target at a time, from far away. Ground targets only.',
   },
   missile: {
-    name: 'Missile Silo', fp: [3, 3], bases: ['earth'], max: 15, cat: 'defense', count: [0, 0, 0, 0, 1, 1, 2, 2, 3, 3], req: { hq: 5 },
+    name: 'Missile Silo', fp: [3, 3], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 0, 0, 1, 1, 2, 2, 3, 3], req: { hq: 5 },
     cost: { credits: [9000, 1.78], metal: [10000, 1.78], fuel: [2000, 1.7] }, time: [12, 1.95], draw: [6, 1.13],
     desc: 'Volleys of guided missiles that burst over clusters of robots and flyers. Slow to reload; cannot hit what is right next to it.',
   },
   shield: {
-    name: 'Shield Generator', fp: [3, 3], bases: ['earth'], max: 15, cat: 'defense', count: [0, 0, 0, 0, 0, 1, 1, 2, 2, 2], req: { hq: 6 },
+    name: 'Shield Generator', fp: [3, 3], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 0, 0, 0, 1, 1, 2, 2, 2], req: { hq: 6 },
     cost: { credits: [14000, 1.8], metal: [12000, 1.8] }, time: [14, 1.95], draw: [12, 1.14],
     desc: 'Projects a dome that soaks up damage for every building inside it, and recharges when it is not under fire.',
   },
   emp: {
-    name: 'EMP Tower', fp: [2, 2], bases: ['earth'], max: 15, cat: 'defense', count: [0, 0, 0, 0, 0, 0, 1, 1, 2, 2], req: { hq: 7 },
+    name: 'EMP Tower', fp: [2, 2], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 0, 0, 0, 0, 1, 1, 2, 2], req: { hq: 7 },
     cost: { credits: [18000, 1.8], metal: [15000, 1.8] }, time: [14, 1.95], draw: [10, 1.14],
     desc: 'Every few seconds a pulse freezes every robot nearby. Devastating against crowds.',
   },
   wall: {
-    name: 'Wall', fp: [1, 1], bases: ['earth'], max: 12, cat: 'defense', instant: true, count: [0, 0, 25, 40, 60, 80, 100, 125, 150, 175], req: { hq: 3 },
+    name: 'Wall', fp: [1, 1], bases: ['earth'], max: 16, cat: 'defense', instant: true, count: [0, 0, 25, 40, 60, 80, 100, 125, 150, 175], req: { hq: 3 },
     cost: { credits: [200, 1.9] }, time: [0.02, 1.0],
     desc: 'Reinforced barrier blocks. Ground robots must break through or walk around; place them in lines to channel attackers into your defences.',
   },

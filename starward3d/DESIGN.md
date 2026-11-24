@@ -64,7 +64,7 @@ Multi-stage projects that run for real days: atmosphere, warmth, water, magnetic
 - **Attack:** 3 sorties a day. Pick one of three commanders of similar strength, deploy robot squads at the edge, watch the real-time battle. Stars: 50% destruction, Mission Control down, 100%.
 - **Rewards that feed the main game:** credits, metal, fuel and science scaled to your level and the stars won, robot XP, trophies (leagues, weekly season rewards), a daily first-win bonus.
 - **Defence:** others attack your snapshot; you get a log with replays and a bounty for every defence you hold.
-- **Server:** a Cloudflare Worker + D1 (`server/`): snapshots, matchmaking, results, replays, leaderboard. Without it (or offline) the Academy fields AI commanders built from the same templates, clearly labelled.
+- **Server:** a Cloudflare Worker + D1 (`server/`): snapshots, matchmaking, results, replays, leaderboard. The engine is deterministic, so the server re-runs each battle to verify it (this needs Workers Paid: a battle costs ~20 ms of CPU and Workers Free allows 10 ms; on Free the server sanity-checks the client's result instead). Without it (or offline) the Academy fields AI commanders built from the same templates, clearly labelled, with a difficulty that rises with trophies so fights stay close.
 - The same battle engine runs the Era 5 alien raids (PvE), so defences matter for the whole game.
 
 ## 9. Aliens (Era 5)

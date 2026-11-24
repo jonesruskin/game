@@ -18,6 +18,9 @@ import * as SP from './core/space';
 import * as RB from './core/robots';
 import * as SO from './core/solar';
 import * as DY from './core/daily';
+import * as WG from './core/war';
+import * as NET from './core/net';
+import { Battle, deployLive, surrender, resultOf, canDeployAt, BattleInput } from './core/battle';
 import { SPECIES } from './data/species';
 import { RARITIES } from './data/rarities';
 import type { Design } from './data/rockets';
@@ -60,7 +63,9 @@ export class App {
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
-    DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
+    DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
+    if (this.ui.tick % 60 === 7) NET.pushSnapshot(this.s, { primary: this.world.look.banner.bg, accent: this.world.look.banner.fg });
+    if (this.ui.tick % 10 === 3 && WG.unlocked(this.s) && this.world.mode === 'base') { const d = WG.drill(this.s); if (d) this.ui.toast(d.held ? `The Academy drilled your defences: they held (${d.pct}%). Bounty waiting in the War Games log.` : `The Academy drill broke through (${d.stars}★, ${d.pct}%). Check the replay in the War Games log.`, d.held ? 'good' : 'bad'); } this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
     // Kardashev milestones pay out dark matter as the civilisation's power grows
     const k = kardashev(this.s, this.R); const m = K_MILESTONES.find((x) => x > (this.s.kMax || 0) && k >= x);
     if (m) { this.s.kMax = m; const dm = kReward(m); this.s.res.dm = (this.s.res.dm || 0) + dm; this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV MILESTONE</div><div class="big">${m.toFixed(2)}</div><p class="desc">Your civilisation now commands more power than ever. Reward:</p><div class="rewards">${costHTML({ dm })}</div><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
@@ -97,6 +102,23 @@ export class App {
     if (h.item) { const it = G.itemOf(this.s, this.s.at, h.item); if (it && this.R.item[it.id] && (it.held || 0) >= 1 && this.ui.sel !== it.id) { this.collect(it.id); } this.ui.select(h.item); this.audio.play('tap'); return; }
     this.ui.select(null);
   }
+  // ---------------- War Games ----------------
+  battle: { B: Battle; live: boolean; opp: WG.Opp | null; who: string } | null = null;
+  private oppLook(o: { primary: string; accent: string } | null) { return o ? { primary: '#e9eef5', accent: o.accent, banner: { bg: o.primary, fg: o.accent, emblem: 'star' } } : this.world.look; }
+  startAttack(i: number) { const s = this.s, Wr = WG.war(s); const opp = Wr.opps[i]; if (!opp) return; const input = WG.beginSortie(s, opp); if (!input) { this.ui.deny(WG.canAttack(s).why); return; }
+    this.ui.closeOver(); this.ui.select(null); const bv = this.world.openBattle(input, this.oppLook(opp.look), true); this.battle = { B: bv.B!, live: true, opp, who: opp.name }; this.ui.war.sel = 0; document.body.classList.add('battling'); this.ui.war.hud(bv.B!, true, opp.name);
+    bv.onTick = () => this.ui.war.upd(bv.B!); bv.onOver = () => this.battleOver(); this.world.onBattleTap = (x, z) => this.battleTap(x, z); this.audio.play('launch'); this.save(); }
+  private battleTap(x: number, z: number) { const b = this.battle; if (!b || !b.live || b.B.over) return; const bv = this.world.battle!; const i = this.ui.war.sel;
+    if (b.B.used[i]) { const n = b.B.used.findIndex((u) => !u); if (n < 0) return; this.ui.war.sel = n; }
+    if (!canDeployAt(b.B, x, z)) { bv.flash(x, z, false); this.audio.play('deny'); const h = document.getElementById('bhint'); if (h) { h.textContent = 'Not inside the red square: land your robots outside it.'; h.classList.add('warn'); } return; }
+    if (deployLive(b.B, this.ui.war.sel, x, z)) { bv.flash(x, z, true); this.audio.play('place'); const n = b.B.used.findIndex((u, k) => !u && k !== this.ui.war.sel); this.ui.war.sel = n < 0 ? this.ui.war.sel : n; this.ui.war.upd(b.B); document.getElementById('bhint')?.classList.add('hidden'); } }
+  endAttack() { const b = this.battle; if (!b) return; if (b.live && !b.B.over) surrender(b.B); }
+  private battleOver() { const b = this.battle; if (!b) return; if (!b.live) { this.ui.toast('Replay finished', 'good'); return; } b.live = false; const r = resultOf(b.B); const opp = b.opp!; const out = WG.settle(this.s, opp, b.B.input, r);
+    // a real commander: the server re-runs the battle and owns the trophy count
+    NET.submit(this.s, opp, b.B.input, r).then((sv) => { if (!sv) return; const Wr = WG.war(this.s); Wr.trophies = sv.trophies; Wr.best = Math.max(Wr.best, sv.trophies); if (Wr.hist[0]) Wr.hist[0].dT = sv.dT; this.save(); }); this.audio.play(r.stars ? 'levelup' : 'deny'); if (r.stars >= 2) this.platform.happytime();
+    window.setTimeout(() => { this.ui.war.hideHud(); this.ui.war.result(r, out, b.who); }, 900); this.changed(); this.save(); }
+  replay(input: BattleInput, look: { primary: string; accent: string } | null, who: string) { this.ui.closeOver(); const bv = this.world.openBattle(JSON.parse(JSON.stringify(input)), look ? this.oppLook(look) : this.world.look, false); this.battle = { B: bv.B!, live: false, opp: null, who }; document.body.classList.add('battling'); this.ui.war.hud(bv.B!, false, who); bv.onTick = () => this.ui.war.upd(bv.B!); bv.onOver = () => this.battleOver(); }
+  closeBattle() { this.battle = null; this.world.closeBattle(); document.body.classList.remove('battling'); this.ui.war.hideHud(); this.ui.renderNav(); this.ui.renderPanel(); this.world.sync(this.s); }
   openDropNow() { const at = this.world.capsulePos(); const r = DY.openDrop(this.s); if (!r) return; this.audio.play('levelup'); if (at) { at.y += 1; this.world.burst(at, '#ffd36a', 36); } this.world.setCapsule(this.s, false); this.ui.daily.reveal('SUPPLY CAPSULE', '📦', r.res, r.gift); this.changed(); this.ui.daily.renderRail(); }
   focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
   collect(id: string) {
