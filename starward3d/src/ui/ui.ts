@@ -16,6 +16,7 @@ import { DailyUI } from './daily';
 import { ArenaUI } from './arena';
 import { SpaceUI } from './space';
 import * as SP from '../core/space';
+import { ISLANDS, ISLAND_ORDER } from '../data/islands';
 import * as AR from '../core/arena';
 import * as C from '../core/crew';
 import { CORE_ELEMENTS } from '../data/elements';
@@ -38,6 +39,7 @@ export class UI {
   // ---------------- HUD ----------------
   renderHud() { const s = this.s; const p = (s.xp / G.xpNeedOf(s)) * 100;
     $('#hud').innerHTML = `<div class="lvl" title="Commander level"><div class="badge" style="--p:${p}%"><b>${s.lvl}</b></div><div class="nm"><b>${esc(s.name)}</b><i>${fmt(s.xp)} / ${fmt(G.xpNeedOf(s))} XP</i></div></div>
+      <button class="chip" data-a="islands" title="Your islands">${({ home: '🌍', moon: '🌕', mars: '🔴' } as Record<string, string>)[s.at] || '🌍'} ${esc(s.at === 'home' ? s.name : ISLANDS[s.at].name)} ▾</button>
       <div class="res" id="r-credits">${IC.credits}<span class="v">${fmt(s.res.credits)}</span></div><div class="res" id="r-cells">${IC.cells}<span class="v">${fmt(s.res.cells)}</span></div><div class="res" id="r-dm">${IC.dm}<span class="v">${fmt(s.res.dm)}</span></div>
       <div class="sp"></div><span id="dailyHud" class="row" style="gap:6px;flex-wrap:nowrap">${this.daily.hudHTML()}</span><button class="ibtn" data-a="zoomout" title="Overview">🛰</button><button class="ibtn" data-a="settings" title="Settings">⚙</button>`; }
   private updHud() { const s = this.s; for (const r of ['credits', 'cells', 'dm'] as const) { const v = Math.floor(s.res[r]); if (v !== Math.floor(this.lastRes[r])) { const el = $(`#r-${r}`); if (el) { el.querySelector('.v')!.textContent = fmt(v); if (v > this.lastRes[r]) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } this.lastRes[r] = v; } }
@@ -56,9 +58,9 @@ export class UI {
       if (!el) { el = document.createElement('div'); el.className = 'bub'; if (act) { el.dataset.a = act; if (id) el.dataset.id = id; } root.appendChild(el); this.bubbles.set(key, el); }
       if (el.dataset.h !== html + cls) { el.innerHTML = html; el.className = 'bub ' + cls; el.dataset.h = html + cls; }
       const p = w.project(at as any); el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; el.style.display = p.vis && !w.ghost && w.mode === 'island' ? '' : 'none'; };
-    for (const it of s.isl.items) { const top = w.topOf(it.id); const job = G.jobOf(s, it.id, 'build');
+    for (const it of G.here(s).items) { const top = w.topOf(it.id); const job = G.jobOf(s, it.id, 'build');
       if (job) { const left = (job.end - Date.now()) / 1000, f = clamp(1 - (job.end - Date.now()) / (job.end - job.start)); put('t' + it.id, top, `<span>${left > 0 ? fmtTime(left) : 'Done!'}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer', 'select', it.id); continue; }
-      if (it.t === 'bay') { const n = Math.floor(s.bay[it.id] || 0); if (n >= 1) put('c' + it.id, top, `${IC.credits}${fmt(n)}`, n >= G.bayCap(it) * 0.98 ? 'full' : '', 'collect', it.id); }
+      if (it.t === 'bay') { const n = Math.floor(s.bay[it.id] || 0); if (n >= 1) put('c' + it.id, top, `${IC.credits}${fmt(n)}`, n >= G.bayCap(it, s) * 0.98 ? 'full' : '', 'collect', it.id); }
       if (it.t === 'fab') { const r = s.ready[it.id], cj = G.jobOf(s, it.id, 'craft');
         if (r) put('r' + it.id, top, `${IC.cells}+${fmt(r.cells)}`, 'ready', 'harvest', it.id);
         else if (cj) { const f = clamp(1 - (cj.end - Date.now()) / (cj.end - cj.start)); put('t' + it.id, top, `<span>${fmtTime((cj.end - Date.now()) / 1000)}</span><div class="bar cell"><i style="width:${f * 100}%"></i></div>`, 'timer', 'select', it.id); }
@@ -67,7 +69,7 @@ export class UI {
       if (it.t === 'fusion' && it.lvl > 0) { const fj = G.jobOf(s, it.id, 'fuse'); if (fj) { const f = clamp(1 - (fj.end - Date.now()) / (fj.end - fj.start)); put('t' + it.id, top, `<span>🧬 ${fmtTime((fj.end - Date.now()) / 1000)}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer', 'select', it.id); }
         else if (s.bots.filter((b) => b.lvl >= C.FUSE_LEVEL).length >= 2) put('i' + it.id, top, `🧬 <span>Fuse</span>`, '', 'select', it.id); } }
     for (let px = 0; px < 5; px++) for (let pz = 0; pz < 5; pz++) { const k = `${px},${pz}`; if (G.plotState(s, k) !== 'buyable') continue; const at = { x: px * PLOT + PLOT / 2 - N / 2, y: 0.4, z: pz * PLOT + PLOT / 2 - N / 2 };
-      const st = G.currentStep(s); if (s.lvl >= landLevel(s.landBought) && (w.cam.tdist > 40 || (st && st.kind === 'land'))) put('p' + k, at, `＋ ${IC.credits}${fmt(landCost(s.landBought))}`, 'plot', 'plot', k); }
+      const st = G.currentStep(s); if (s.lvl >= G.plotLevel(s) && (w.cam.tdist > 40 || (st && st.kind === 'land'))) put('p' + k, at, `＋ ${IC.credits}${fmt(G.plotCost(s))}`, 'plot', 'plot', k); }
     for (const [k, el] of this.bubbles) if (!seen.has(k)) { el.remove(); this.bubbles.delete(k); } }
   // ---------------- selection + panels ----------------
   select(id: string | null) { this.sel = id; this.selBot = null; this.world.select(id, this.s); this.panelKey = ''; this.renderPanel(); }
@@ -79,12 +81,13 @@ export class UI {
     $$('#panel [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); });
     $$('#panel [data-bar]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.bar); if (j) e.style.width = clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100 + '%'; });
     $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); e.innerHTML = c ? `${IC.dm}${c} Finish now` : 'Finish (free)'; } });
-    if (it.t === 'bay') { const bar = $('#panel .bar.gold i') as HTMLElement, v = $('#panel #bayv'); const n = s.bay[it.id] || 0; if (bar) bar.style.width = (n / G.bayCap(it)) * 100 + '%'; if (v) v.textContent = `${fmt(n)} / ${fmt(G.bayCap(it))}`; }
+    if (it.t === 'bay') { const bar = $('#panel .bar.gold i') as HTMLElement, v = $('#panel #bayv'); const n = s.bay[it.id] || 0; if (bar) bar.style.width = (n / G.bayCap(it, s)) * 100 + '%'; if (v) v.textContent = `${fmt(n)} / ${fmt(G.bayCap(it, s))}`; }
     $$('#panel [data-cost]').forEach((e) => { const [r, n] = e.dataset.cost!.split(':'); e.classList.toggle('short', (s.res as any)[r] < +n); }); }
   renderPanel() { const el = $('#panel'); const s = this.s; const bot = this.selBot ? s.bots.find((x) => x.id === this.selBot) : null; if (bot) { el.classList.remove('hidden'); this.panelKey = this.panelSig(); el.innerHTML = this.crew.botPanel(bot); return; }
     const it = this.sel ? G.item(s, this.sel) : null; if (!it) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); this.panelKey = this.panelSig();
     const d = BUILDINGS[it.t]; const job = G.jobOf(s, it.id, 'build'); let h = `<button class="ibtn x" data-a="deselect">✕</button><h2>${esc(it.t === 'bay' ? `${ELEMENTS[it.el!].name} Bay` : d.name)}</h2><div class="sub">${d.cat === 'decor' ? 'Decoration' : `Level ${it.lvl} / ${G.maxLevelOf(s, it)}`}</div>`;
     if (job) { const c = G.dmCost((job.end - Date.now()) / 1000); h += `<p class="desc">${it.lvl === 0 ? 'Under construction' : `Upgrading to level ${job.lvl}`}: builder drones at work.</p><div class="bar"><i data-bar="${job.id}"></i></div><div class="row" style="margin-top:8px"><b class="grow" data-left="${job.id}"></b><button class="btn gold small" data-a="finish" data-job="${job.id}" data-dm="${job.id}">${c ? `${IC.dm}${c} Finish now` : 'Finish (free)'}</button></div>`; }
+    else if (it.t === 'hub') { h += `<p class="desc">${esc(d.desc)}</p>${ISLANDS[s.at] && ISLANDS[s.at].perk ? `<p class="desc" style="color:#7cf29a">★ ${esc(ISLANDS[s.at].perk!)}</p>` : ''}<table class="stats"><tr><td>Bays allowed here</td><td>${bayLimit(it.lvl)}</td></tr><tr><td>Fabricators allowed here</td><td>${fabLimit(it.lvl)}</td></tr><tr><td>Max building level here</td><td>${it.lvl}</td></tr></table>` + this.upgradeRow(it) + this.moveRow(it); }
     else if (it.t === 'command') { const next = it.lvl + 1; h += `<p class="desc">${esc(d.desc)}</p><table class="stats"><tr><td>Bays allowed</td><td>${bayLimit(it.lvl)}</td></tr><tr><td>Fabricators allowed</td><td>${fabLimit(it.lvl)}</td></tr><tr><td>Max building level</td><td>${it.lvl}</td></tr><tr><td>Builder drones</td><td>${s.builders}</td></tr></table>`;
       if (it.lvl < d.max) h += `<div class="sub">Level ${next}: ${bayLimit(next)} bays · ${fabLimit(next)} fabricators · buildings to level ${next}${CC_REQ[next] > s.lvl ? ` · needs Commander level ${CC_REQ[next]}` : ''}</div>`;
       h += this.upgradeRow(it) + this.crew.helpersHTML(it) + `<div class="row" style="margin-top:8px"><button class="btn small" data-a="custom">🎨 Colony style</button><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button></div>`; }
@@ -94,7 +97,7 @@ export class UI {
         + this.upgradeRow(it, it.lvl < d.max ? `Level ${it.lvl + 1}: battle rewards +${it.lvl * 10}%` : '') + this.moveRow(it); }
     else if (it.t === 'assembly' || it.t === 'fusion') { h += (it.t === 'assembly' ? this.crew.assemblyHTML(it) : this.crew.fusionHTML(it)) + this.upgradeRow(it, it.lvl < d.max ? (it.t === 'assembly' ? `Level ${it.lvl + 1}: boots 5% faster${assemblySlots(it.lvl + 1) > assemblySlots(it.lvl) ? ', +1 pod' : ''}${helperSlots(it.lvl + 1) > helperSlots(it.lvl) ? ', +1 helper slot' : ''}` : `Level ${it.lvl + 1}: fuses 5% faster`) : '') + this.moveRow(it); }
     else if (it.t === 'bay') { const bots = G.botsIn(s, it.id), cap = bayCapacity(it.lvl), n = s.bay[it.id] || 0, rate = G.bayRate(s, it.id) * 60;
-      h += `<div class="row"><div class="grow"><div class="bar gold"><i style="width:${(n / G.bayCap(it)) * 100}%"></i></div></div><b id="bayv">${fmt(n)} / ${fmt(G.bayCap(it))}</b></div><div class="row" style="margin:6px 0"><span class="grow sub">${IC.credits} ${fmt(rate)} per minute · ${bots.length}/${cap} bots</span><button class="btn gold small" data-a="collect" data-id="${it.id}" ${n >= 1 ? '' : 'disabled'}>Collect</button></div>`;
+      h += `<div class="row"><div class="grow"><div class="bar gold"><i style="width:${(n / G.bayCap(it, s)) * 100}%"></i></div></div><b id="bayv">${fmt(n)} / ${fmt(G.bayCap(it, s))}</b></div><div class="row" style="margin:6px 0"><span class="grow sub">${IC.credits} ${fmt(rate)} per minute · ${bots.length}/${cap} bots</span><button class="btn gold small" data-a="collect" data-id="${it.id}" ${n >= 1 ? '' : 'disabled'}>Collect</button></div>`;
       h += `<div class="bots">${bots.map((b) => this.botCard(b)).join('') || '<p class="desc">No bots yet. Recruit one in the Shop.</p>'}</div>`;
       if (bots.length < cap) h += `<button class="btn small" style="margin-top:8px;width:100%" data-a="shop" data-tab="bots">＋ Recruit a ${ELEMENTS[it.el!].name} bot</button>`;
       h += this.upgradeRow(it, it.lvl < d.max ? `Level ${it.lvl + 1}: holds ${fmt(G.bayCapAt(it.lvl + 1))} credits${bayCapacity(it.lvl + 1) > cap ? `, ${bayCapacity(it.lvl + 1)} bots` : ''}` : '') + this.moveRow(it); }
@@ -175,6 +178,12 @@ export class UI {
       case 'settings': this.openOver('settings'); A.audio.play('tap'); break;
       case 'close': this.closeOver(); A.audio.play('tap'); break;
       case 'tab': this.tab = t.dataset.tab!; this.renderOver(); A.audio.play('tap'); break;
+      case 'islands': { const rows = ISLAND_ORDER.map((k) => { const d = ISLANDS[k], own = !!s.islands[k], c = own ? null : G.canFound(s, k); const icon = ({ home: '🌍', moon: '🌕', mars: '🔴' } as Record<string, string>)[k];
+          return `<div class="botc" style="grid-template-columns:54px 1fr auto"><div style="font-size:34px;text-align:center">${icon}</div><div><b>${esc(k === 'home' ? s.name : d.name)}</b>${s.at === k ? ' <span class="tag" style="color:#7cf29a">you are here</span>' : ''}<div class="meta">${esc(d.blurb)}</div>${d.perk ? `<div class="meta" style="color:#7cf29a">★ ${esc(d.perk)}</div>` : ''}${!own && c && !c.ok ? `<div class="why" style="margin:2px 0 0">${esc(c.why || '')}</div>` : ''}</div>
+            ${own ? (s.at === k ? '<span></span>' : `<button class="btn gold small" data-a="travel" data-k="${k}">Travel</button>`) : `<button class="btn ${c && c.ok ? 'gold' : ''} small" data-a="foundIsland" data-k="${k}" ${c && c.ok ? '' : 'disabled'}>Found ${IC.credits}${fmt(d.cost || 0)}</button>`}</div>`; }).join('');
+        this.modal(`<h1 style="font-size:22px">Your islands</h1><p class="sub">Every island keeps working while you are elsewhere: bays fill and recipes finish everywhere.</p><div class="bots" style="text-align:left">${rows}</div><button class="btn" data-a="closeModal" style="margin-top:10px">Close</button>`); A.audio.play('tap'); break; }
+      case 'travel': this.closeModal(); A.travel(t.dataset.k!); break;
+      case 'foundIsland': { const r = G.found(s, t.dataset.k!); this.closeModal(); if (r.ok) { A.travel(t.dataset.k!, true); } else this.deny(r.why); break; }
       case 'zoomout': this.world.focus(0, 1, this.world.cam.tdist > 45 ? 30 : 58); A.audio.play('whoosh'); break;
       case 'deselect': this.select(null); this.selBot = null; this.renderPanel(); break;
       case 'select': if (id) { this.select(id); A.audio.play('tap'); } break;

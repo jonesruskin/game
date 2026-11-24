@@ -15,7 +15,8 @@ export class DailyUI {
   get s() { return this.ui.app.s; } get app() { return this.ui.app; }
   // ---------------- HUD buttons ----------------
   hudHTML() { const s = this.s, at = D.attention(s), dd = D.daily(s); const dot = (on: boolean) => (on ? '<i class="rdot"></i>' : '');
-    return `<button class="ibtn" data-a="daily" title="Daily rewards">📅${dot(at.day || at.missions || at.ach)}</button><button class="ibtn" data-a="spin" title="Free daily core">🎁${dot(at.spin)}</button><button class="chip ${dd.drops ? 'hot' : ''}" data-a="drop" title="Supply drop">📦 <span id="dropT">${dd.drops ? `Open${dd.drops > 1 ? ' ×' + dd.drops : ''}!` : fmtTime((dd.drop - Date.now()) / 1000)}</span></button>`; }
+    const R = (s as any).raid; const raidChip = R && R.eta ? `<button class="chip raid" data-a="raid">⚠ Swarm ${fmtTime((R.eta - Date.now()) / 1000)}</button>` : '';
+    return `${raidChip}<button class="ibtn" data-a="daily" title="Daily rewards">📅${dot(at.day || at.missions || at.ach)}</button><button class="ibtn" data-a="spin" title="Free daily core">🎁${dot(at.spin)}</button><button class="chip ${dd.drops ? 'hot' : ''}" data-a="drop" title="Supply drop">📦 <span id="dropT">${dd.drops ? `Open${dd.drops > 1 ? ' ×' + dd.drops : ''}!` : fmtTime((dd.drop - Date.now()) / 1000)}</span></button>`; }
   // ---------------- the daily overlay ----------------
   overHTML() { const s = this.s, dd = D.daily(s), at = D.attention(s);
     const tabs = [['calendar', 'Calendar', at.day], ['missions', 'Missions', at.missions], ['ach', 'Achievements', at.ach]] as [string, string, boolean][];

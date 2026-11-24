@@ -103,3 +103,19 @@ export function finishFight(s: State, win: boolean, diff: number, now = Date.now
   const al = (itemsOf(s, 'arena')[0] || { lvl: 1 }).lvl; for (const k of Object.keys(reward)) if (k !== 'dm') reward[k] = round2(reward[k] * (1 + 0.1 * (al - 1)));
   give(s, reward); addXp(s, win ? 20 + diff * 10 : 5); A.rivals = []; return { reward, dt, promoted: after > before ? after : -1, league: after }; }
 export const SPECIES_IN_ARENA = SPECIES_ORDER;
+// ---------------- the Kr'thul Swarm: raids on the colony ----------------
+export const RAID_LEVEL = 16, RAID_EVERY = 10 * 3600e3, RAID_WARN = 2 * 3600e3;
+export interface Raid { next: number; eta: number; team: { sp: string; lvl: number }[]; won: number; lost: number; }
+export function raid(s: State): Raid { const a = s as any; if (!a.raid) a.raid = { next: Date.now() + 3600e3, eta: 0, team: [], won: 0, lost: 0 }; return a.raid; }
+export const SWARM_BANNER = { bg: '#14080c', fg: '#ff3d5a', emblem: 'circle' };
+export function tickRaid(s: State, now = Date.now()) { if (s.lvl < RAID_LEVEL) return null; const R = raid(s);
+  if (!R.eta && now >= R.next) { const mine = teamPower(myTeam(s).map((b) => ({ sp: b.sp, lvl: b.lvl }))); const target = Math.max(60, mine * 1.08); const pool = ['krdrone', 'krwarrior', 'krdrone', 'krbrood']; const team: { sp: string; lvl: number }[] = [];
+    for (let i = 0; i < 3; i++) { const sp = pool[(i + Math.floor(now / 3600e3)) % (i === 2 && s.lvl > 24 ? 4 : 3)]; let lvl = 1; while (lvl < 40 && teamPower([...team, { sp, lvl: lvl + 1 }]) <= target * ((i + 1) / 3)) lvl++; team.push({ sp, lvl }); }
+    R.team = team; R.eta = now + RAID_WARN; return { kind: 'warn' as const }; }
+  if (R.eta && now >= R.eta) { let stolen = 0; for (const it of itemsOf(s, 'bay')) { const n = Math.floor((s.bay[it.id] || 0) * 0.5); s.bay[it.id] -= n; stolen += n; } R.eta = 0; R.next = now + RAID_EVERY; R.lost++; return { kind: 'hit' as const, stolen }; }
+  return null; }
+export function startRaid(s: State, now = Date.now()) { const R = raid(s); if (!R.eta || !R.team.length) return null; const team = myTeam(s).map((b) => fighter(b.sp, b.lvl, b.nick, b.id)); if (!team.length) return null;
+  const rival: Rival = { name: "Kr'thul Swarm", banner: SWARM_BANNER, team: R.team, diff: 2, power: teamPower(R.team) }; return { bt: newBattle(team, R.team.map((f) => fighter(f.sp, f.lvl)), (now / 1000) >>> 0), rival }; }
+export function finishRaid(s: State, win: boolean, now = Date.now()) { const R = raid(s); const k = 1 + s.lvl * 0.5; R.eta = 0; R.next = now + RAID_EVERY;
+  if (win) { R.won++; s.stats.raidsWon = (s.stats.raidsWon || 0) + 1; const reward = { dm: 12, cells: round2(400 * k), credits: round2(1200 * k) }; give(s, reward); addXp(s, 60); const r = rng((now / 1000) >>> 0)(); const capture = r < 0.35 ? (r < 0.03 ? 'krbrood' : r < 0.12 ? 'krwarrior' : 'krdrone') : null; return { win, reward, capture }; }
+  R.lost++; let stolen = 0; for (const it of itemsOf(s, 'bay')) { const n = Math.floor((s.bay[it.id] || 0) * 0.5); s.bay[it.id] -= n; stolen += n; } return { win, reward: {} as Record<string, number>, capture: null, stolen }; }

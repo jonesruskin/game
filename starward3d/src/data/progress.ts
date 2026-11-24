@@ -38,7 +38,13 @@ export const STEPS: Step[] = [
   { id: 'd2', text: 'Send a bot crew to the Moon (Space)', kind: 'visit', t: 'moon', reward: { cells: 1500, dm: 15 } },
   { id: 'd3', text: 'Build an outpost on a world you have visited', kind: 'outposts', n: 1, reward: { credits: 8000 } },
   { id: 'c4', text: 'Reach the Gold league', kind: 'trophies', n: 850, reward: { dm: 60 } },
+  { id: 'e1', text: 'Found Tranquility Base on the Moon (island button, top left)', kind: 'island', t: 'moon', reward: { credits: 20000, dm: 30 } },
+  { id: 'e2', text: 'Build a Bay on the Moon', kind: 'bayOn', t: 'moon', reward: { cells: 5000 } },
   { id: 'd4', text: 'Land a crew on Mars', kind: 'visit', t: 'mars', reward: { dm: 40 } },
+  { id: 'e3', text: 'Found Bradbury Landing on Mars', kind: 'island', t: 'mars', reward: { credits: 100000, dm: 60 } },
   { id: 'd5', text: 'Reach Europa\'s hidden ocean', kind: 'visit', t: 'europa', reward: { dm: 60 } },
   { id: 'd6', text: 'Reach Pluto, the edge of the Solar System', kind: 'visit', t: 'pluto', reward: { dm: 120 } },
+  { id: 'f1', text: 'Repel a Kr\'thul raid (tap the red Swarm warning)', kind: 'raids', n: 1, reward: { dm: 40, cells: 8000 } },
+  { id: 'f2', text: 'Make first contact at Proxima Centauri (Starship, Launch Pad level 10)', kind: 'visit', t: 'proxima', reward: { dm: 150 } },
+  { id: 'f3', text: 'Meet all five civilisations', kind: 'visit', t: 'epseri', reward: { dm: 300 } },
 ];

@@ -26,7 +26,10 @@ export class SystemView {
     const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(bp, 3)); this.scene.add(new THREE.Points(bg, new THREE.PointsMaterial({ size: 0.05, color: '#a89880' })));
     // destination worlds: moons orbit their planet, the rest orbit the Sun
     for (const id of DEST_ORDER) { const d = DESTS[id]; let g: THREE.Object3D;
-      if (d.moonOf) { const host = this.bodies.get(d.moonOf)!; const k = new THREE.Group(); const m = new THREE.Mesh(new THREE.IcosahedronGeometry(d.size, 2), new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.9, flatShading: true })); const off = (host.children[0] as THREE.Mesh).geometry.boundingSphere ? 0 : 0;
+      if (d.star) { const st = new THREE.Group(); const core = new THREE.Mesh(new THREE.SphereGeometry(d.size, 16, 10), new THREE.MeshBasicMaterial({ color: d.color, toneMapped: false })); st.add(core);
+        const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: d.color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); halo.scale.setScalar(d.size * 9); st.add(halo);
+        st.position.set(Math.cos(d.angle || 0) * d.dist, 1.5, Math.sin(d.angle || 0) * d.dist); this.scene.add(st); g = st; }
+      else if (d.moonOf) { const host = this.bodies.get(d.moonOf)!; const k = new THREE.Group(); const m = new THREE.Mesh(new THREE.IcosahedronGeometry(d.size, 2), new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.9, flatShading: true })); const off = (host.children[0] as THREE.Mesh).geometry.boundingSphere ? 0 : 0;
         k.add(m); const mr = host.userData.size || 0.4; m.position.x = mr + 0.45 + DEST_ORDER.indexOf(id) % 3 * 0.25 + off; k.userData = { spin: 0.6 + (DEST_ORDER.indexOf(id) % 4) * 0.25, mesh: m }; host.add(k); g = m; }
       else { this.scene.add(orbit(d.dist, 0.1)); g = planet(id, d.dist, d.color, d.size); }
       const pick = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.5, d.size * 2), 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.userData.id = id; g.add(pick); this.picks.push(pick); this.bodies.set(id, g); }

@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-5 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: Parts 1-6 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars, New Worlds) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
 
 ## Run it
 ```bash
@@ -65,6 +65,13 @@ Rewards at every rhythm, so there is always a reason to come back:
 - **The Solar System in 3D:** the Sun, orbit rings, planets (Saturn's rings, moons circling Jupiter and Saturn), the asteroid belt, labels with status (new, locked, visits, outpost ready, time to return) and ships flying their arcs in real time. Drag to turn, pinch or wheel to zoom, tap a world.
 - **Outposts** on any visited world earn credits, cells or Dark Matter by the hour (8 hours of storage), even while you're away; 10 levels.
 - Six missions (Moon, outpost, Mars, Europa, Pluto), an expedition daily mission and an Explorer achievement.
+
+## Part 6: New Islands, Stars and Aliens (done)
+- **More islands:** found **Tranquility Base** on the Moon (grey regolith, the Moon below, Earth in the sky; bays hold 50% more credits) and **Bradbury Landing** on Mars (rust-red ground, Mars below, Phobos overhead; Fabricators print 30% more cells). Each has its own Colony Hub, land and buildings; every island keeps earning while you're elsewhere. Travel with the island button (a warp flash). Old saves migrate automatically.
+- **Interstellar expeditions** on the Starship (Launch Pad level 10) to five real star systems: Proxima Centauri b, Barnard's Star, Tau Ceti e, TRAPPIST-1e and Epsilon Eridani, shown as glowing stars past Pluto on the map.
+- **First contact:** each star is home to a civilisation (the Veyari gardeners, the machine Synod, the Mycelar fungal mind, the young Oshoru, the Lumen beings of light). Meeting one brings home a unique alien bot (Epic to Prototype) and an alliance that adds 5% to every bot's earnings.
+- **The Kr'thul Swarm** (from Commander level 16): a raid is spotted every ~10 hours and arrives 2 hours later. Defend in the Arena with your team (no ticket needed) for Dark Matter, cells, credits and a chance to capture a reprogrammed Swarm bot (Drone, Warrior or Brood). Ignore it, and the Swarm carries off half the credits waiting in your bays.
+- 90 species in all (5 alien, 3 Swarm, none fusable), new missions, and a Defender achievement.
 
 ## Code map
 ```

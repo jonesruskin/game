@@ -39,6 +39,9 @@ void main(){ vec3 n = dirOf(vUv); vec3 p = n*1.2 + vec3(uSeed*7.31, uSeed*3.17, 
   else if (uMode == 2) { // Moon albedo
     float h = fbm(p*1.6, 6)*0.6 + craters(n*6.0+uSeed)*0.5 + craters(n*15.0+uSeed*2.0)*0.25; float mare = smoothstep(0.1, -0.2, fbm(p*0.9+2.0, 4));
     vec3 col = mix(vec3(0.62,0.61,0.59), vec3(0.36,0.36,0.37), mare) * (0.8 + h*0.35); gl_FragColor = vec4(col, 1.0); }
+  else if (uMode == 4) { // Mars albedo: rust plains, dark regions, polar caps
+    float h = fbm(p*1.4, 6); float dark = smoothstep(0.05, 0.35, fbm(p*0.8+5.0, 4)); vec3 col = mix(vec3(0.78,0.42,0.24), vec3(0.42,0.2,0.13), dark) * (0.85 + h*0.25);
+    float ice = smoothstep(0.86, 0.9, abs(n.y) + 0.04*snoise(p*3.0)); col = mix(col, vec3(0.95,0.93,0.9), ice); gl_FragColor = vec4(col, 1.0); }
   else { // nebula sky
     float n1 = fbm(n*1.8 + 1.3, 5)*0.5+0.5; float n2 = fbm(n*4.0 + 3.0, 4)*0.5+0.5; vec3 col = vec3(0.004,0.006,0.016) + vec3(0.12,0.22,0.5)*pow(n1, 3.4)*0.6 + vec3(0.25,0.08,0.3)*pow(n2, 4.0)*0.5;
     float band = exp(-pow(n.y*3.2 + 0.4*snoise(n*3.0), 2.0)); col += vec3(0.16,0.15,0.2)*band*(0.5+0.5*n1);
@@ -67,7 +70,7 @@ const ATM_FS = `uniform vec3 uSun; varying vec3 vN; varying vec3 vW; void main()
 const SIMPLE_VS = `varying vec3 vN; varying vec3 vW; varying vec2 vUv; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix)*normal); vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`;
 const MOON_FS = `uniform sampler2D uMap; uniform vec3 uSun; varying vec3 vN; varying vec2 vUv; void main(){ float d = max(dot(normalize(vN), uSun), 0.0); gl_FragColor = vec4(texture2D(uMap, vUv).rgb*(0.02 + d*1.2), 1.0); }`;
 export class Backdrop {
-  group = new THREE.Group(); earth: THREE.Mesh; moon: THREE.Mesh; sunDir: THREE.Vector3; private uniforms: Record<string, THREE.IUniform>; private targets: THREE.WebGLRenderTarget[] = [];
+  group = new THREE.Group(); earth: THREE.Mesh; moon: THREE.Mesh; private atm!: THREE.Mesh; sunDir: THREE.Vector3; private uniforms: Record<string, THREE.IUniform>; private targets: THREE.WebGLRenderTarget[] = [];
   constructor(renderer: THREE.WebGLRenderer, sunDir: THREE.Vector3, quality: 'high' | 'low') {
     this.sunDir = sunDir.clone().normalize(); const big = quality === 'high'; const W = big ? 2048 : 1024;
     const day = bake(renderer, 0, W, W / 2, 1), aux = bake(renderer, 1, W, W / 2, 1), moonT = bake(renderer, 2, 512, 256, 4), neb = bake(renderer, 3, big ? 1024 : 512, big ? 512 : 256, 2); this.targets.push(day, aux, moonT, neb);
@@ -77,7 +80,7 @@ export class Backdrop {
     this.earth = new THREE.Mesh(new THREE.SphereGeometry(R, big ? 128 : 72, big ? 64 : 40), new THREE.ShaderMaterial({ vertexShader: EARTH_VS, fragmentShader: EARTH_FS, uniforms: this.uniforms }));
     this.earth.position.set(0, -D, 0); this.earth.rotation.z = 0.35; this.group.add(this.earth);
     const atm = new THREE.Mesh(new THREE.SphereGeometry(R * 1.03, 64, 32), new THREE.ShaderMaterial({ vertexShader: SIMPLE_VS, fragmentShader: ATM_FS, uniforms: { uSun: { value: this.sunDir } }, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    atm.position.copy(this.earth.position); this.group.add(atm);
+    atm.position.copy(this.earth.position); this.group.add(atm); this.atm = atm; this.renderer = renderer; this.R = R; this.worlds.earth = [];
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(160, 40, 24), new THREE.ShaderMaterial({ vertexShader: SIMPLE_VS, fragmentShader: MOON_FS, uniforms: { uMap: { value: moonT.texture }, uSun: { value: this.sunDir } } }));
     this.moon.position.set(-3400, 900, -4200); this.group.add(this.moon);
     const sky = new THREE.Mesh(new THREE.SphereGeometry(9000, 48, 24), new THREE.MeshBasicMaterial({ map: neb.texture, side: THREE.BackSide, depthWrite: false })); this.group.add(sky);
@@ -92,5 +95,15 @@ export class Backdrop {
       gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.12, 'rgba(255,248,220,0.95)'); gr.addColorStop(0.35, 'rgba(255,220,160,0.25)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; })();
     const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunTex, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true })); sun.position.copy(this.sunDir).multiplyScalar(7000); sun.scale.setScalar(1300); this.group.add(sun);
   }
+  // the world below the island: Earth from orbit, the Moon (Earth in the sky) or Mars (Phobos overhead)
+  private worlds: Record<string, THREE.Object3D[]> = {}; private world = 'earth'; private renderer: THREE.WebGLRenderer | null = null; private R = 0;
+  setWorld(w: 'earth' | 'moon' | 'mars') { if (w === this.world) return; this.world = w; const r = this.renderer!;
+    if (!this.worlds[w] && w !== 'earth') { const map = bake(r, w === 'moon' ? 2 : 4, 1024, 512, w === 'moon' ? 4 : 5); this.targets.push(map); const big = new THREE.Mesh(new THREE.SphereGeometry(this.R, 96, 48), new THREE.MeshLambertMaterial({ map: map.texture, color: new THREE.Color(0.62, 0.62, 0.62) }));
+      big.position.copy(this.earth.position); big.rotation.z = 0.2; this.group.add(big); const objs: THREE.Object3D[] = [big];
+      if (w === 'mars') { const halo = new THREE.Mesh(new THREE.SphereGeometry(this.R * 1.02, 64, 32), new THREE.ShaderMaterial({ vertexShader: SIMPLE_VS, fragmentShader: ATM_FS.replace('vec3(0.35,0.62,1.0)', 'vec3(0.95,0.6,0.42)'), uniforms: { uSun: { value: this.sunDir } }, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); halo.position.copy(big.position); this.group.add(halo); objs.push(halo); }
+      // what hangs in the sky: Earth over the Moon, Phobos over Mars
+      const sky = w === 'moon' ? new THREE.Mesh(new THREE.SphereGeometry(260, 48, 32), new THREE.ShaderMaterial({ vertexShader: EARTH_VS, fragmentShader: EARTH_FS, uniforms: this.uniforms })) : new THREE.Mesh(new THREE.IcosahedronGeometry(90, 2), new THREE.MeshStandardMaterial({ color: '#6e6660', flatShading: true, roughness: 1 }));
+      sky.position.set(-3000, 1400, -4600); this.group.add(sky); objs.push(sky); this.worlds[w] = objs; }
+    for (const [k, objs] of Object.entries(this.worlds)) objs.forEach((o) => (o.visible = k === w)); this.earth.visible = w === 'earth'; this.atm.visible = w === 'earth'; this.moon.visible = w === 'earth'; }
   update(t: number, cam: THREE.Camera) { this.uniforms.uTime.value = t; this.earth.rotation.y = t * 0.004; this.group.position.set(cam.position.x * 0.98, 0, cam.position.z * 0.98); }
 }

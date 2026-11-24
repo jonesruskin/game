@@ -6,6 +6,7 @@ import { SPECIES } from '../data/species';
 import { RARITIES } from '../data/rarities';
 import { xpNeed, levelReward, MAX_LEVEL, STEPS, Step } from '../data/progress';
 import { addCore, pumpAssembly, discover, helperBonus, homeFor, dexCount, coreOf } from './crew';
+import { ISLANDS } from '../data/islands';
 export { homeFor };
 export type Res = 'credits' | 'cells' | 'dm';
 export interface Ev { kind: string; [k: string]: any; }
@@ -23,15 +24,22 @@ export function addXp(s: State, n: number) {
   while (s.lvl < MAX_LEVEL && s.xp >= xpNeed(s.lvl)) { s.xp -= xpNeed(s.lvl); s.lvl++; const r = levelReward(s.lvl); give(s, r); emit({ kind: 'levelup', lvl: s.lvl, reward: r }); }
 }
 // ---------------- the island ----------------
-export const itemsOf = (s: State, t: string) => s.isl.items.filter((i) => i.t === t);
-export const item = (s: State, id: string) => s.isl.items.find((i) => i.id === id);
+// islands: production and timers are global; placement, counts and level caps belong to each island
+export const here = (s: State) => s.islands[s.at] || s.islands.home;
+export const allItems = (s: State) => Object.values(s.islands).flatMap((i) => i.items);
+export const itemsOf = (s: State, t: string) => allItems(s).filter((i) => i.t === t);
+export const itemsHere = (s: State, t: string) => here(s).items.filter((i) => i.t === t);
+export const item = (s: State, id: string) => allItems(s).find((i) => i.id === id);
+export const islandOf = (s: State, id: string) => Object.keys(s.islands).find((k) => s.islands[k].items.some((i) => i.id === id)) || 'home';
 export const ccLevel = (s: State) => (itemsOf(s, 'command')[0] || { lvl: 1 }).lvl;
+// the level cap on an island: the Command Center at home, the Colony Hub elsewhere
+export const hubLevel = (s: State, key = s.at) => { const isl = s.islands[key]; const h = isl && isl.items.find((i) => i.t === 'command' || i.t === 'hub'); return h ? Math.max(1, h.lvl) : 1; };
 export const dims = (it: { t: string; r: number }) => { const [w, d] = BUILDINGS[it.t].size; return it.r % 2 ? [d, w] : [w, d]; };
 export const plotOf = (x: number, z: number) => `${Math.floor(x / PLOT)},${Math.floor(z / PLOT)}`;
-export const tileOpen = (s: State, x: number, z: number) => x >= 0 && z >= 0 && x < PLOT * PLOTS && z < PLOT * PLOTS && s.isl.plots.includes(plotOf(x, z));
+export const tileOpen = (s: State, x: number, z: number) => x >= 0 && z >= 0 && x < PLOT * PLOTS && z < PLOT * PLOTS && here(s).plots.includes(plotOf(x, z));
 export function areaFree(s: State, x: number, z: number, w: number, d: number, ignore?: string) {
   for (let i = x; i < x + w; i++) for (let j = z; j < z + d; j++) if (!tileOpen(s, i, j)) return false;
-  for (const it of s.isl.items) { if (it.id === ignore) continue; const [iw, id] = dims(it); if (x < it.x + iw && x + w > it.x && z < it.z + id && z + d > it.z) return false; }
+  for (const it of here(s).items) { if (it.id === ignore) continue; const [iw, id] = dims(it); if (x < it.x + iw && x + w > it.x && z < it.z + id && z + d > it.z) return false; }
   return true;
 }
 // ---------------- construction ----------------
@@ -42,10 +50,11 @@ export function canBuild(s: State, t: string, el?: string): Check {
   const d = BUILDINGS[t]; if (!d) return { ok: false, why: 'Unknown' };
   if (d.exclusive) { const owned = s.stats['decor_' + t] || 0, placed = itemsOf(s, t).length; return placed < owned ? { ok: true, cost: 0, time: 0 } : { ok: false, why: owned ? 'All placed' : 'Earned from the login calendar', cost: 0 }; }
   if (s.lvl < d.unlock) return { ok: false, why: `Commander level ${d.unlock}`, cost: d.buildCost(itemsOf(s, t).length) };
-  const owned = itemsOf(s, t).length, cc = ccLevel(s);
-  if (d.unique && owned) return { ok: false, why: 'Already built' };
-  if (t === 'bay' && owned >= bayLimit(cc)) return { ok: false, why: `Bay limit (${bayLimit(cc)}): upgrade the Command Center` };
-  if (t === 'fab' && owned >= fabLimit(cc)) return { ok: false, why: `Fabricator limit (${fabLimit(cc)}): upgrade the Command Center` };
+  const owned = d.unique ? itemsOf(s, t).length : itemsHere(s, t).length, cc = hubLevel(s);
+  if (d.unique && owned) return { ok: false, why: 'Already built' }; if (t === 'hub') return { ok: false, why: 'Every new island comes with its Colony Hub' };
+  const hubName = s.at === 'home' ? 'Command Center' : 'Colony Hub';
+  if (t === 'bay' && owned >= bayLimit(cc)) return { ok: false, why: `Bay limit here (${bayLimit(cc)}): upgrade the ${hubName}` };
+  if (t === 'fab' && owned >= fabLimit(cc)) return { ok: false, why: `Fabricator limit here (${fabLimit(cc)}): upgrade the ${hubName}` };
   const cost = t === 'bay' && el && !itemsOf(s, 'bay').some((b) => b.el === el) ? Math.round(d.buildCost(Math.max(0, owned - 1)) * 0.7) : d.buildCost(owned); const time = Math.round(d.time(1) * buildSpeed(s));
   if (time > 0 && buildersBusy(s) >= s.builders) return { ok: false, why: 'All builder drones are busy', cost, time };
   if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost, time };
@@ -54,17 +63,18 @@ export function canBuild(s: State, t: string, el?: string): Check {
 export function build(s: State, t: string, x: number, z: number, r: number, el?: string, now = Date.now()): Check & { item?: Item } {
   const c = canBuild(s, t, el); if (!c.ok) return c; const it: Item = { id: uid('i'), t, x, z, r, lvl: c.time ? 0 : 1, ...(el ? { el } : {}) };
   const [w, d] = dims(it); if (!areaFree(s, x, z, w, d)) return { ok: false, why: 'Something is in the way' };
-  s.res.credits -= c.cost || 0; s.isl.items.push(it); stat(s, 'built');
+  s.res.credits -= c.cost || 0; here(s).items.push(it); stat(s, 'built');
   if (c.time) s.jobs.push({ id: uid('j'), kind: 'build', item: it.id, start: now, end: now + c.time * 1000, lvl: 1 });
   else { addXp(s, xpFor(c.cost || 0)); if (BUILDINGS[t].cat === 'decor') stat(s, 'decor'); }
   if (t === 'bay') s.bay[it.id] = 0; return { ...c, item: it };
 }
-export const maxLevelOf = (s: State, it: Item) => (it.t === 'command' ? BUILDINGS.command.max : Math.min(BUILDINGS[it.t].max, ccLevel(s)));
+export const maxLevelOf = (s: State, it: Item) => (it.t === 'command' ? BUILDINGS.command.max : it.t === 'hub' ? Math.min(BUILDINGS.hub.max, Math.max(1, ccLevel(s) - 2)) : Math.min(BUILDINGS[it.t].max, hubLevel(s, islandOf(s, it.id))));
 export function canUpgrade(s: State, it: Item): Check {
   const d = BUILDINGS[it.t]; if (d.cat === 'decor') return { ok: false, why: 'Decorations do not upgrade' };
   if (jobOf(s, it.id, 'build')) return { ok: false, why: 'Under construction' };
   if (it.lvl >= d.max) return { ok: false, why: 'Maximum level' };
-  if (it.t !== 'command' && it.lvl >= ccLevel(s)) return { ok: false, why: `Upgrade the Command Center to level ${it.lvl + 1} first` };
+  if (it.t === 'hub' && it.lvl >= ccLevel(s) - 2) return { ok: false, why: `Colony Hubs stay two levels below the Command Center (level ${it.lvl + 3} needed)` };
+  if (it.t !== 'command' && it.t !== 'hub' && it.lvl >= hubLevel(s, islandOf(s, it.id))) return { ok: false, why: `Upgrade the ${islandOf(s, it.id) === 'home' ? 'Command Center' : 'Colony Hub'} to level ${it.lvl + 1} first` };
   if (it.t === 'command' && s.lvl < CC_REQ[it.lvl + 1]) return { ok: false, why: `Commander level ${CC_REQ[it.lvl + 1]} needed` };
   if (it.t === 'fab' && jobOf(s, it.id, 'craft')) return { ok: false, why: 'Finish or harvest the recipe first' };
   const cost = d.upCost(it.lvl), time = Math.round(d.time(it.lvl + 1) * (it.t === 'command' ? 1 : buildSpeed(s)));
@@ -79,7 +89,7 @@ export function upgrade(s: State, it: Item, now = Date.now()): Check {
 const xpFor = (cost: number) => Math.max(5, Math.round(cost / 15));
 const buildSpeed = (s: State) => { const cc = itemsOf(s, 'command')[0]; return cc ? 1 - helperBonus(s, cc) : 1; };
 export function moveItem(s: State, it: Item, x: number, z: number, r: number) { const [w, d] = dims({ t: it.t, r }); if (!areaFree(s, x, z, w, d, it.id)) return false; it.x = x; it.z = z; it.r = r; return true; }
-export function sellDecor(s: State, it: Item) { if (BUILDINGS[it.t].cat !== 'decor' || BUILDINGS[it.t].exclusive) return false; s.isl.items = s.isl.items.filter((i) => i !== it); s.res.credits += Math.floor(BUILDINGS[it.t].buildCost(0) * 0.5); return true; }
+export function sellDecor(s: State, it: Item) { if (BUILDINGS[it.t].cat !== 'decor' || BUILDINGS[it.t].exclusive) return false; const isl = s.islands[islandOf(s, it.id)]; isl.items = isl.items.filter((i) => i !== it); s.res.credits += Math.floor(BUILDINGS[it.t].buildCost(0) * 0.5); return true; }
 // dark matter to finish a timer now (free under a minute)
 export const dmCost = (sec: number) => (sec <= 60 ? 0 : Math.ceil(1.1 * Math.pow(sec / 60, 0.7)));
 export function finishNow(s: State, j: Job, now = Date.now()) { const c = dmCost((j.end - now) / 1000); if (s.res.dm < c) return false; s.res.dm -= c; j.end = now; advance(s, now); return true; }
@@ -89,9 +99,10 @@ export const BOT_MAX = 40;
 export const feedCost = (lvl: number) => Math.round(4 * Math.pow(1.33, lvl - 1));
 export const botsIn = (s: State, bayId: string) => s.bots.filter((b) => b.bay === bayId);
 const away = (s: State, b: BotRec) => !!((s as any).space && (s as any).space.exps.some((e: any) => e.crew.includes(b.id)));
-export const bayRate = (s: State, bayId: string) => botsIn(s, bayId).filter((b) => !b.post && !away(s, b)).reduce((a, b) => a + botEarn(b), 0) / 60; // credits per second
+const allyMult = (s: State) => { const sp = (s as any).space; if (!sp) return 1; let n = 0; for (const k of ['proxima', 'barnard', 'tauceti', 'trappist', 'epseri']) if (sp.visits[k] > 0) n++; return 1 + 0.05 * n; };
+export const bayRate = (s: State, bayId: string) => (botsIn(s, bayId).filter((b) => !b.post && !away(s, b)).reduce((a, b) => a + botEarn(b), 0) / 60) * allyMult(s); // credits per second
 export const onMission = away;
-export const bayCap = (it: Item) => bayStore(Math.max(1, it.lvl));
+export const bayCap = (it: Item, s?: State) => bayStore(Math.max(1, it.lvl)) * (s && islandOf(s, it.id) === 'moon' ? 1.5 : 1);
 export function feed(s: State, b: BotRec): Check & { lvlUp?: boolean } {
   if (b.lvl >= BOT_MAX) return { ok: false, why: 'Maximum level' }; const c = feedCost(b.lvl); if (s.res.cells < c) return { ok: false, why: 'Not enough Power Cells', cost: c };
   s.res.cells -= c; b.fed++; stat(s, 'feeds'); addXp(s, 1 + Math.floor(b.lvl / 4)); let up = false;
@@ -128,16 +139,19 @@ export function craft(s: State, it: Item, ri: number, now = Date.now()) { const 
   s.jobs.push({ id: uid('j'), kind: 'craft', item: it.id, start: now, end: now + RECIPES[ri].sec * 1000, recipe: ri }); return c; }
 export function harvest(s: State, it: Item) { const r = s.ready[it.id]; if (!r) return 0; delete s.ready[it.id]; s.res.cells += r.cells; addXp(s, r.xp); stat(s, 'harvests'); return r.cells; }
 // ---------------- land ----------------
-export function plotState(s: State, key: string) { if (s.isl.plots.includes(key)) return 'open'; const [px, pz] = key.split(',').map(Number);
-  return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => s.isl.plots.includes(`${px + dx},${pz + dz}`)) ? 'buyable' : 'far'; }
+export function plotState(s: State, key: string) { const P = here(s).plots; if (P.includes(key)) return 'open'; const [px, pz] = key.split(',').map(Number);
+  return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => P.includes(`${px + dx},${pz + dz}`)) ? 'buyable' : 'far'; }
+const LAND_K: Record<string, number> = { home: 1, moon: 4, mars: 12 };
+export const plotCost = (s: State) => Math.round(landCost(here(s).bought) * (LAND_K[s.at] || 1));
+export const plotLevel = (s: State) => landLevel(here(s).bought) + (s.at === 'moon' ? 10 : s.at === 'mars' ? 18 : 0);
 export function canBuyPlot(s: State, key: string): Check { if (plotState(s, key) !== 'buyable') return { ok: false, why: 'Expand next to your island' };
-  const cost = landCost(s.landBought), need = landLevel(s.landBought); if (s.lvl < need) return { ok: false, why: `Commander level ${need}`, cost }; if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost }; return { ok: true, cost }; }
-export function buyPlot(s: State, key: string) { const c = canBuyPlot(s, key); if (!c.ok) return c; s.res.credits -= c.cost || 0; s.isl.plots.push(key); s.landBought++; stat(s, 'land'); addXp(s, 25 + s.landBought * 10); emit({ kind: 'land', key }); return c; }
+  const cost = plotCost(s), need = plotLevel(s); if (s.lvl < need) return { ok: false, why: `Commander level ${need}`, cost }; if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost }; return { ok: true, cost }; }
+export function buyPlot(s: State, key: string) { const c = canBuyPlot(s, key); if (!c.ok) return c; s.res.credits -= c.cost || 0; here(s).plots.push(key); here(s).bought++; s.landBought++; stat(s, 'land'); addXp(s, 25 + s.landBought * 10); emit({ kind: 'land', key }); return c; }
 // ---------------- time ----------------
 function complete(s: State, j: Job) {
   s.jobs = s.jobs.filter((x) => x !== j); const it = item(s, j.item); if (!it) return;
   if (j.kind === 'build') { const first = it.lvl === 0; it.lvl = j.lvl || it.lvl + 1; const d = BUILDINGS[it.t]; addXp(s, xpFor(first ? d.buildCost(0) : d.upCost(it.lvl - 1))); emit({ kind: 'built', item: it.id, lvl: it.lvl, first }); if (it.t === 'assembly') pumpAssembly(s, j.end); }
-  if (j.kind === 'craft') { const r = RECIPES[j.recipe || 0]; s.ready[it.id] = { cells: Math.round(fabOutput(r, Math.max(1, it.lvl)) * (1 + helperBonus(s, it))), xp: r.xp }; emit({ kind: 'crafted', item: it.id }); }
+  if (j.kind === 'craft') { const r = RECIPES[j.recipe || 0]; s.ready[it.id] = { cells: Math.round(fabOutput(r, Math.max(1, it.lvl)) * (1 + helperBonus(s, it)) * (islandOf(s, it.id) === 'mars' ? 1.3 : 1)), xp: r.xp }; emit({ kind: 'crafted', item: it.id }); }
   if (j.kind === 'fuse' && j.sp) { const c = addCore(s, j.sp, 'fusion', j.end); emit({ kind: 'fused', item: it.id, core: c.id, sp: j.sp }); }
   if (j.kind === 'boot') { const c = coreOf(s, j.core); if (c) { c.state = 'ready'; emit({ kind: 'booted', core: c.id, sp: c.sp }); } pumpAssembly(s, j.end); }
 }
@@ -148,7 +162,7 @@ export function advance(s: State, now = Date.now()) {
     accrue(s, (to - t) / 1000); t = to; if (!due) break; complete(s, due); }
   s.last = now;
 }
-function accrue(s: State, dt: number) { if (dt <= 0) return; for (const it of itemsOf(s, 'bay')) { if (it.lvl < 1) continue; const cap = bayCap(it), cur = s.bay[it.id] || 0; if (cur >= cap) continue; s.bay[it.id] = Math.min(cap, cur + bayRate(s, it.id) * dt); } }
+function accrue(s: State, dt: number) { if (dt <= 0) return; for (const it of itemsOf(s, 'bay')) { if (it.lvl < 1) continue; const cap = bayCap(it, s), cur = s.bay[it.id] || 0; if (cur >= cap) continue; s.bay[it.id] = Math.min(cap, cur + bayRate(s, it.id) * dt); } }
 // ---------------- objectives ----------------
 export function stepDone(s: State, st: Step): boolean {
   switch (st.kind) {
@@ -173,6 +187,9 @@ export function stepDone(s: State, st: Step): boolean {
     case 'arenaWins': return (s.stats.arenaWins || 0) >= (st.n || 1);
     case 'visit': return !!((s as any).space && (s as any).space.visits[st.t || ''] > 0);
     case 'outposts': return (s.stats.outposts || 0) >= (st.n || 1);
+    case 'island': return !!s.islands[st.t || ''];
+    case 'raids': return (s.stats.raidsWon || 0) >= (st.n || 1);
+    case 'bayOn': return !!(s.islands[st.t || ''] && s.islands[st.t || ''].items.some((i) => i.t === 'bay' && i.lvl > 0));
     case 'trophies': return (((s as any).arena && (s as any).arena.best) || 0) >= (st.n || 1);
   }
   return false;
@@ -180,4 +197,13 @@ export function stepDone(s: State, st: Step): boolean {
 export const currentStep = (s: State) => STEPS[s.obj.i] || null;
 export function claimStep(s: State) { const st = currentStep(s); if (!st || !stepDone(s, st)) return null; give(s, st.reward); s.obj.claimed[st.id] = Date.now(); s.obj.i++; addXp(s, 10 + s.obj.i * 3); return st; }
 export const xpNeedOf = (s: State) => xpNeed(s.lvl);
+// ---------------- founding new islands ----------------
+export function canFound(s: State, key: string): Check { const d = ISLANDS[key]; if (!d || !d.cost) return { ok: false, why: 'Unknown' }; if (s.islands[key]) return { ok: false, why: 'Already founded' };
+  if (!((s as any).space && (s as any).space.visits[d.needs || ''] > 0)) return { ok: false, why: `Send an expedition to ${d.needs === 'moon' ? 'the Moon' : 'Mars'} first` };
+  if (s.lvl < (d.level || 1)) return { ok: false, why: `Commander level ${d.level}`, cost: d.cost }; if (s.res.credits < d.cost) return { ok: false, why: 'Not enough credits', cost: d.cost }; return { ok: true, cost: d.cost }; }
+export function found(s: State, key: string) { const c = canFound(s, key); if (!c.ok) return c; s.res.credits -= c.cost || 0;
+  const it = (t: string, x: number, z: number): Item => ({ id: uid('i'), t, x, z, r: 0, lvl: 1 });
+  s.islands[key] = { plots: ['1,1', '2,1', '3,1', '1,2', '2,2', '3,2', '1,3', '2,3', '3,3'], bought: 0, items: [it('hub', 13, 13), it('rock', 9, 9), it('rock', 19, 18), it('rock', 8, 17), it('crystal', 18, 9)] };
+  s.at = key; stat(s, 'islands'); addXp(s, 150); emit({ kind: 'founded', key }); return c; }
+export function travel(s: State, key: string) { if (!s.islands[key]) return false; s.at = key; return true; }
 export const bayCapAt = (L: number) => bayStore(L);

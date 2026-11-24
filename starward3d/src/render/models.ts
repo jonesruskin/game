@@ -57,6 +57,15 @@ function command(lvl: number, look: Look): Model {
   const fl = flag(look); fl.position.set(-1.68, 1.55, -1.7); g.add(fl);
   return { group: g, height: top + 1, anim: (t) => { (tip.material as THREE.MeshBasicMaterial).color.set(Math.sin(t * 3) > 0 ? '#ff4a4a' : '#3a0a0a'); fl.userData.wave(t); } };
 }
+// ---------------- Colony Hub (off-world islands) ----------------
+function hub(lvl: number, look: Look): Model {
+  const k = new Kit(), P = look.primary, A = look.accent; const rings = Math.min(4, 1 + Math.floor((lvl - 1) / 3));
+  k.cyl(1.9, 1.95, 0.3, 6, shade(P, -0.2), 0, 0, 0, { ry: Math.PI / 6 }); k.cyl(1.82, 1.82, 0.05, 6, A, 0, 0.3, 0, { ry: Math.PI / 6, glow: true });
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; k.cyl(0.42, 0.42, 0.55 + Math.min(0.4, lvl * 0.03), 10, P, Math.cos(a) * 1.25, 0.3, Math.sin(a) * 1.25); k.sphere(0.42, GLASSC, Math.cos(a) * 1.25, 0.85 + Math.min(0.4, lvl * 0.03), Math.sin(a) * 1.25, { theta: Math.PI / 2, w: 10, h: 5, glass: true }); }
+  let y = 0.3; for (let i = 0; i < rings; i++) { k.cyl(0.95 - i * 0.12, 1.0 - i * 0.12, 0.5, 14, i % 2 ? shade(P, -0.1) : P, 0, y, 0); k.cyl(0.98 - i * 0.12, 0.98 - i * 0.12, 0.06, 14, A, 0, y + 0.42, 0, { glow: i === rings - 1 }); y += 0.5; }
+  k.sphere(0.62, GLASSC, 0, y, 0, { theta: Math.PI / 2, w: 14, h: 6, glass: true }); k.sphere(0.25, A, 0, y + 0.05, 0, { glow: true, w: 8, h: 5 });
+  const g = k.build('hub'); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.4, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(-1.6, 1.0, -1.2); g.add(mast);
+  const fl = flag(look); fl.position.set(-1.58, 1.5, -1.2); g.add(fl); return { group: g, height: y + 0.9, anim: (t) => fl.userData.wave(t) }; }
 // ---------------- Bot Bay ----------------
 function bay(lvl: number, el: string, look: Look): Model {
   const k = new Kit(), P = look.primary, E = (ELEMENTS[el] || ELEMENTS.solar).color, EG = (ELEMENTS[el] || ELEMENTS.solar).glow;
@@ -171,6 +180,7 @@ function decor(t: string, look: Look): Model {
 export function buildModel(t: string, lvl: number, el: string | undefined, look: Look): Model {
   const L = Math.max(1, lvl);
   if (t === 'command') return command(L, look);
+  if (t === 'hub') return hub(L, look);
   if (t === 'bay') return bay(L, el || 'solar', look);
   if (t === 'fab') return fab(L, look);
   if (t === 'assembly') return assembly(L, look);

@@ -32,6 +32,8 @@ export function giveCore(s: State, rarity: string, seed: number, now = Date.now(
   // no Assembly Bay yet: Standard gifts arrive at once (if there's room), rarer ones wait until it is built
   const home = rarity === 'standard' ? homeFor(s, sp) : null; if (home) { s.bots.push({ id: uid('b'), sp, lvl: 1, fed: 0, bay: home.id, born: now }); discover(s, sp, now); events.push({ kind: 'newBot', bot: s.bots[s.bots.length - 1].id }); return { sp, core: false }; }
   s.cores.push({ id: uid('c'), sp, from: 'gift', state: 'waiting', at: now }); return { sp, core: true }; }
+// a specific species (first contact, the Swarm): boots in the Assembly Bay like any core
+export function giveSpecies(s: State, sp: string, now = Date.now()) { const asm = itemsOf(s, 'assembly')[0]; if (asm && asm.lvl > 0) addCore(s, sp, 'gift', now); else s.cores.push({ id: uid('c'), sp, from: 'gift', state: 'waiting', at: now }); return { sp, core: true }; }
 export function claimDay(s: State, now = Date.now()) { const D = daily(s); if (!canClaimDay(s, now)) return null; const r = dayReward(s, D.day);
   give(s, r.res); let gift: any = null; if (r.core) gift = giveCore(s, r.core, hash(dateKey(now)) + D.total, now); if (r.decor) s.stats['decor_' + r.decor] = (s.stats['decor_' + r.decor] || 0) + 1;
   D.streak = D.last === yesterday(now) ? D.streak + 1 : 1; D.best = Math.max(D.best, D.streak); D.total++; D.last = dateKey(now); const day = D.day; D.day++; if (D.day >= 28) { D.day = 0; D.cycle++; }
@@ -89,6 +91,7 @@ export const ACHS: Ach[] = [
   { id: 'decorator', name: 'Interior Designer', tiers: [5, 25, 75, 200], stat: (s) => s.stats.decor || 0, unit: 'decorations' },
   { id: 'veteran', name: 'Veteran', tiers: [5, 15, 30, 60], stat: (s) => s.lvl, unit: 'Commander level' },
   { id: 'champion', name: 'Arena Champion', tiers: [5, 50, 250, 1000], stat: (s) => s.stats.arenaWins || 0, unit: 'Arena wins' },
+  { id: 'defender', name: 'Defender of the Colony', tiers: [1, 10, 50, 200], stat: (s) => s.stats.raidsWon || 0, unit: 'raids repelled' },
   { id: 'explorer', name: 'Explorer', tiers: [3, 25, 150, 600], stat: (s) => s.stats.expeditions || 0, unit: 'expeditions' },
   { id: 'hoarder', name: 'Supply Hoarder', tiers: [5, 30, 150, 600], stat: (s) => s.stats.drops || 0, unit: 'supply drops' },
 ];

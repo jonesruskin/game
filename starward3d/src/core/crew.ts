@@ -21,7 +21,7 @@ export const FUSE_LEVEL = 4;
 export function fusionOutcomes(a: BotRec, b: BotRec) {
   const A = SPECIES[a.sp], B = SPECIES[b.sp]; const pool = new Set([...A.el, ...B.el]); const ra = rIdx(a.sp), rb = rIdx(b.sp); const lo = Math.min(ra, rb), hi = Math.max(ra, rb);
   const out: { sp: string; w: number }[] = [];
-  for (const k of SPECIES_ORDER) { const d = SPECIES[k], r = RARITY_ORDER.indexOf(d.rarity); const parent = k === a.sp || k === b.sp;
+  for (const k of SPECIES_ORDER) { const d = SPECIES[k], r = RARITY_ORDER.indexOf(d.rarity); const parent = k === a.sp || k === b.sp; if (d.alien && !parent) continue;
     if (!parent) { if (!d.el.every((e) => pool.has(e))) continue; if (!d.el.some((e) => A.el.includes(e)) || !d.el.some((e) => B.el.includes(e))) continue; if (d.el.length < 2) continue;
       if (r < (lo >= 2 ? lo : lo - 1)) continue; // great parents do not make poor children
       if (r === 3 && hi < 1) continue; if (r === 4 && lo < 2) continue; if (r === 5 && lo < 3) continue; if (r === 6 && lo < 4) continue; if (r > hi + 2) continue; }

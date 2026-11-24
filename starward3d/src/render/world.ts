@@ -9,6 +9,7 @@ import { ArenaView, ARENA_POS } from './arena';
 import { SystemView } from './system';
 import { rocketModel } from './models';
 import { space, launchSlots } from '../core/space';
+import { ISLANDS } from '../data/islands';
 import { buildBot, BotModel } from './botmodels';
 import { MATS } from './kit';
 import { State, Item } from '../core/state';
@@ -105,15 +106,15 @@ export class World {
   sync(s: State) {
     this.look = { primary: s.paint.primary, accent: s.paint.accent, banner: s.banner }; const lookKey = JSON.stringify(this.look);
     const buyable = []; for (let px = 0; px < 5; px++) for (let pz = 0; pz < 5; pz++) { const k = `${px},${pz}`; if (G.plotState(s, k) === 'buyable') buyable.push(k); }
-    this.island.build(s.isl.plots, buyable); const occ = new Set<string>(); for (const it of s.isl.items) { const [w, d] = G.dims(it); for (let i = it.x; i < it.x + w; i++) for (let j = it.z; j < it.z + d; j++) occ.add(i + ',' + j); } this.island.scatter(s.isl.plots, occ);
+    const isl = G.here(s); this.island.build(isl.plots, buyable, ISLANDS[s.at] ? ISLANDS[s.at].theme : 'haven'); this.backdrop.setWorld(ISLANDS[s.at] ? ISLANDS[s.at].world : 'earth'); const occ = new Set<string>(); for (const it of isl.items) { const [w, d] = G.dims(it); for (let i = it.x; i < it.x + w; i++) for (let j = it.z; j < it.z + d; j++) occ.add(i + ',' + j); } this.island.scatter(isl.plots, occ);
     const seen = new Set<string>();
-    for (const it of s.isl.items) { seen.add(it.id); const job = G.jobOf(s, it.id, 'build'); const padFree = it.t === 'pad' ? (space(s).exps.length < launchSlots(it.lvl) ? 1 : 0) : 0; const key = `${it.t}|${it.lvl}|${it.el}|${it.r}|${lookKey}|${job ? 1 : 0}|${padFree}`; let v = this.views.get(it.id);
+    for (const it of isl.items) { seen.add(it.id); const job = G.jobOf(s, it.id, 'build'); const padFree = it.t === 'pad' ? (space(s).exps.length < launchSlots(it.lvl) ? 1 : 0) : 0; const key = `${it.t}|${it.lvl}|${it.el}|${it.r}|${lookKey}|${job ? 1 : 0}|${padFree}`; let v = this.views.get(it.id);
       if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it, key, !!job, it.t === 'pad' && !padFree); this.views.set(it.id, v); }
       if (this.ghost && this.ghost.move === it.id) v.root.visible = false; else v.root.visible = true; }
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
     // bots live on their bay's docking pads and wander inside its footprint
     const bseen = new Set<string>();
-    for (const b of s.bots) { const home = b.post || b.bay; if (!home || G.onMission(s, b)) continue; const bay = G.item(s, home); if (!bay) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
+    for (const b of s.bots) { const home = b.post || b.bay; if (!home || G.onMission(s, b)) continue; const bay = G.item(s, home); if (!bay || G.islandOf(s, home) !== s.at) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
       if (!bv || bv.key !== key) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
         const pick = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.45; pick.userData.bot = b.id; m.group.add(pick);
         m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: home, pick }; this.bots.set(b.id, bv); }

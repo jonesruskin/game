@@ -2,7 +2,7 @@
 // hybrids (sold in the shop and fused); Elite and above have 3-4 elements and come from the Fusion Lab.
 // A species' look is procedural: chassis + its elements' colours + rarity glow.
 export type Chassis = 'drone' | 'rover' | 'walker' | 'android' | 'mech' | 'orb' | 'crawler';
-export interface Species { name: string; el: string[]; rarity: string; chassis: Chassis; desc: string; price?: number; unlock?: number; }
+export interface Species { name: string; el: string[]; rarity: string; chassis: Chassis; desc: string; price?: number; unlock?: number; alien?: 'contact' | 'swarm'; }
 const S = (name: string, el: string[], rarity: string, chassis: Chassis, desc: string, price?: number, unlock?: number): Species => ({ name, el, rarity, chassis, desc, ...(price ? { price, unlock } : {}) });
 export const SPECIES: Record<string, Species> = {
   // ---- Standard: one per core element ----
@@ -94,5 +94,14 @@ export const SPECIES: Record<string, Species> = {
   // ---- Singularity ----
   architect: S('The Architect', ['neural', 'chrono', 'gravity', 'photon'], 'singularity', 'orb', 'It designed itself. Then it designed the rest.'),
   primemover: S('Prime Mover', ['kinetic', 'plasma', 'solar', 'gravity'], 'singularity', 'mech', 'The engine at the start of everything.'),
+  // ---- aliens: met through first contact, or captured from the Swarm (never fused) ----
+  veyari: { ...S('Veyari Gardener', ['bio', 'photon', 'void'], 'legendary', 'android', 'A crystalline gardener from Proxima b, a gift from the Veyari to seal first contact.'), alien: 'contact' },
+  synod: { ...S('Synod Envoy', ['alloy', 'neural', 'chrono'], 'legendary', 'mech', "A delegate of the machine Synod of Barnard's Star. It votes on everything."), alien: 'contact' },
+  mycelar: { ...S('Mycelar Sporeling', ['bio', 'neural', 'hydro'], 'epic', 'crawler', "A fragment of Tau Ceti's singing fungal mind, curious about everything."), alien: 'contact' },
+  oshoru: { ...S('Oshoru Swimmer', ['hydro', 'aero', 'kinetic'], 'epic', 'orb', 'A young Oshoru from TRAPPIST-1e, sent to see the stars.'), alien: 'contact' },
+  lumenchoir: { ...S('Lumen Choir', ['photon', 'solar', 'neural'], 'prototype', 'orb', 'A being of pure light from Epsilon Eridani. It hums in harmonies.'), alien: 'contact' },
+  krdrone: { ...S("Kr'thul Drone", ['void', 'kinetic'], 'advanced', 'crawler', 'A Swarm drone, captured and reprogrammed. Still a little bitey.'), alien: 'swarm' },
+  krwarrior: { ...S("Kr'thul Warrior", ['void', 'kinetic', 'plasma'], 'elite', 'crawler', 'A Swarm warrior that now fights for the colony.'), alien: 'swarm' },
+  krbrood: { ...S("Kr'thul Brood", ['void', 'bio', 'gravity', 'kinetic'], 'epic', 'crawler', 'A living Swarm carrier. It keeps trying to adopt the other bots.'), alien: 'swarm' },
 };
 export const SPECIES_ORDER = Object.keys(SPECIES);

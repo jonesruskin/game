@@ -18,6 +18,8 @@ const decor = (name: string, size: [number, number], cost: number, unlock: numbe
 export const BUILDINGS: Record<string, BuildingDef> = {
   command: { name: 'Command Center', size: [4, 4], cat: 'core', max: 15, unique: true, unlock: 1, desc: 'The heart of your colony. Its level sets how far every other building can grow, and how many Bays and Fabricators you can run.',
     buildCost: () => 0, upCost: (L) => round2(400 * Math.pow(2.05, L - 1)), time: (L) => tl(L, 0) },
+  hub: { name: 'Colony Hub', size: [4, 4], cat: 'core', max: 13, unlock: 1, desc: 'The heart of an off-world island. Its level caps every building here, and it stays two levels below your Command Center.',
+    buildCost: () => 0, upCost: (L) => round2(900 * Math.pow(2.05, L - 1)), time: (L) => tl(L, 1) },
   bay: { name: 'Bot Bay', size: [3, 3], cat: 'bay', max: 10, unlock: 1, desc: 'Home and charging dock for bots of its element. Bots earn credits here; the bay holds them until you collect.',
     buildCost: (n) => round2(150 * Math.pow(1.6, n)), upCost: (L) => round2(250 * Math.pow(1.9, L - 1)), time: (L) => tl(L, -1) },
   fab: { name: 'Fabricator', size: [3, 3], cat: 'production', max: 10, unlock: 1, desc: 'Prints Power Cells for your bots. Pick a recipe that matches when you will be back.',

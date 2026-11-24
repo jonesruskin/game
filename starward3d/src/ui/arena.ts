@@ -2,6 +2,7 @@
 // with effectiveness hints, auto and speed) and the result.
 import { esc, fmt, fmtTime } from '../core/util';
 import * as AR from '../core/arena';
+import * as G from '../core/game';
 import { SPECIES } from '../data/species';
 import { ELEMENTS } from '../data/elements';
 import { RARITIES } from '../data/rarities';
@@ -12,7 +13,9 @@ const IC: Record<string, string> = { credits: '<span class="ic cr">C</span>', ce
 const resList = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost">${IC[k] || ''}${fmt(n)}</span>`).join(' ');
 const pills = (els: string[]) => `<span class="els">${els.map((e) => `<span class="el" style="background:${ELEMENTS[e].color}">${ELEMENTS[e].glyph}</span>`).join('')}</span>`;
 export class ArenaUI {
-  fight: { bt: AR.Battle; rival: AR.Rival; busy: boolean; auto: boolean; speed: number } | null = null;
+  fight: { bt: AR.Battle; rival: AR.Rival; busy: boolean; auto: boolean; speed: number; raid?: boolean } | null = null;
+  startRaid() { const r = AR.startRaid(this.s); if (!r) { this.ui.deny('No raid to defend against'); return; } this.ui.closeModal(); this.fight = { ...r, busy: false, auto: false, speed: 1, raid: true };
+    this.ui.closeOver(); this.ui.select(null); const w = this.app.world; w.enterArena(); w.arena!.setup(r.bt); w.arena!.onImpact = (h, at) => this.impact(h, at); this.app.audio.play('whoosh'); this.app.changed(); this.renderHUD(); document.body.classList.add('fighting'); }
   constructor(private ui: UI) {}
   get s() { return this.ui.app.s; } get app() { return this.ui.app; }
   private banner(b: { bg: string; fg: string; emblem: string }, w = 48) { const c = document.createElement('canvas'); c.width = 96; c.height = 60; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 96, 60); g.fillStyle = b.fg; g.translate(48, 30); emblemPath(g, b.emblem, 20); g.fill(); return `<img src="${c.toDataURL()}" style="width:${w}px;height:${(w * 60) / 96}px;border-radius:5px">`; }
@@ -41,20 +44,27 @@ export class ArenaUI {
     el.innerHTML = `<div class="btop">${side(bt.A, bt.a, false, this.s.name)}<div class="vs">VS</div>${side(bt.B, bt.b, true, f.rival.name)}</div><div class="bbot"><div class="moves">${moves}</div><div class="bopts"><button class="btn small ${f.auto ? 'gold' : ''}" data-a="autoBattle">⚡ Auto</button><button class="btn small" data-a="battleSpeed">${f.speed}×</button><button class="btn small" data-a="forfeit">Forfeit</button></div></div>`; }
   async turn(mk: string) { const f = this.fight; if (!f || f.busy || f.bt.over) return; f.busy = true; this.renderHUD(); const bt = f.bt; const hits = AR.round(bt, mk, AR.aiMove(bt, 'B'));
     await this.app.world.arena!.play(hits, bt, f.speed); f.busy = false; if (bt.over) { this.end(bt.over === 'A'); return; } this.renderHUD(); if (f.auto) setTimeout(() => this.turn(AR.aiMove(bt, 'A')), 250 / f.speed); }
-  private end(win: boolean) { const f = this.fight!; const r = AR.finishFight(this.s, win, f.rival.diff); this.app.audio.play(win ? 'levelup' : 'deny'); this.app.changed();
+  private end(win: boolean) { const f = this.fight!; if (f.raid) { this.endRaid(win); return; } const r = AR.finishFight(this.s, win, f.rival.diff); this.app.audio.play(win ? 'levelup' : 'deny'); this.app.changed();
     setTimeout(() => { this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">${win ? 'VICTORY' : 'DEFEAT'}</div><div class="big" style="color:${win ? '#ffd36a' : '#ff6b7a'}">${win ? '🏆' : '💥'}</div><h1>${win ? `You beat ${esc(f.rival.name)}!` : `${esc(f.rival.name)} won this time`}</h1>
       <div class="rewards"><span class="cost" style="color:${r.dt > 0 ? '#7cf29a' : '#ff6b7a'}">${r.dt > 0 ? '+' : ''}${r.dt} 🏆</span>${resList(r.reward)}</div>${r.promoted >= 0 ? `<p class="desc" style="color:${AR.LEAGUE_COLOR[r.promoted]};font:700 18px Oxanium">Promoted to ${AR.LEAGUES[r.promoted][0]}!</p>` : ''}${win ? '' : '<p class="sub">Tip: feed your team, fuse rarer bots, and pick moves that are super effective against your rival.</p>'}
       <div class="row" style="justify-content:center"><button class="btn" data-a="leaveArena">Back to the colony</button><button class="btn gold" data-a="arenaAgain">Arena</button></div>`, win); }, 500 / f.speed); }
+  private endRaid(win: boolean) { const r = AR.finishRaid(this.s, win) as any; const gift = r.capture ? this.giveCapture(r.capture) : null; this.app.audio.play(win ? 'levelup' : 'deny'); this.app.changed();
+    setTimeout(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">${win ? 'RAID REPELLED' : 'THE SWARM BROKE THROUGH'}</div><div class="big" style="color:${win ? '#7cf29a' : '#ff6b7a'}">${win ? '🛡' : '🔥'}</div><h1>${win ? 'The colony is safe!' : 'They raided your bays'}</h1>
+      ${win ? `<div class="rewards">${resList(r.reward)}</div>${gift ? `<p class="desc" style="color:#c49bff">You captured and reprogrammed a ${esc(SPECIES[r.capture].name)}! Its core is booting.</p>` : ''}` : `<p class="desc">The Swarm carried off ${fmt(r.stolen || 0)} credits from your bays. Level up your crew and fuse stronger bots before the next raid.</p>`}
+      <button class="btn gold" data-a="leaveArena">Back to the colony</button>`, win), 500 / (this.fight ? this.fight.speed : 1)); }
+  private giveCapture(sp: string) { const D = (window as any).__daily; return D ? D.giveSpecies(this.s, sp) : null; }
   leave() { this.fight = null; this.renderHUD(); document.body.classList.remove('fighting'); this.app.world.exitArena(); this.ui.closeModal(); this.app.changed(); }
   act(a: string, t: HTMLElement): boolean { const s = this.s, A = this.app, ui = this.ui;
     switch (a) {
-      case 'arena': { if (!s.isl.items.some((i) => i.t === 'arena' && i.lvl > 0)) { ui.openOver('shop', 'buildings'); ui.toast('Build the Arena first (Commander level 6)', 'gold'); return true; } AR.rollSeason(s); ui.openOver('arena'); A.audio.play('tap'); return true; }
+      case 'arena': { if (!G.itemsOf(s, 'arena').some((i) => i.lvl > 0)) { ui.openOver('shop', 'buildings'); ui.toast('Build the Arena first (Commander level 6)', 'gold'); return true; } AR.rollSeason(s); ui.openOver('arena'); A.audio.play('tap'); return true; }
       case 'fight': this.start(+(t.dataset.i || 0)); return true;
       case 'rerollRivals': AR.makeRivals(s); ui.renderOver(); A.audio.play('tap'); return true;
       case 'pickTeam': { const i = +(t.dataset.i || 0); const AS = AR.arena(s); const cur = AR.myTeam(s).map((b) => b.id); const cands = s.bots.filter((b) => !b.stored).sort((x, y) => AR.teamPower([{ sp: y.sp, lvl: y.lvl }]) - AR.teamPower([{ sp: x.sp, lvl: x.lvl }]));
         ui.modal(`<h1 style="font-size:20px">Team slot ${i + 1}</h1><div class="bots" style="max-height:56vh;overflow:auto;text-align:left">${cands.map((b) => `<div class="botc"><div class="pic"><img src="${A.studio.bot(b.sp)}"></div><div><b>${esc(b.nick || SPECIES[b.sp].name)}</b> ${pills(SPECIES[b.sp].el)}<div class="meta"><span class="rar" style="color:${RARITIES[SPECIES[b.sp].rarity].color}">${RARITIES[SPECIES[b.sp].rarity].name}</span> · L${b.lvl} · power ${fmt(AR.teamPower([{ sp: b.sp, lvl: b.lvl }]))}</div></div><button class="btn small gold" data-a="setTeam" data-i="${i}" data-bot="${b.id}" ${cur[i] === b.id ? 'disabled' : ''}>${cur.includes(b.id) ? 'Swap' : 'Pick'}</button></div>`).join('')}</div><button class="btn" data-a="closeModal" style="margin-top:10px">Cancel</button>`); void AS; return true; }
       case 'setTeam': { const AS = AR.arena(s); const cur = AR.myTeam(s).map((b) => b.id); const id = t.dataset.bot!, i = +(t.dataset.i || 0); const j = cur.indexOf(id); if (j >= 0) cur[j] = cur[i]; cur[i] = id; AS.team = cur.filter(Boolean); AS.rivals = []; ui.closeModal(); ui.renderOver(); A.audio.play('tap'); return true; }
       case 'move': this.turn(t.dataset.m || 'strike'); return true;
+      case 'raid': { const R = AR.raid(s); if (!R.eta) return true; ui.modal(`<div class="ox sub" style="letter-spacing:.2em;color:#ff6b7a">⚠ SWARM RAID INCOMING</div><h1>The Kr'thul are coming</h1><p class="desc">A Swarm raiding party arrives in <b>${fmtTime((R.eta - Date.now()) / 1000)}</b>. Defend the colony with your Arena team, or they will carry off half the credits waiting in your bays.</p><div class="row" style="justify-content:center;gap:4px;margin:8px 0">${R.team.map((f) => `<div style="text-align:center"><img src="${A.studio.bot(f.sp)}" style="width:64px;height:64px"><div class="sub" style="margin:0">L${f.lvl}</div></div>`).join('')}</div><p class="sub">Swarm power ${fmt(AR.teamPower(R.team))} · your team ${fmt(AR.teamPower(AR.myTeam(s).map((b) => ({ sp: b.sp, lvl: b.lvl }))))}</p><div class="row" style="justify-content:center"><button class="btn" data-a="closeModal">Later</button><button class="btn gold" data-a="defendRaid">🛡 Defend now</button></div>`); return true; }
+      case 'defendRaid': this.startRaid(); return true;
       case 'autoBattle': if (this.fight) { this.fight.auto = !this.fight.auto; this.renderHUD(); if (this.fight.auto && !this.fight.busy) this.turn(AR.aiMove(this.fight.bt, 'A')); } return true;
       case 'battleSpeed': if (this.fight) { this.fight.speed = this.fight.speed === 1 ? 2 : this.fight.speed === 2 ? 3 : 1; this.renderHUD(); } return true;
       case 'forfeit': if (this.fight && !this.fight.busy) { this.fight.bt.over = 'B'; this.end(false); } return true;
