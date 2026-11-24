@@ -7,6 +7,8 @@ import { Design, designStats, PRESETS, TOPS, ENGINES, TANKS } from '../data/rock
 import { lvlOf, canPay, pay, give, mods, modHooks, rateHooks, Mods } from './econ';
 import { completers, stepChecks, Check, Note } from './game';
 import { State, uid } from './state';
+import { BODIES, PROBE_CLASS } from '../data/solar';
+import { windowOf, sol, baseFounders, foundColony } from './solar';
 import { curve, round2, clamp } from './util';
 export interface Sat { type: string; lvl: number; }
 export interface Space { designs: Design[]; hangar: Record<string, number>; sats: Sat[]; modules: Record<string, number>; flights: number; fails: number; done: Record<string, number>; }
@@ -64,10 +66,11 @@ export function pickRocket(s: State, cls: number, crew = false, lander = false):
   return best;
 }
 // ---------------- missions ----------------
-export interface Payload { mission?: string; sat?: string; idx?: number; module?: string; }
+export interface Payload { mission?: string; sat?: string; idx?: number; module?: string; probe?: string; }
 export interface Spec { name: string; cls: number; cost: Record<string, number>; flight: number; req: string[]; lvl?: number; crew?: boolean; lander?: boolean; needs?: string; }
 export function missionSpec(s: State, p: Payload): Spec {
   const lc = 1 - liftCut(s);
+  if (p.probe) { const b = BODIES[p.probe]; const w = windowOf(p.probe); return { name: `Survey probe to ${b.name}`, cls: PROBE_CLASS[b.zone || 'inner'] || 3, cost: { credits: round2((80000 + (b.travel || 4) * 25000) * lc), fuel: round2((b.travel || 4) * 6000 * w.fuel * (1 - fuelCut(s)) * lc) }, flight: Math.round((b.travel || 4) * 3600 * 1.6 * w.time * (1 - flightCut(s))), req: ['planetaryProbes'] }; }
   if (p.sat) { const d = SATS[p.sat]; const cur = p.idx !== undefined ? sp(s).sats[p.idx] : null; const L = cur ? cur.lvl + 1 : 1; const cost: Record<string, number> = {}; for (const k in d.cost) cost[k] = round2(curve(d.cost[k][0], d.cost[k][1], L) * lc); if (cost.fuel) cost.fuel = round2(cost.fuel * (1 - fuelCut(s)));
     return { name: `${cur ? 'Upgrade' : 'Launch'} ${d.name}${L > 1 ? ' Mk ' + L : ''}`, cls: d.cls, cost, flight: Math.round(curve(d.flight[0], d.flight[1], L) * (1 - flightCut(s))), req: [d.req], lvl: L }; }
   if (p.module) { const d = MODULES[p.module]; const L = (sp(s).modules[p.module] || 0) + 1; const cost: Record<string, number> = {}; for (const k in d.cost) cost[k] = round2(curve(d.cost[k][0], d.cost[k][1], L) * lc); if (cost.fuel) cost.fuel = round2(cost.fuel * (1 - fuelCut(s)));
@@ -82,6 +85,7 @@ export function canLaunch(s: State, p: Payload): Check & { ms: Spec; rocket?: De
   if (p.mission) { const d = MISSIONS[p.mission]; if ((d.flags || []).some((f) => !s.flags[f])) return { ok: false, why: 'Complete earlier missions first', locked: true, ms }; if (d.kind !== 'repeat' && d.flag && s.flags[d.flag]) return { ok: false, why: 'Accomplished', done: true, ms };
     if (d.needs && d.needs.academy && lvlOf(s, 'earth', 'academy') < d.needs.academy) return { ok: false, why: `Astronaut Academy level ${d.needs.academy}`, locked: true, ms };
     if (s.jobs.some((j) => j.kind === 'mission' && j.payload.mission === p.mission && d.kind !== 'repeat')) return { ok: false, why: 'Already in flight', busy: true, ms }; }
+  if (p.probe) { if (sol(s).surveyed[p.probe]) return { ok: false, why: 'Already surveyed', done: true, ms }; if (s.jobs.some((j) => j.kind === 'mission' && j.payload.probe === p.probe)) return { ok: false, why: 'A probe is on its way', busy: true, ms }; }
   if (p.module) { const d = MODULES[p.module]; if (ms.needs && !sp(s).modules[ms.needs]) return { ok: false, why: 'Launch the Core Module first', locked: true, ms }; if ((ms.lvl || 1) > d.max) return { ok: false, why: 'Maximum level', done: true, ms }; if (s.jobs.some((j) => j.kind === 'mission' && j.payload.module === p.module)) return { ok: false, why: 'Already in flight', busy: true, ms }; }
   if (p.sat) { const d2 = SATS[p.sat]; if (p.idx === undefined) { const used = satsIn(s, d2.orbit).length + s.jobs.filter((j) => j.kind === 'mission' && j.payload.sat && j.payload.idx === undefined && SATS[j.payload.sat].orbit === d2.orbit).length; if (used >= slotsFor(s, d2.orbit)) return { ok: false, why: `No free ${ORBITS[d2.orbit].name} slot`, full: true, ms }; }
     else if (s.jobs.some((j) => j.kind === 'mission' && j.payload.sat && j.payload.idx === p.idx)) return { ok: false, why: 'Upgrade already in flight', busy: true, ms }; }
@@ -101,12 +105,13 @@ completers.rocket = (s, j): Note => { const S = sp(s); const d: Design = j.desig
 completers.mission = (s, j): Note => {
   const S = sp(s); const P: Payload = j.payload; const d: Design = j.design;
   if (d.legs && Math.random() < 0.85) S.hangar[d.id] = (S.hangar[d.id] || 0) + 1; // the booster lands itself
-  if (!j.ok) { S.fails++; const sci = P.mission ? Math.round(((MISSIONS[P.mission].reward || {}).science || 1000) * 0.1) : 300; give(s, { science: sci }); return { kind: 'fail', name: j.name, sci }; }
+  if (!j.ok) { S.fails++; const sci = P.mission ? Math.round(((MISSIONS[P.mission].reward || {}).science || 1000) * 0.1) : P.probe ? Math.round((BODIES[P.probe].travel || 4) * 800) : 300; give(s, { science: sci }); return { kind: 'fail', name: j.name, sci }; }
+  if (P.probe) { sol(s).surveyed[P.probe] = 1; give(s, { science: Math.round((BODIES[P.probe].travel || 4) * 4000) }); return { kind: 'survey', body: P.probe, name: j.name }; }
   if (P.sat) { if (P.idx !== undefined && S.sats[P.idx]) S.sats[P.idx].lvl++; else S.sats.push({ type: P.sat, lvl: 1 }); return { kind: 'sat', sat: P.sat, name: j.name }; }
   if (P.module) { S.modules[P.module] = (S.modules[P.module] || 0) + 1; return { kind: 'module', mod: P.module, lvl: S.modules[P.module], name: j.name }; }
   const m = MISSIONS[P.mission!]; const first = !S.done[P.mission!]; S.done[P.mission!] = (S.done[P.mission!] || 0) + 1;
-  give(s, m.reward || {}); if (first && m.firstReward) give(s, m.firstReward); if (m.flag) s.flags[m.flag] = 1;
-  return { kind: 'mission', mission: P.mission, name: m.name, first, reward: m.reward, base: m.base };
+  give(s, m.reward || {}); if (first && m.firstReward) give(s, m.firstReward); if (m.flag) s.flags[m.flag] = 1; const founded = m.base && !s.bases[m.base] ? m.base : undefined; if (founded) foundColony(s, founded);
+  return { kind: 'mission', mission: P.mission, name: m.name, first, reward: m.reward, base: founded };
 };
 stepChecks.rockets = (s, st) => (s.stats.rocketsBuilt || 0) >= st.n;
 stepChecks.sat = (s, st) => sp(s).sats.some((x) => x.type === st.sat);

@@ -8,14 +8,14 @@ import { RES, COLLECTED } from '../data/resources';
 import { State, Item } from './state';
 import { curve } from './util';
 export interface Mods { mult: Record<string, number>; gen: number; buildTime: number; researchTime: number; cap: number; crews: number; slots: number; costs: number; flags: Set<string>; }
-export interface ColStats { house: number; jobs: number; grow: number; staff: number; pop: number; }
+export interface ColStats { house: number; jobs: number; grow: number; staff: number; pop: number; ls: number; }
 export interface Rates { prod: Record<string, number>; cap: Record<string, number>; gen: number; draw: number; eff: number; speed: number; m: Mods; col: Record<string, ColStats>; item: Record<string, { r: string; rate: number; hold: number }>; collect: Record<string, number>; }
 export interface BStats { prod: Record<string, number>; cap: Record<string, number>; gen: number; draw: number; speed: number; house: number; jobs: number; grow: number; }
 // extension points for later parts
 export const modHooks: ((s: State, m: Mods) => void)[] = [];
 export const rateHooks: ((s: State, R: Rates) => void)[] = [];
 export const boostHooks: ((s: State) => Record<string, number>)[] = []; // per-building multipliers (robot operators)
-export const baseHooks: { mult: (s: State, base: string, r: string) => number; solar: (s: State, base: string) => number; house: (s: State, base: string) => number; grow: (s: State, base: string) => number } = { mult: () => 1, solar: () => 1, house: () => 0, grow: () => 0 };
+export const baseHooks: { mult: (s: State, base: string, r: string) => number; solar: (s: State, base: string) => number; house: (s: State, base: string) => number; grow: (s: State, base: string) => number; life: (s: State, base: string) => number } = { mult: () => 1, solar: () => 1, house: () => 0, grow: () => 0, life: () => 1 };
 export function mods(s: State): Mods {
   const m: Mods = { mult: {}, gen: 0, buildTime: 0, researchTime: 0, cap: 0, crews: 0, slots: 0, costs: 0, flags: new Set() };
   for (const id in s.tech) { const t = TECH[id]; if (!t) continue; const e = t.effect || {};
@@ -47,8 +47,8 @@ export function rates(s: State, m = mods(s)): Rates {
   for (const bid in s.bases) {
     const B = s.bases[bid]; const colony = bid !== 'earth'; const sts: [Item, BStats][] = []; let house = 0, jobs = 0, grow = 0;
     for (const it of B.items) { if (it.lvl <= 0) continue; const st = bStats(it.b, it.lvl, m); const k = 1 + (boost[it.id] || 0); if (k > 1) { for (const r in st.prod) st.prod[r] *= k; for (const r in st.cap) st.cap[r] *= k; st.gen *= k; st.speed *= k; } sts.push([it, st]); house += st.house; jobs += st.jobs; grow += st.grow; }
-    let staff = 1; if (colony) { house *= 1 + baseHooks.house(s, bid); grow += baseHooks.grow(s, bid); const pop = B.pop || 0; staff = jobs > 0 ? Math.min(1, pop / jobs) : 1; R.col[bid] = { house: Math.round(house), jobs, grow, staff, pop }; }
-    const work = 0.3 + 0.7 * staff; // colonies need hands: output scales with filled jobs
+    let staff = 1, ls = 1; if (colony) { house *= 1 + baseHooks.house(s, bid); grow += baseHooks.grow(s, bid); const pop = B.pop || 0; staff = jobs > 0 ? Math.min(1, pop / jobs) : 1; ls = baseHooks.life(s, bid); if (ls < 1) grow = 0; R.col[bid] = { house: Math.round(house), jobs, grow, staff, pop, ls }; }
+    const work = (0.3 + 0.7 * staff) * (0.4 + 0.6 * ls); // colonies need hands, water and air: output scales with both
     for (const [it, st] of sts) { const k = it.b === 'hub' ? 1 : work; items.push([it, bid, st, k]);
       for (const r in st.cap) R.cap[r] += st.cap[r]; R.gen += it.b === 'lsolar' ? st.gen * baseHooks.solar(s, bid) : st.gen; R.draw += st.draw; R.speed += st.speed * k; }
   }

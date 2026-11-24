@@ -5,7 +5,7 @@ import { SPECIES, SPECIES_ORDER } from '../data/species';
 import { RARITIES, RARITY_ORDER } from '../data/rarities';
 import { AFFINITY, RARITY_BOOST, MATCH_K, MISMATCH_K, BOOST_CAP, MAX_LVL, opSlots, dockCapacity, feedCost, CORE_RECIPES, DEX_REWARD, FUSE_LEVEL, STARTERS } from '../data/robots';
 import { lvlOf, canPay, pay, boostHooks } from './econ';
-import { completers, stepChecks, itemOf, jobOf, Check, Note, events, builtHooks } from './game';
+import { completers, stepChecks, itemOf, jobOf, Check, Note, events, builtHooks, buildChecks } from './game';
 import { State, uid } from './state';
 import { rng, hash } from './util';
 export interface Robot { id: string; sp: string; lvl: number; post: { base: string; item: string } | null; born: number; }
@@ -85,6 +85,7 @@ completers.fuse = (s, j): Note => { giveCore(s, j.sp, 'fusion'); return { kind: 
 export function onBuilt(s: State, b: string) { if (b === 'workshop' && !s.flags.starters) { s.flags.starters = 1; for (const sp of STARTERS) giveCore(s, sp, 'gift'); events.push({ kind: 'starters' }); } }
 boostHooks.push((s) => boostMap(s));
 builtHooks.push(onBuilt);
+buildChecks.push((s, base, b) => (b === 'burrow' && !rb(s).list.some((r) => SPECIES[r.sp].el.some((e) => e === 'geo' || e === 'kinetic')) ? { ok: false, why: 'Your robots dig the tunnels: you need a Geo or Kinetic robot', locked: true } : null));
 stepChecks.robots = (s, st) => rb(s).list.length >= st.n;
 stepChecks.dex = (s, st) => dexCount(s) >= st.n;
 stepChecks.operators = (s, st) => rb(s).list.filter((r) => r.post).length >= st.n;

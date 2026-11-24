@@ -162,6 +162,85 @@ function fusionlab(L: number, look: Look): Model {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 6, 28), new THREE.MeshBasicMaterial({ color: '#ff9be8', toneMapped: false })); ring.position.copy(core.position); g.add(ring);
   return { group: g, height: 1.9 + t * 0.1, anim: (tt, st) => { const w = st.working ? 1 : 0.3; core.rotation.y = tt * 1.5; core.scale.setScalar(0.85 + Math.sin(tt * 4) * 0.12 * w); ring.rotation.x = tt * 1.1; ring.rotation.y = tt * 0.7; } };
 }
+// ---------------- colony buildings ----------------
+const REG = '#a8a9ad'; // regolith-dusted concrete
+function hub(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 5, 5, REG);
+  k.cyl(1.25, 1.35, 0.9 + t * 0.12, 10, P, 0, 0.1, 0); k.sphere(1.25, shade(P, -0.04), 0, 1.0 + t * 0.12, 0, { theta: Math.PI / 2, w: 16, h: 8 }); k.cyl(1.37, 1.37, 0.1, 10, A, 0, 0.55, 0); windows(k, 2.3, 2.3, 0.45, 0.2);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; k.cyl(0.32, 0.32, 1.1, 10, '#d9dde2', Math.cos(a) * 1.65, 0.12, Math.sin(a) * 1.65, { rz: Math.PI / 2, ry: -a }); k.box(0.7, 0.75, 0.7, P, Math.cos(a) * 2.05, 0.1, Math.sin(a) * 2.05, { ry: -a }); k.box(0.3, 0.4, 0.04, '#2b3340', Math.cos(a) * 2.42, 0.1, Math.sin(a) * 2.42, { ry: -a + Math.PI / 2 }); } // airlock tubes
+  k.cyl(0.03, 0.03, 1.6, 5, STEEL, 0.3, 1.6 + t * 0.12, 0.2); k.sphere(0.07, '#ff4f4f', 0.3, 3.25 + t * 0.12, 0.2, { glow: true });
+  const g = k.build('hub'); const dish = new THREE.Group(); const dk = new Kit(); dk.add(new THREE.SphereGeometry(0.45, 14, 6, 0, Math.PI * 2, 0, Math.PI / 3.2), '#eef2f6', 0, 0, 0, { rx: Math.PI }); const dg = dk.build(); dg.rotation.x = -0.8; dish.add(dg); dish.position.set(-0.5, 2.2 + t * 0.12, -0.3); g.add(dish);
+  return { group: g, height: 2.6 + t * 0.12, anim: (tt) => { dish.rotation.y = tt * 0.3; } };
+}
+function regolith(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, '#7c7d82');
+  k.add(new THREE.ConeGeometry(0.75, 0.6 + t * 0.06, 8), '#8c8d91', -0.6, 0.4, -0.5); k.box(1.1, 0.8, 0.9, '#d9dde2', 0.6, 0.1, 0.5); windows(k, 1.1, 0.9, 0.35, 0.14, 0.6, 0.5); k.cyl(0.18, 0.22, 1.3 + t * 0.15, 8, '#9aa3ad', 0.95, 0.1, -0.7); k.cyl(0.24, 0.24, 0.06, 8, look.accent, 0.95, 0.9, -0.7);
+  k.box(0.18, 0.1, 1.3, '#3b4350', 0.0, 0.5, 0.0, { rx: -0.3, ry: 0.8 }); const g = k.build('regolith');
+  const rover = new THREE.Group(); const rk = new Kit(); rk.box(0.45, 0.18, 0.3, '#f5c542', 0, 0.12, 0); rk.box(0.2, 0.18, 0.28, '#e9edf2', 0.12, 0.3, 0); for (const [x, z] of [[-0.16, 0.17], [0.16, 0.17], [-0.16, -0.17], [0.16, -0.17]]) rk.cyl(0.08, 0.08, 0.06, 8, '#2b2f36', x, 0.08, z, { rx: Math.PI / 2 }); rk.box(0.06, 0.06, 0.45, '#f5c542', -0.3, 0.25, 0, { rz: 0.5 }); rover.add(rk.build()); g.add(rover);
+  return { group: g, height: 1.6 + t * 0.15, anim: (tt, st) => { const a = st.working ? tt * 0.5 : 0; rover.position.set(Math.cos(a) * 0.9 - 0.2, 0.05, Math.sin(a) * 0.9); rover.rotation.y = -a - Math.PI / 2; } };
+}
+function ice(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, REG);
+  k.cyl(0.5, 0.55, 0.9 + t * 0.12, 12, '#e9f4ff', -0.6, 0.1, -0.5); k.sphere(0.5, '#cfe8ff', -0.6, 1.0 + t * 0.12, -0.5, { theta: Math.PI / 2, w: 12 }); k.cyl(0.52, 0.52, 0.06, 12, '#4fb3e8', -0.6, 0.6, -0.5);
+  k.box(1.0, 0.6, 0.8, '#d9dde2', 0.6, 0.1, 0.6); windows(k, 1.0, 0.8, 0.28, 0.12, 0.6, 0.6); k.cyl(0.08, 0.08, 1.5, 6, '#9aa3ad', 0.2, 0.32, -0.6, { rz: Math.PI / 2 }); k.box(0.5, 0.05, 0.5, '#8fd6ff', -0.6, 0.1, 0.9, { glass: true });
+  for (let i = 0; i < 2 + Math.floor(t / 2); i++) k.cyl(0.14, 0.14, 0.4, 8, '#bfe6ff', 1.05, 0.1, -0.9 + i * 0.35);
+  return { group: k.build('ice'), height: 1.6 + t * 0.12 };
+}
+function he3x(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, '#7c7d82'); k.cyl(0.75, 0.85, 0.5, 12, '#c9ced5', -0.3, 0.1, -0.3); k.cyl(0.55, 0.65, 0.7 + t * 0.1, 12, '#e6e9ee', -0.3, 0.6, -0.3); k.cyl(0.57, 0.57, 0.06, 12, '#b892ff', -0.3, 1.0, -0.3, { glow: true });
+  k.box(0.9, 0.5, 0.6, '#d9dde2', 0.8, 0.1, 0.8); for (let i = 0; i < 3; i++) k.sphere(0.2, '#b892ff', 0.95 - i * 0.45, 0.3, -1.05, { w: 10, h: 7 });
+  return { group: k.build('he3x'), height: 1.6 + t * 0.1 };
+}
+function lsolar(L: number): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, '#7c7d82'); const n = Math.min(4, 2 + Math.floor(t / 2));
+  for (let i = 0; i < n; i++) { const x = -0.9 + (i % 2) * 1.8, z = -0.8 + Math.floor(i / 2) * 1.6; k.cyl(0.04, 0.05, 1.1, 5, STEEL, x, 0.1, z); k.box(1.4, 0.03, 0.7, '#1d3c78', x, 1.2, z, { rx: -0.4 }); k.box(1.42, 0.015, 0.72, '#4f7fd6', x, 1.22, z + 0.01, { rx: -0.4 }); }
+  return { group: k.build('lsolar'), height: 1.5 };
+}
+// the iconic glass dome: gardens and homes under glass
+function dome(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4, REG); const R = 1.55 + t * 0.06;
+  k.cyl(R + 0.08, R + 0.12, 0.3, 24, '#d9dde2', 0, 0.1, 0); k.cyl(R + 0.1, R + 0.1, 0.06, 24, A, 0, 0.36, 0);
+  for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; const x = Math.cos(a) * R * 0.55, z = Math.sin(a) * R * 0.55; if (i % 2) { k.cyl(0.04, 0.05, 0.35, 5, '#6b4a2e', x, 0.4, z); k.sphere(0.24, '#3f9a4a', x, 0.85, z, { w: 8, h: 6 }); } else { k.box(0.4, 0.38 + (i % 3) * 0.12, 0.4, '#f1f3f5', x, 0.4, z); k.box(0.42, 0.06, 0.42, A, x, 0.78 + (i % 3) * 0.12, z); } }
+  k.cyl(0.25, 0.25, 0.08, 10, '#4fb3e8', 0, 0.4, 0, { glass: true }); k.sphere(R, '#bfe6ff', 0, 0.38, 0, { theta: Math.PI / 2, w: 22, h: 10, glass: true });
+  for (let i = 0; i < 6; i++) k.add(new THREE.TorusGeometry(R, 0.018, 4, 24, Math.PI), '#e9edf2', 0, 0.38, 0, { ry: (i / 6) * Math.PI }); // glazing ribs
+  k.box(0.5, 0.45, 0.6, '#d9dde2', 0, 0.1, R + 0.15); k.box(0.3, 0.36, 0.04, '#2b3340', 0, 0.1, R + 0.46);
+  return { group: k.build('dome'), height: R + 0.5 };
+}
+// underground: a regolith mound over the tunnels, skylights and an airlock
+function burrow(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4, '#8a8b8f');
+  k.add(new THREE.SphereGeometry(1.7, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), '#8f9094', 0, 0.08, 0, { sy: 0.32 }); k.add(new THREE.SphereGeometry(1.2, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#9a9b9f', 0.3, 0.1, -0.2, { sy: 0.4 });
+  for (let i = 0; i < 2 + Math.floor(t / 2); i++) { const a = i * 2.1; k.cyl(0.16, 0.16, 0.05, 10, '#ffe7a8', Math.cos(a) * 0.8, 0.5 - i * 0.03, Math.sin(a) * 0.8, { glow: true }); }
+  k.box(0.7, 0.55, 0.8, '#d9dde2', 0, 0.08, 1.45); k.box(0.72, 0.06, 0.82, A, 0, 0.6, 1.45); k.box(0.36, 0.42, 0.04, '#2b3340', 0, 0.08, 1.86); k.cyl(0.06, 0.06, 0.7, 6, '#9aa3ad', -0.9, 0.3, -0.6); k.cyl(0.06, 0.06, 0.55, 6, '#9aa3ad', 0.9, 0.3, 0.2);
+  return { group: k.build('burrow'), height: 1.0 };
+}
+function llab(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4, REG); k.box(2.2, 0.9 + t * 0.1, 1.4, P, -0.5, 0.1, 0.6); windows(k, 2.2, 1.4, 0.4, 0.2, -0.5, 0.6); k.box(2.25, 0.08, 1.45, A, -0.5, 1.0 + t * 0.1, 0.6);
+  const g = k.build('llab'); const dish = new THREE.Group(); const dk = new Kit(); dk.add(new THREE.SphereGeometry(0.9, 18, 8, 0, Math.PI * 2, 0, Math.PI / 3.2), '#f3f5f8', 0, 0, 0, { rx: Math.PI }); dk.cyl(0.25, 0.35, 0.6, 8, '#c9ced5', 0, -1.3, 0); const dg = dk.build(); dg.rotation.x = -0.7; dish.add(dg); dish.position.set(1.0, 1.4, -0.9); g.add(dish);
+  return { group: g, height: 2.2, anim: (tt) => { dish.rotation.y = Math.sin(tt * 0.1) * 1.5; } };
+}
+function greenhouse(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 4, 3, REG); const n = Math.min(3, 1 + Math.floor(t / 2));
+  for (let i = 0; i < n; i++) { const z = -0.9 + i * 0.9; k.add(new THREE.CylinderGeometry(0.4, 0.4, 3.2, 12, 1, false, 0, Math.PI), '#bfe6ff', 0, 0.12, z, { rz: Math.PI / 2, ry: Math.PI / 2, glass: true }); k.box(3.1, 0.12, 0.7, '#5b3a22', 0, 0.12, z); for (let x = -1.3; x <= 1.3; x += 0.32) k.sphere(0.12, x % 0.64 ? '#4fcf5a' : '#7cf29a', x, 0.3, z, { w: 6, h: 4 }); k.box(3.15, 0.04, 0.05, '#ff9be8', 0, 0.5, z, { glow: true }); }
+  return { group: k.build('greenhouse'), height: 0.9 };
+}
+function reactor(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, REG); k.add(new THREE.SphereGeometry(1.0, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), '#8f9094', 0, 0.08, 0, { sy: 0.45 }); k.cyl(0.35, 0.4, 0.7 + t * 0.08, 10, '#e6e9ee', 0, 0.4, 0); k.cyl(0.37, 0.37, 0.06, 10, '#7fe4ff', 0, 0.9, 0, { glow: true });
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; k.box(0.5, 0.04, 0.9, '#9aa3ad', Math.cos(a) * 1.1, 0.2, Math.sin(a) * 1.1, { ry: -a }); } // radiator fins
+  k.box(0.06, 0.4, 0.06, '#f5c542', 1.2, 0.1, 1.2); k.box(0.3, 0.3, 0.02, '#f5c542', 1.2, 0.5, 1.2);
+  return { group: k.build('reactor'), height: 1.4 };
+}
+function massDriver(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 2, 7, REG); for (let i = 0; i < 7; i++) { const z = -3 + i; const h = 0.3 + i * 0.14; k.box(0.12, h, 0.12, '#9aa3ad', -0.5, 0.1, z); k.box(0.12, h, 0.12, '#9aa3ad', 0.5, 0.1, z); k.box(1.1, 0.06, 0.12, '#9aa3ad', 0, 0.1 + h, z); }
+  k.box(0.5, 0.08, 7, '#3b4350', 0, 0.42, 0, { rx: -0.14 }); for (let i = 0; i < 7; i++) k.box(0.7, 0.05, 0.08, '#7fe4ff', 0, 0.48 + i * 0.14, -3 + i, { glow: true }); k.box(0.9, 0.5, 0.8, '#d9dde2', 0, 0.1, -3.1);
+  return { group: k.build('massDriver'), height: 1.4 };
+}
+function fusionPlant(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4); k.add(new THREE.TorusGeometry(1.0, 0.38, 10, 24), '#d9dde2', 0, 0.6, 0, { rx: Math.PI / 2 }); k.cyl(0.62, 0.62, 0.7, 14, '#c9ced5', 0, 0.25, 0); k.add(new THREE.TorusGeometry(1.0, 0.1, 6, 24), A, 0, 0.98, 0, { rx: Math.PI / 2, glow: true });
+  k.box(1.2, 0.8, 0.8, '#e6e9ee', 0.9, 0.1, 1.3); windows(k, 1.2, 0.8, 0.35, 0.14, 0.9, 1.3); const g = k.build('fusion');
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 8), new THREE.MeshBasicMaterial({ color: '#c49bff', toneMapped: false })); core.position.y = 1.15; g.add(core);
+  return { group: g, height: 1.6, anim: (tt, st) => { core.scale.setScalar(0.8 + (st.working ? Math.sin(tt * 6) * 0.2 : 0)); } };
+}
 // unknown types (later parts) get a placeholder block so the base never breaks
 function generic(b: string, look: Look): Model { const d = BUILDINGS[b]; const [w, dd] = d ? d.fp : [3, 3]; const k = new Kit(); pad(k, w, dd); k.box(w * 0.7, 1.2, dd * 0.7, look.primary, 0, 0.1, 0); windows(k, w * 0.7, dd * 0.7, 0.5, 0.2); k.box(w * 0.72, 0.1, dd * 0.72, look.accent, 0, 1.3, 0); return { group: k.build(b), height: 1.6 }; }
 export function buildModel(b: string, L: number, look: Look): Model {
@@ -170,6 +249,8 @@ export function buildModel(b: string, L: number, look: Look): Model {
     case 'refinery': return refinery(L, look); case 'office': return office(L, look); case 'solar': return solar(L); case 'fission': return fission(L, look); case 'depot': return depot(L, look);
     case 'launch': return launch(L, look); case 'vab': return vab(L, look); case 'tracking': return tracking(L, look); case 'academy': return academy(L, look);
     case 'workshop': return workshop(L, look); case 'dock': return dock(L, look); case 'cellplant': return cellplant(L, look); case 'fusionlab': return fusionlab(L, look);
+    case 'hub': return hub(L, look); case 'regolith': return regolith(L, look); case 'ice': return ice(L, look); case 'he3x': return he3x(L, look); case 'lsolar': return lsolar(L); case 'dome': return dome(L, look); case 'burrow': return burrow(L, look);
+    case 'llab': return llab(L, look); case 'greenhouse': return greenhouse(L, look); case 'reactor': return reactor(L, look); case 'massDriver': return massDriver(L, look); case 'fusion': return fusionPlant(L, look);
   }
   return generic(b, look);
 }

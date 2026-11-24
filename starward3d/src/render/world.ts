@@ -10,6 +10,7 @@ import * as G from '../core/game';
 import { GRID } from '../data/buildings';
 import { clamp } from '../core/util';
 import { OrbitView } from './orbit';
+import { SystemView } from './system';
 import { Walkers } from './walkers';
 import { rb } from '../core/robots';
 import { rocketModel, RocketModel } from './rocket';
@@ -23,7 +24,7 @@ export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
   cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
-  mode: 'base' | 'orbit' = 'base'; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
+  mode: 'base' | 'orbit' | 'system' = 'base'; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
@@ -42,12 +43,14 @@ export class World {
     this.selRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48), new THREE.MeshBasicMaterial({ color: '#6ee7ff', transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); this.selRing.rotation.x = -Math.PI / 2; this.selRing.visible = false; this.scene.add(this.selRing);
     this.resize(); window.addEventListener('resize', () => this.resize()); this.input();
   }
-  resize() { const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.orbit?.resize(w, h); }
+  resize() { const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.orbit?.resize(w, h); this.system?.resize(w, h); }
+  openSystem() { if (!this.system) { this.system = new SystemView(this.renderer, this.quality === 'high'); this.resize(); } this.mode = 'system'; this.select(null); }
   openOrbit(S: Space) { if (!this.orbit) { this.orbit = new OrbitView(this.renderer, this.quality === 'high'); this.resize(); } this.orbit.sync(S); this.mode = 'orbit'; this.select(null); }
   closeOrbit() { this.mode = 'base'; }
+  mapSel: string | null = null;
   // switch to a world (builds its environment)
   setWorld(base: string, body: string) {
-    if (this.baseId === base) return; this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkKey = '';
+    if (this.baseId === base) return; this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkKey = '';
     for (const v of this.views.values()) this.scene.remove(v.root); this.views.clear(); for (const d of this.drones.values()) this.scene.remove(d.g); this.drones.clear();
     const L = this.env.look; this.scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar); this.sun.color.set(L.sun); this.sun.intensity = L.sunI; this.hemi.color.set(L.amb[0]); this.hemi.groundColor.set(L.amb[1]); this.hemi.intensity = L.amb[2]; this.area = { lo: -1, hi: -1 };
   }
@@ -69,6 +72,7 @@ export class World {
       ghostDrag = false; if (this.ghost && pts.size === 1) { const g = this.groundAt(e.clientX, e.clientY); if (g) { const [w, d] = G.dims(this.ghost.b, this.ghost.r); const gx = this.ghost.x - C, gz = this.ghost.z - C; if (g.x >= gx - 0.6 && g.x <= gx + w + 0.6 && g.z >= gz - 0.6 && g.z <= gz + d + 0.6) ghostDrag = true; } } });
     el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
       if (Math.hypot(p.x - p.sx, p.y - p.sy) > 7) moved = true; if (!moved) return;
+      if (this.mode === 'system' && this.system) { if (pts.size === 1) this.system.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.system.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (this.mode === 'orbit' && this.orbit) { if (pts.size === 1) this.orbit.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.orbit.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (pts.size === 1) { if (ghostDrag && this.ghost) { this.ghostTo(e.clientX, e.clientY); return; }
         if (e.buttons === 2) { this.cam.tyaw -= dx * 0.008; return; } const s = this.cam.dist * 0.0021 * (this.camera.aspect < 0.8 ? 1.45 : 1); const cy = Math.cos(this.cam.yaw), sy = Math.sin(this.cam.yaw);
@@ -76,10 +80,11 @@ export class World {
       else if (pts.size === 2 && last) { const n = two(); this.cam.tdist *= last.d / Math.max(1, n.d); this.cam.tyaw -= n.a - last.a; last = n; this.clampCam(); } });
     const up = (e: PointerEvent) => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) last = null; if (!p || moved || e.button === 2) return; if (performance.now() - start > 600) return; this.tap(e.clientX, e.clientY); };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => pts.delete(e.pointerId)); el.addEventListener('contextmenu', (e) => e.preventDefault());
-    el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
+    el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'system' && this.system) { this.system.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
     window.addEventListener('keydown', (e) => { if ((e.target as HTMLElement).tagName === 'INPUT') return; if (e.key === 'q' || e.key === 'Q') this.cam.tyaw += Math.PI / 4; if (e.key === 'e' || e.key === 'E') this.cam.tyaw -= Math.PI / 4; });
   }
   private tap(cx: number, cy: number) {
+    if (this.mode === 'system' && this.system) { const r = this.canvas.getBoundingClientRect(); this.onPick(this.system.pick(cx - r.left, cy - r.top, r.width, r.height)); return; }
     if (this.mode === 'orbit') return; if (this.ghost) { this.ghostTo(cx, cy); return; }
     const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
     const hit = this.ray.intersectObjects([...this.views.values()].map((v) => v.pick), false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
@@ -148,6 +153,7 @@ export class World {
   frame(s: State, dt: number, working: (id: string) => boolean) {
     this.t += dt; const t = this.t;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
+    if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
     this.placeCamera(); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;

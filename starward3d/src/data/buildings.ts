@@ -132,6 +132,11 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     cost: { credits: [40000, 1.77], metal: [45000, 1.77] }, time: [11, 1.95], prod: { credits: [2600, 1.24] }, cap: { he3: [300, 1.45] }, draw: [6, 1.14],
     desc: 'Homes under glass for colonists, and a garden the tourists pay well to see. Houses colonists.',
   },
+  burrow: {
+    name: 'Underground Habitat', fp: [4, 4], bases: COL, house: [55, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'isru' },
+    cost: { credits: [30000, 1.77], metal: [25000, 1.77] }, time: [10.5, 1.95], draw: [5, 1.14],
+    desc: 'Tunnels dug by your robots under metres of regolith: safe from radiation and meteorites, with room for more colonists than a dome. Needs a Geo or Kinetic robot to dig.',
+  },
   llab: {
     name: 'Colony Laboratory', fp: [4, 4], bases: COL, jobs: [10, 1.08], unique: true, max: 20, cat: 'science', req: { tech: 'lunarHabitats' },
     cost: { credits: [50000, 1.82], metal: [40000, 1.82] }, time: [11.5, 1.95], prod: { science: [900, 1.24] }, draw: [8, 1.14], speed: 0.03,

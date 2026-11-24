@@ -132,3 +132,5 @@ body.orbiting #obj, body.orbiting #panel, body.orbiting #bubbles { display: none
 .botc b { font: 700 14px Oxanium; } .botc .meta { font-size: 11px; color: var(--muted); }
 .els { display: inline-flex; gap: 3px; vertical-align: middle; } .el { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; color: #0b1420; font-weight: 700; }
 .rar { font: 700 10px Oxanium; letter-spacing: 0.08em; text-transform: uppercase; }
+.bub.lbl { padding: 3px 8px; font-size: 11px; transform: translate(-50%, -100%); background: rgba(10,18,34,0.75); }
+body.mapping #obj { display: none !important; }

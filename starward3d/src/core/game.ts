@@ -14,6 +14,7 @@ export const completers: Record<string, (s: State, j: Job) => Note | null> = {};
 export const stepChecks: Record<string, (s: State, st: Step, R: Rates) => boolean> = {};
 export const events: Note[] = []; // UI-facing notifications (drained by the app)
 export const builtHooks: ((s: State, b: string) => void)[] = []; // a building finished for the first time
+export const buildChecks: ((s: State, base: string, b: string) => Check | null)[] = []; // extra conditions (robots dig the tunnels)
 // ---------------- costs and timers ----------------
 export const costOf = (id: string, L: number, m: Mods) => { const d = BUILDINGS[id]; const out: Record<string, number> = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
 export const timeOf = (id: string, L: number, m: Mods) => Math.max(2, Math.round(timeCurve(BUILDINGS[id].time, L) * (1 - m.buildTime)));
@@ -46,6 +47,7 @@ export function canBuild(s: State, base: string, b: string): Check {
   if (!d || !s.bases[base]) return { ok: false, why: 'Unknown' }; if (!d.bases.includes(base)) return { ok: false, why: 'Cannot be built on this world' };
   if (d.req && d.req.tech && !s.tech[d.req.tech]) return { ok: false, why: `Research ${TECH[d.req.tech].name}`, tech: d.req.tech };
   if (d.req && d.req.hq && hq < d.req.hq) return { ok: false, why: `Mission Control level ${d.req.hq}`, hq: true };
+  for (const f of buildChecks) { const c = f(s, base, b); if (c) return c; }
   const lim = allowedCount(d, hq); if (countOf(s, base, b) >= lim) return { ok: false, why: lim ? 'Limit reached for this command level' : `Command level ${(d.count || []).findIndex((c) => c > 0) + 1}`, hq: true };
   if (crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All construction drones are busy', crews: true };
   const cost = costOf(b, 1, m); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost };
