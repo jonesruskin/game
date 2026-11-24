@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-6 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars, New Worlds) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: Parts 1-7 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars, New Worlds, Events and the Vault) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
 
 ## Run it
 ```bash
@@ -73,14 +73,22 @@ Rewards at every rhythm, so there is always a reason to come back:
 - **The Kr'thul Swarm** (from Commander level 16): a raid is spotted every ~10 hours and arrives 2 hours later. Defend in the Arena with your team (no ticket needed) for Dark Matter, cells, credits and a chance to capture a reprogrammed Swarm bot (Drone, Warrior or Brood). Ignore it, and the Swarm carries off half the credits waiting in your bays.
 - 90 species in all (5 alien, 3 Swarm, none fusable), new missions, and a Defender achievement.
 
+## Part 7: Events and the Precursor Vault (done)
+- **Weekly events:** a new themed event every Monday (Solar Solstice, Arena Cup, Deep Space Week, Fusion Frenzy, Garden Gala, Forge Fest), driven by a calendar so it works offline with no server. Everything you do earns event tokens and the week's two featured actions earn triple. An eight-step track pays supplies, Dark Matter, an Elite core, an Epic core and, at the top, the week's **exclusive bot** (six in all), which never comes back in the shop. The event chip in the HUD counts down and glows when a reward is waiting.
+- **The Precursor Vault** (Commander level 27, after meeting the Epsilon Eridani civilisation): a violet island of Precursor ruins with its own shop tab.
+  - **Crystal Mines** dig relic shards for credits (10 minutes, 2 hours or 8 hours) in six colours: Aurora, Arcana, Entropy, Joy, Reverie and Soul. Tap the mine when the dig is done.
+  - **The Relic Forge** turns four of a tier plus Iridium into one of the next: Shard, Crystal, Gem, Prism.
+  - **Relic Sanctums** (one per colour) wake **Relic AIs** from crystals: Minor (Epic), Major (Legendary) and Prime (Prototype), 18 in all. They never fight; they earn **Iridium**, the Vault's own currency, which fills the sanctum for you to tap and collect. Crystals also **evolve** them from one to five stars, each star adding 60% to their earnings.
+- 114 species in all, new missions for the event and the Vault, and an Iridium counter in the HUD (tap it to see your crystals).
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals), space.ts (expeditions, outposts), util.ts
-src/data/              elements, rarities, species, buildings + recipes, levels + missions
+src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals, raids), space.ts (expeditions, outposts), events.ts (weekly events), vault.ts (mines, forge, Relic AIs), util.ts
+src/data/              elements, rarities, species, buildings + recipes, levels + missions, islands, vault
 src/render/            world.ts (renderer, camera, picking, sync), sky.ts (Earth + space), island.ts,
                        models.ts (buildings), botmodels.ts (bots), arena.ts (the holo-arena), system.ts (the Solar System map), kit.ts (merged procedural geometry), studio.ts (thumbnails)
-src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), space.ts (map HUD, destinations, returns), style.css, fonts
+src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), space.ts (map HUD, destinations, returns), vault.ts (event screen, mine, forge, sanctums), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

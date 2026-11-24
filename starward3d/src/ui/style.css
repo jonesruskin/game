@@ -165,3 +165,18 @@ body:not(.mapview) .plabel { display: none !important; }
 .tag { font: 700 10px Oxanium; letter-spacing: 0.06em; text-transform: uppercase; }
 
 .chip.raid { border-color: var(--red); color: #ffd0d6; box-shadow: 0 0 14px rgba(255, 90, 106, 0.55); animation: bob 1s ease-in-out infinite; }
+
+/* ---------- events + the Vault ---------- */
+.ic.ir { background: radial-gradient(circle at 35% 30%, #f3e6ff, #b06dff 60%, #5a2bb8); color: #fff; }
+.chip.ev { border-color: var(--ec); box-shadow: 0 0 10px color-mix(in srgb, var(--ec) 45%, transparent); position: relative; }
+.evhero { border-color: var(--ec); background: linear-gradient(135deg, color-mix(in srgb, var(--ec) 18%, transparent), var(--bg2)); }
+.track { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 10px; }
+.ms { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--line); text-align: center; min-height: 112px; }
+.ms b { font: 700 12px Oxanium; color: var(--muted); } .ms span { font-size: 22px; min-height: 40px; display: grid; place-items: center; } .ms i { font-style: normal; font-size: 10px; color: var(--muted); }
+.ms.ok { border-color: var(--gold); box-shadow: 0 0 14px rgba(255, 211, 106, 0.4); } .ms.got { opacity: 0.5; } .ms em { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; color: var(--green); font-style: normal; }
+.earn { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; } .earn div { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+.earn span { flex: 1; font-size: 13px; } .earn b { font: 700 13px Oxanium; color: var(--gold); } .earn em { font-style: normal; font-size: 10px; color: var(--gold); } .earn .feat { border: 1px solid var(--gold); }
+.gem { display: inline-block; vertical-align: middle; background: var(--gc); clip-path: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); box-shadow: 0 0 6px var(--gc); }
+.gem.t1 { clip-path: polygon(50% 0, 90% 25%, 90% 75%, 50% 100%, 10% 75%, 10% 25%); } .gem.t2 { clip-path: polygon(30% 0, 70% 0, 100% 35%, 50% 100%, 0 35%); } .gem.t3 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); filter: brightness(1.25) saturate(1.3); }
+.gems { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; } .gems th, .gems td { padding: 4px; text-align: center; border-bottom: 1px solid var(--line); } .gems th { font: 700 11px Oxanium; color: var(--muted); }
+@media (max-width: 640px) { .track { grid-template-columns: repeat(4, 1fr); } }

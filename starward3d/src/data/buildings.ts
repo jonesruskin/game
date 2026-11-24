@@ -3,7 +3,7 @@
 import { round2 } from '../core/util';
 export type Cat = 'core' | 'bay' | 'production' | 'decor';
 export interface BuildingDef {
-  name: string; size: [number, number]; cat: Cat; max: number; unique?: boolean; unlock: number; desc: string; exclusive?: string;
+  name: string; size: [number, number]; cat: Cat; max: number; unique?: boolean; unlock: number; desc: string; exclusive?: string; vault?: boolean;
   /** credits to build (owned = how many of this kind you already have) */
   buildCost: (owned: number) => number;
   /** credits to upgrade from level L to L+1 */
@@ -32,6 +32,14 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     buildCost: () => 5000, upCost: (L) => round2(5000 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
   pad: { name: 'Launch Pad', size: [3, 3], cat: 'production', max: 10, unique: true, unlock: 10, desc: 'Rockets crewed by your bots fly expeditions across the Solar System. Higher levels unlock bigger rockets (further worlds) and more launch slots.',
     buildCost: () => 12000, upCost: (L) => round2(12000 * Math.pow(1.85, L - 1)), time: (L) => tl(L, 1) },
+  // ---- the Precursor Vault (only on the Vault island) ----
+  mine: { vault: true, name: 'Crystal Mine', size: [2, 2], cat: 'production', max: 10, unlock: 27, desc: 'Digs relic crystals out of the Precursor bedrock. Pick a colour and a dig; deeper digs take longer and pay more.',
+    buildCost: (n) => round2(60000 * Math.pow(1.8, n)), upCost: (L) => round2(50000 * Math.pow(1.8, L - 1)), time: (L) => tl(L, 2) },
+  forge: { vault: true, name: 'Relic Forge', size: [3, 3], cat: 'production', max: 1, unique: true, unlock: 27, desc: 'Fuses four relic crystals and some Iridium into one of the next tier.',
+    buildCost: () => 120000, upCost: () => 0, time: (L) => tl(L, 4) },
+  relicbay: { vault: true, name: 'Relic Sanctum', size: [3, 3], cat: 'bay', max: 10, unlock: 27, desc: 'An ancient arch that wakes Relic AIs of its element. They earn Iridium here.',
+    buildCost: (n) => round2(90000 * Math.pow(1.7, n)), upCost: (L) => round2(80000 * Math.pow(1.85, L - 1)), time: (L) => tl(L, 2) },
+  monolith: { ...decor('Precursor Monolith', [1, 1], 20000, 27, 'A black monolith covered in moving glyphs.'), vault: true },
   // decorations: the personal touch (no gameplay effect beyond XP on purchase)
   tree:     decor('Holo Tree', [1, 1], 40, 1, 'A glowing tree grown from engineered moss and fibre optics.'),
   rock:     decor('Moon Rock', [1, 1], 30, 1, 'A souvenir boulder. Every colony keeps one.'),

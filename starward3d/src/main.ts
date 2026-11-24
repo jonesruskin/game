@@ -15,6 +15,8 @@ import { SPECIES } from './data/species';
 import * as D from './core/daily';
 import * as AR from './core/arena';
 import * as SP from './core/space';
+import * as V from './core/vault';
+import { CRYSTALS } from './data/vault';
 import { ISLANDS } from './data/islands';
 import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
@@ -55,7 +57,9 @@ export class App {
       else if (e.kind === 'core') { this.changed(); }
       else if (e.kind === 'launch') { const p = SP.pad(this.s); this.changed(); if (p) { this.world.launchFx(p.id, SP.rocketTier(p.lvl)); this.audio.play('whoosh'); } }
       else if (e.kind === 'expBack') { this.audio.play('levelup'); this.changed(); }
-      else if (e.kind === 'land') this.changed(); }
+      else if (e.kind === 'land') this.changed();
+      else if (e.kind === 'dug') { this.audio.play('done'); this.changed(); const at = this.world.topOf(e.item); if (at) this.world.burst(at, '#c49bff', 24); this.ui.toast('Crystals dug up: tap the mine to collect', 'good'); }
+      else if (e.kind === 'evolved') { this.audio.play('levelup'); this.platform.happytime(); this.changed(); const b = this.s.bots.find((x) => x.id === e.bot); if (b) this.ui.toast(`${esc(SPECIES[b.sp].name)} evolved to ${'★'.repeat(e.stars)}`, 'gold'); } }
     if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
   private enqueue(fn: () => void) { this.queue.push(fn); }
   // the drop pod lands on a free tile near the Command Center
@@ -78,10 +82,12 @@ export class App {
     if (h.item) { const it = G.item(s, h.item); if (!it) return;
       if (it.t === 'bay' && (s.bay[it.id] || 0) >= 1 && !G.jobOf(s, it.id, 'build')) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
       if (it.t === 'fab' && s.ready[it.id]) { this.harvest(it); this.ui.select(it.id); return; }
+      if (it.t === 'mine' && V.vault(s).ready[it.id]) { const r = V.collectMine(s, it); if (r) { this.audio.play('harvest'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, CRYSTALS[r.color].color, 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); } this.changed(); } if (this.ui.sel !== it.id) this.ui.select(it.id); else this.ui.renderPanel(); return; }
+      if (it.t === 'relicbay' && (s.bay[it.id] || 0) >= 1) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
       this.ui.select(this.ui.sel === it.id ? null : it.id); this.audio.play('tap'); return; }
     if (h.plot) { this.askPlot(h.plot); return; }
     this.ui.select(null); }
-  collect(it: Item) { const n = G.collectBay(this.s, it); if (!n) return; this.audio.play('collect', n); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, '#ffd36a', 18 + Math.min(30, Math.floor(Math.log10(n) * 6))); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${fmt(n)}`, '#ffd36a'); this.ui.flyTo('credits', p.x, p.y, Math.min(9, 3 + Math.floor(Math.log10(n) * 2))); } this.changed(); this.ui.renderPanel(); }
+  collect(it: Item) { const n = G.collectBay(this.s, it); if (!n) return; this.audio.play('collect', n); const ir = it.t === 'relicbay', col = ir ? '#c49bff' : '#ffd36a'; const top = this.world.topOf(it.id); if (top) { this.world.burst(top, col, 18 + Math.min(30, Math.floor(Math.log10(n) * 6))); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${fmt(n)}${ir ? ' ✦' : ''}`, col); this.ui.flyTo(ir ? 'iridium' : 'credits', p.x, p.y, Math.min(9, 3 + Math.floor(Math.log10(n) * 2))); } this.changed(); this.ui.renderPanel(); }
   harvest(it: Item) { const n = G.harvest(this.s, it); if (!n) return; this.audio.play('harvest'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, '#9dff5a', 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${fmt(n)} ⚡`, '#9dff5a'); this.ui.flyTo('cells', p.x, p.y, 6); } this.changed(); this.ui.renderPanel(); }
   askPlot(key: string) { const s = this.s, c = G.canBuyPlot(s, key), cost = G.plotCost(s), need = G.plotLevel(s);
     this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">EXPAND THE ISLAND</div><h1>New land</h1><p class="desc">Tow in another 6×6 slab of asteroid and bolt it to your island: room for more bays, fabricators and decorations.</p><div class="rewards"><span class="cost ${s.res.credits < cost ? 'short' : ''}"><span class="ic cr">C</span>${fmt(cost)}</span></div>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}<div class="row" style="justify-content:center"><button class="btn" data-a="closeModal">Not now</button><button class="btn gold" data-a="buyPlot" data-k="${key}" ${c.ok ? '' : 'disabled'}>Expand</button></div>${s.lvl < need ? `<p class="sub">Reach Commander level ${need} to expand.</p>` : ''}`); }

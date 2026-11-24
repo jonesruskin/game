@@ -7,6 +7,7 @@ import { RARITIES } from '../data/rarities';
 import { xpNeed, levelReward, MAX_LEVEL, STEPS, Step } from '../data/progress';
 import { addCore, pumpAssembly, discover, helperBonus, homeFor, dexCount, coreOf } from './crew';
 import { ISLANDS } from '../data/islands';
+import { completeDig, relicRate, relicCap, isRelic } from './vault';
 export { homeFor };
 export type Res = 'credits' | 'cells' | 'dm';
 export interface Ev { kind: string; [k: string]: any; }
@@ -50,6 +51,7 @@ export function canBuild(s: State, t: string, el?: string): Check {
   const d = BUILDINGS[t]; if (!d) return { ok: false, why: 'Unknown' };
   if (d.exclusive) { const owned = s.stats['decor_' + t] || 0, placed = itemsOf(s, t).length; return placed < owned ? { ok: true, cost: 0, time: 0 } : { ok: false, why: owned ? 'All placed' : 'Earned from the login calendar', cost: 0 }; }
   if (s.lvl < d.unlock) return { ok: false, why: `Commander level ${d.unlock}`, cost: d.buildCost(itemsOf(s, t).length) };
+  if (d.vault && s.at !== 'vault') return { ok: false, why: 'Only in the Precursor Vault' };
   const owned = d.unique ? itemsOf(s, t).length : itemsHere(s, t).length, cc = hubLevel(s);
   if (d.unique && owned) return { ok: false, why: 'Already built' }; if (t === 'hub') return { ok: false, why: 'Every new island comes with its Colony Hub' };
   const hubName = s.at === 'home' ? 'Command Center' : 'Colony Hub';
@@ -104,7 +106,7 @@ export const bayRate = (s: State, bayId: string) => (botsIn(s, bayId).filter((b)
 export const onMission = away;
 export const bayCap = (it: Item, s?: State) => bayStore(Math.max(1, it.lvl)) * (s && islandOf(s, it.id) === 'moon' ? 1.5 : 1);
 export function feed(s: State, b: BotRec): Check & { lvlUp?: boolean } {
-  if (b.lvl >= BOT_MAX) return { ok: false, why: 'Maximum level' }; const c = feedCost(b.lvl); if (s.res.cells < c) return { ok: false, why: 'Not enough Power Cells', cost: c };
+  if (isRelic(b.sp)) return { ok: false, why: 'Relic AIs evolve with crystals, not cells' }; if (b.lvl >= BOT_MAX) return { ok: false, why: 'Maximum level' }; const c = feedCost(b.lvl); if (s.res.cells < c) return { ok: false, why: 'Not enough Power Cells', cost: c };
   s.res.cells -= c; b.fed++; stat(s, 'feeds'); addXp(s, 1 + Math.floor(b.lvl / 4)); let up = false;
   if (b.fed >= 4) { b.fed = 0; b.lvl++; up = true; emit({ kind: 'botLevel', bot: b.id, lvl: b.lvl }); }
   return { ok: true, cost: c, lvlUp: up };
@@ -125,7 +127,8 @@ export function recruit(s: State, sp: string, now = Date.now()): Check & { bot?:
   return { ...c, bot: b };
 }
 export function moveBot(s: State, b: BotRec, bayId: string) { const bay = item(s, bayId); if (!bay || !bay.el || !SPECIES[b.sp].el.includes(bay.el)) return false; if (b.bay === bayId) return false; if (botsIn(s, bayId).length >= bayCapacity(bay.lvl)) return false; b.bay = bayId; delete b.stored; return true; }
-export function collectBay(s: State, it: Item) { const n = Math.floor(s.bay[it.id] || 0); if (n <= 0) return 0; s.bay[it.id] -= n; s.res.credits += n; stat(s, 'collects'); stat(s, 'collected', n);
+export function collectBay(s: State, it: Item) { const n = Math.floor(s.bay[it.id] || 0); if (n <= 0) return 0; s.bay[it.id] -= n;
+  if (it.t === 'relicbay') { s.res.iridium = (s.res.iridium || 0) + n; stat(s, 'iridium', n); return n; } s.res.credits += n; stat(s, 'collects'); stat(s, 'collected', n);
   const xf = (s.stats.xpFrac || 0) + n / 50; const xi = Math.floor(xf); s.stats.xpFrac = xf - xi; addXp(s, xi); return n; }
 // ---------------- fabricators ----------------
 export const recipesFor = (it: Item) => RECIPES.map((r, i) => ({ ...r, i, open: Math.max(1, it.lvl) >= r.lvl, out: fabOutput(r, Math.max(1, it.lvl)) }));
@@ -153,6 +156,7 @@ function complete(s: State, j: Job) {
   if (j.kind === 'build') { const first = it.lvl === 0; it.lvl = j.lvl || it.lvl + 1; const d = BUILDINGS[it.t]; addXp(s, xpFor(first ? d.buildCost(0) : d.upCost(it.lvl - 1))); emit({ kind: 'built', item: it.id, lvl: it.lvl, first }); if (it.t === 'assembly') pumpAssembly(s, j.end); }
   if (j.kind === 'craft') { const r = RECIPES[j.recipe || 0]; s.ready[it.id] = { cells: Math.round(fabOutput(r, Math.max(1, it.lvl)) * (1 + helperBonus(s, it)) * (islandOf(s, it.id) === 'mars' ? 1.3 : 1)), xp: r.xp }; emit({ kind: 'crafted', item: it.id }); }
   if (j.kind === 'fuse' && j.sp) { const c = addCore(s, j.sp, 'fusion', j.end); emit({ kind: 'fused', item: it.id, core: c.id, sp: j.sp }); }
+  if (j.kind === 'dig') completeDig(s, it, j.recipe || 0, j.sp || 'aurora');
   if (j.kind === 'boot') { const c = coreOf(s, j.core); if (c) { c.state = 'ready'; emit({ kind: 'booted', core: c.id, sp: c.sp }); } pumpAssembly(s, j.end); }
 }
 // integrate everything up to `now`: bays fill (capped) piecewise between job completions
@@ -162,7 +166,8 @@ export function advance(s: State, now = Date.now()) {
     accrue(s, (to - t) / 1000); t = to; if (!due) break; complete(s, due); }
   s.last = now;
 }
-function accrue(s: State, dt: number) { if (dt <= 0) return; for (const it of itemsOf(s, 'bay')) { if (it.lvl < 1) continue; const cap = bayCap(it, s), cur = s.bay[it.id] || 0; if (cur >= cap) continue; s.bay[it.id] = Math.min(cap, cur + bayRate(s, it.id) * dt); } }
+function accrue(s: State, dt: number) { if (dt <= 0) return;
+  for (const it of itemsOf(s, 'relicbay')) { if (it.lvl < 1) continue; const cap = relicCap(it), cur = s.bay[it.id] || 0; if (cur < cap) s.bay[it.id] = Math.min(cap, cur + relicRate(s, it.id) * dt); } for (const it of itemsOf(s, 'bay')) { if (it.lvl < 1) continue; const cap = bayCap(it, s), cur = s.bay[it.id] || 0; if (cur >= cap) continue; s.bay[it.id] = Math.min(cap, cur + bayRate(s, it.id) * dt); } }
 // ---------------- objectives ----------------
 export function stepDone(s: State, st: Step): boolean {
   switch (st.kind) {
@@ -189,6 +194,9 @@ export function stepDone(s: State, st: Step): boolean {
     case 'outposts': return (s.stats.outposts || 0) >= (st.n || 1);
     case 'island': return !!s.islands[st.t || ''];
     case 'raids': return (s.stats.raidsWon || 0) >= (st.n || 1);
+    case 'relics': return s.bots.filter((b) => isRelic(b.sp)).length >= (st.n || 1);
+    case 'forged': return (s.stats.forged || 0) >= (st.n || 1);
+    case 'eventSteps': return (s.stats.eventSteps || 0) >= (st.n || 1);
     case 'bayOn': return !!(s.islands[st.t || ''] && s.islands[st.t || ''].items.some((i) => i.t === 'bay' && i.lvl > 0));
     case 'trophies': return (((s as any).arena && (s as any).arena.best) || 0) >= (st.n || 1);
   }
@@ -199,7 +207,7 @@ export function claimStep(s: State) { const st = currentStep(s); if (!st || !ste
 export const xpNeedOf = (s: State) => xpNeed(s.lvl);
 // ---------------- founding new islands ----------------
 export function canFound(s: State, key: string): Check { const d = ISLANDS[key]; if (!d || !d.cost) return { ok: false, why: 'Unknown' }; if (s.islands[key]) return { ok: false, why: 'Already founded' };
-  if (!((s as any).space && (s as any).space.visits[d.needs || ''] > 0)) return { ok: false, why: `Send an expedition to ${d.needs === 'moon' ? 'the Moon' : 'Mars'} first` };
+  if (!((s as any).space && (s as any).space.visits[d.needs || ''] > 0)) return { ok: false, why: `Send an expedition to ${({ moon: 'the Moon', mars: 'Mars', epseri: 'Epsilon Eridani' } as Record<string, string>)[d.needs || ''] || d.needs} first` };
   if (s.lvl < (d.level || 1)) return { ok: false, why: `Commander level ${d.level}`, cost: d.cost }; if (s.res.credits < d.cost) return { ok: false, why: 'Not enough credits', cost: d.cost }; return { ok: true, cost: d.cost }; }
 export function found(s: State, key: string) { const c = canFound(s, key); if (!c.ok) return c; s.res.credits -= c.cost || 0;
   const it = (t: string, x: number, z: number): Item => ({ id: uid('i'), t, x, z, r: 0, lvl: 1 });

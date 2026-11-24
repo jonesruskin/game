@@ -46,5 +46,10 @@ export const STEPS: Step[] = [
   { id: 'd6', text: 'Reach Pluto, the edge of the Solar System', kind: 'visit', t: 'pluto', reward: { dm: 120 } },
   { id: 'f1', text: 'Repel a Kr\'thul raid (tap the red Swarm warning)', kind: 'raids', n: 1, reward: { dm: 40, cells: 8000 } },
   { id: 'f2', text: 'Make first contact at Proxima Centauri (Starship, Launch Pad level 10)', kind: 'visit', t: 'proxima', reward: { dm: 150 } },
+  { id: 'h1', text: "Claim a reward in this week's event (event button, top right)", kind: 'eventSteps', n: 1, reward: { dm: 25 } },
   { id: 'f3', text: 'Meet all five civilisations', kind: 'visit', t: 'epseri', reward: { dm: 300 } },
+  { id: 'g1', text: 'Found the Precursor Vault (island button)', kind: 'island', t: 'vault', reward: { dm: 200 } },
+  { id: 'g2', text: 'Summon your first Relic AI', kind: 'relics', n: 1, reward: { dm: 100 } },
+  { id: 'g3', text: 'Forge relic crystals at the Relic Forge twice', kind: 'forged', n: 2, reward: { dm: 150 } },
+  { id: 'g4', text: 'Run six Relic AIs', kind: 'relics', n: 6, reward: { dm: 300 } },
 ];

@@ -69,5 +69,5 @@ Free layout; decorations (holo-trees, lamps, statues, flags, fountains, paths) e
 4. **The Arena:** 3D turn-based battles, element moves and effectiveness, leagues and seasons, rival colonies.
 5. **The road to the stars:** Launch Pad, four rocket tiers, expeditions crewed by bots to ten real worlds (first-visit discoveries, element-matched hauls), outposts that earn on their own, the Solar System in 3D.
 6. **New islands, stars and aliens:** a second and third island (the Moon and Mars, each with its own ground, sky and bays), interstellar travel, alien civilisations and their bots, the Swarm.
-7. **Events and the Precursor Vault.**
+7. **Events and the Precursor Vault:** a weekly themed event (six rotate from a calendar, no server needed) where everything earns tokens, featured actions triple, and an eight-step track ends in an exclusive bot; the Precursor Vault island (level 27): Crystal Mines, the Relic Forge, six crystal colours in four tiers, Relic Sanctums, Relic AIs (Minor, Major, Prime) that evolve to five stars and earn Iridium.
 8. **Personal touch and ship:** paint, banners, more decor, themes; audio; store assets; CrazyGames packaging; Capacitor scaffold; review loop.

@@ -151,7 +151,7 @@ export class World {
       v.model.anim?.(t, { working, ready: s.ready[id] ? 1 : 0, cores }); if (v.scaf) { const cr = v.scaf.getObjectByName('crane'); if (cr) cr.rotation.y = t * 0.8; } }
     for (const [, bv] of this.bots) { const bay = G.item(s, bv.bay); if (!bay) continue; const c = this.centerOf(bay); const to = bv.target.clone().sub(bv.pos); to.y = 0; const dist = to.length(); let moving = false;
       if (dist > 0.05) { moving = true; to.normalize(); bv.pos.addScaledVector(to, Math.min(dist, dt * (dist > 2 ? 2.2 : 0.7))); bv.pos.y += (bv.target.y - bv.pos.y) * Math.min(1, dt * 4); const ang = Math.atan2(to.x, to.z); const g = bv.model.group; let dr = ang - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 6); }
-      else { bv.wait -= dt; if (bv.wait <= 0) { const a = Math.random() * Math.PI * 2; const isBay = bay.t === 'bay'; const [bw, bd] = G.dims(bay); const rr = isBay ? 0.35 + Math.random() * 0.75 : Math.max(bw, bd) / 2 + 0.25 + Math.random() * 0.3;
+      else { bv.wait -= dt; if (bv.wait <= 0) { const a = Math.random() * Math.PI * 2; const isBay = bay.t === 'bay' || bay.t === 'relicbay'; const [bw, bd] = G.dims(bay); const rr = isBay ? 0.35 + Math.random() * 0.75 : Math.max(bw, bd) / 2 + 0.25 + Math.random() * 0.3;
         bv.target.set(c.x + Math.cos(a) * rr, isBay ? 0.26 : 0, c.z + Math.sin(a) * rr); bv.wait = (isBay ? 1.5 : 3) + Math.random() * 4; } }
       bv.model.group.position.copy(bv.pos); bv.model.anim(t, moving); }
     if (this.selRing.visible) (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 4) * 0.3;

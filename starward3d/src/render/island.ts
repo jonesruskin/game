@@ -9,6 +9,7 @@ export const tileToWorld = (x: number, z: number) => new THREE.Vector3(x - N / 2
 const PAL: Record<string, { top: number[]; rim: number[]; soil: number[]; deep: number[]; rock: number[]; flora: 'grass' | 'pebbles'; peb: string }> = {
   haven: { top: [0.3, 0.55, 0.43], rim: [0.24, 0.42, 0.5], soil: [0.08, 0.42, 0.33], deep: [0.07, 0.25, 0.22], rock: [0.07, 0.28, 0.27], flora: 'grass', peb: '#8a8f99' },
   moon:  { top: [0.6, 0.03, 0.46], rim: [0.6, 0.03, 0.55], soil: [0.6, 0.03, 0.4], deep: [0.6, 0.03, 0.28], rock: [0.6, 0.03, 0.3], flora: 'pebbles', peb: '#9a9a9e' },
+  vault: { top: [0.74, 0.32, 0.24], rim: [0.76, 0.42, 0.34], soil: [0.74, 0.3, 0.16], deep: [0.74, 0.25, 0.1], rock: [0.72, 0.2, 0.14], flora: 'pebbles', peb: '#b06dff' },
   mars:  { top: [0.03, 0.62, 0.36], rim: [0.05, 0.55, 0.46], soil: [0.03, 0.45, 0.32], deep: [0.02, 0.35, 0.22], rock: [0.02, 0.32, 0.24], flora: 'pebbles', peb: '#6b3422' },
 };
 export class IslandView {

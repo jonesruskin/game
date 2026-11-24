@@ -2,7 +2,7 @@
 // hybrids (sold in the shop and fused); Elite and above have 3-4 elements and come from the Fusion Lab.
 // A species' look is procedural: chassis + its elements' colours + rarity glow.
 export type Chassis = 'drone' | 'rover' | 'walker' | 'android' | 'mech' | 'orb' | 'crawler';
-export interface Species { name: string; el: string[]; rarity: string; chassis: Chassis; desc: string; price?: number; unlock?: number; alien?: 'contact' | 'swarm'; }
+export interface Species { name: string; el: string[]; rarity: string; chassis: Chassis; desc: string; price?: number; unlock?: number; alien?: 'contact' | 'swarm' | 'event' | 'relic'; }
 const S = (name: string, el: string[], rarity: string, chassis: Chassis, desc: string, price?: number, unlock?: number): Species => ({ name, el, rarity, chassis, desc, ...(price ? { price, unlock } : {}) });
 export const SPECIES: Record<string, Species> = {
   // ---- Standard: one per core element ----
@@ -102,6 +102,32 @@ export const SPECIES: Record<string, Species> = {
   lumenchoir: { ...S('Lumen Choir', ['photon', 'solar', 'neural'], 'prototype', 'orb', 'A being of pure light from Epsilon Eridani. It hums in harmonies.'), alien: 'contact' },
   krdrone: { ...S("Kr'thul Drone", ['void', 'kinetic'], 'advanced', 'crawler', 'A Swarm drone, captured and reprogrammed. Still a little bitey.'), alien: 'swarm' },
   krwarrior: { ...S("Kr'thul Warrior", ['void', 'kinetic', 'plasma'], 'elite', 'crawler', 'A Swarm warrior that now fights for the colony.'), alien: 'swarm' },
+  // ---- event exclusives: earned at the top of a weekly event's milestone track ----
+  solstice: { ...S('Solstice Seraph', ['solar', 'photon', 'aero'], 'legendary', 'drone', 'Born in the light of the Solar Solstice. It never casts a shadow.'), alien: 'event' },
+  champion: { ...S('Arena Champion', ['kinetic', 'alloy', 'photon'], 'legendary', 'mech', 'Forged for the Arena Cup. It bows before every fight.'), alien: 'event' },
+  voyager: { ...S('Deep Voyager', ['gravity', 'void', 'aero'], 'legendary', 'orb', 'A Deep Space Week veteran that has seen the edge of the Solar System.'), alien: 'event' },
+  chimera: { ...S('Chimera Core', ['neural', 'bio', 'plasma', 'chrono'], 'legendary', 'crawler', 'A happy accident of the Fusion Frenzy. Nobody is quite sure what it is.'), alien: 'event' },
+  blossom: { ...S('Blossom Sentinel', ['bio', 'hydro', 'photon'], 'legendary', 'android', 'Guardian of the Garden Gala. Flowers open as it passes.'), alien: 'event' },
+  anvil: { ...S('Anvil Titan', ['alloy', 'plasma', 'geo'], 'legendary', 'mech', 'Built during Forge Fest by every builder drone at once.'), alien: 'event' },
+  // ---- Relic AIs: summoned and evolved in the Precursor Vault; they earn Iridium and never fight ----
+  aurorawisp: { ...S('Aurora Wisp', ['aurora', 'relic', 'bio'], 'epic', 'orb', 'A Precursor intelligence of Aurora, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  aurorawarden: { ...S('Aurora Warden', ['aurora', 'relic', 'photon'], 'legendary', 'android', 'A Precursor intelligence of Aurora, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  auroraprime: { ...S('Aurora Prime', ['aurora', 'relic', 'solar'], 'prototype', 'drone', 'A Precursor intelligence of Aurora, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  arcanaglyph: { ...S('Arcana Glyph', ['arcana', 'relic', 'neural'], 'epic', 'orb', 'A Precursor intelligence of Arcana, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  arcanamagus: { ...S('Arcana Magus', ['arcana', 'relic', 'chrono'], 'legendary', 'android', 'A Precursor intelligence of Arcana, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  arcanaprime: { ...S('Arcana Prime', ['arcana', 'relic', 'void'], 'prototype', 'orb', 'A Precursor intelligence of Arcana, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  entropyspark: { ...S('Entropy Spark', ['entropy', 'relic', 'plasma'], 'epic', 'crawler', 'A Precursor intelligence of Entropy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  entropyreaver: { ...S('Entropy Reaver', ['entropy', 'relic', 'kinetic'], 'legendary', 'mech', 'A Precursor intelligence of Entropy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  entropyprime: { ...S('Entropy Prime', ['entropy', 'relic', 'gravity'], 'prototype', 'orb', 'A Precursor intelligence of Entropy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  joysprite: { ...S('Joy Sprite', ['joy', 'relic', 'aero'], 'epic', 'drone', 'A Precursor intelligence of Joy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  joyjester: { ...S('Joy Jester', ['joy', 'relic', 'volt'], 'legendary', 'android', 'A Precursor intelligence of Joy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  joyprime: { ...S('Joy Prime', ['joy', 'relic', 'photon'], 'prototype', 'orb', 'A Precursor intelligence of Joy, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  reveriedrifter: { ...S('Reverie Drifter', ['reverie', 'relic', 'cryo'], 'epic', 'orb', 'A Precursor intelligence of Reverie, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  reverieoracle: { ...S('Reverie Oracle', ['reverie', 'relic', 'neural'], 'legendary', 'android', 'A Precursor intelligence of Reverie, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  reverieprime: { ...S('Reverie Prime', ['reverie', 'relic', 'hydro'], 'prototype', 'drone', 'A Precursor intelligence of Reverie, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  soulember: { ...S('Soul Ember', ['soul', 'relic', 'solar'], 'epic', 'orb', 'A Precursor intelligence of Soul, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  soulkeeper: { ...S('Soul Keeper', ['soul', 'relic', 'geo'], 'legendary', 'mech', 'A Precursor intelligence of Soul, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
+  soulprime: { ...S('Soul Prime', ['soul', 'relic', 'chrono'], 'prototype', 'android', 'A Precursor intelligence of Soul, woken in the Vault. It earns Iridium and never fights.'), alien: 'relic' },
   krbrood: { ...S("Kr'thul Brood", ['void', 'bio', 'gravity', 'kinetic'], 'epic', 'crawler', 'A living Swarm carrier. It keeps trying to adopt the other bots.'), alien: 'swarm' },
 };
 export const SPECIES_ORDER = Object.keys(SPECIES);
