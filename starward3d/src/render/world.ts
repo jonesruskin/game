@@ -10,6 +10,8 @@ import * as G from '../core/game';
 import { GRID } from '../data/buildings';
 import { clamp } from '../core/util';
 import { OrbitView } from './orbit';
+import { Walkers } from './walkers';
+import { rb } from '../core/robots';
 import { rocketModel, RocketModel } from './rocket';
 import type { Design } from '../data/rockets';
 import type { Space } from '../core/space';
@@ -21,7 +23,7 @@ export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
   cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
-  mode: 'base' | 'orbit' = 'base'; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
+  mode: 'base' | 'orbit' = 'base'; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
@@ -45,7 +47,7 @@ export class World {
   closeOrbit() { this.mode = 'base'; }
   // switch to a world (builds its environment)
   setWorld(base: string, body: string) {
-    if (this.baseId === base) return; this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality);
+    if (this.baseId === base) return; this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkKey = '';
     for (const v of this.views.values()) this.scene.remove(v.root); this.views.clear(); for (const d of this.drones.values()) this.scene.remove(d.g); this.drones.clear();
     const L = this.env.look; this.scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar); this.sun.color.set(L.sun); this.sun.intensity = L.sunI; this.hemi.color.set(L.amb[0]); this.hemi.groundColor.set(L.amb[1]); this.hemi.intensity = L.amb[2]; this.area = { lo: -1, hi: -1 };
   }
@@ -103,6 +105,7 @@ export class World {
       if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it.id, it.b, it.lvl, it.r, !!job, key); this.views.set(it.id, v); }
       const [w, d] = G.dims(it.b, it.r); v.root.position.set(it.x + w / 2 - C, 0, it.z + d / 2 - C); v.root.visible = !(this.ghost && this.ghost.move === it.id); }
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
+    const RR = rb(s); const wk = B.items.map((i) => i.id + i.lvl).join() + '|' + RR.list.map((r) => r.id + r.lvl + (r.post ? r.post.item : '')).join(); if (wk !== this.walkKey) { this.walkKey = wk; this.walkers!.sync(s, this.baseId, RR.list); }
     // a drone hovers over every active construction site on this world
     const active = new Set<string>(); for (const j of s.jobs) if (j.kind === 'build' && j.base === this.baseId) { active.add(j.id); if (!this.drones.has(j.id)) { const g = droneModel(); const spark = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 4), new THREE.MeshBasicMaterial({ color: '#bff8ff', toneMapped: false })); g.add(spark); this.scene.add(g); this.drones.set(j.id, { g, job: j.item!, ph: Math.random() * 6, spark }); } }
     for (const [id, d] of this.drones) if (!active.has(id)) { this.scene.remove(d.g); this.drones.delete(id); }
@@ -145,7 +148,7 @@ export class World {
   frame(s: State, dt: number, working: (id: string) => boolean) {
     this.t += dt; const t = this.t;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
-    this.placeCamera(); this.env.update(t, dt); this.flightsFrame(dt);
+    this.placeCamera(); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;
       d.spark.position.set(0, -0.25 - Math.random() * 0.1, 0); d.spark.visible = Math.sin(t * 23 + d.ph) > 0.2; }

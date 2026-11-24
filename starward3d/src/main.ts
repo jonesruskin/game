@@ -15,6 +15,9 @@ import { BUILDINGS } from './data/buildings';
 import { TECH } from './data/research';
 import { RES } from './data/resources';
 import * as SP from './core/space';
+import * as RB from './core/robots';
+import { SPECIES } from './data/species';
+import { RARITIES } from './data/rarities';
 import type { Design } from './data/rockets';
 export class App {
   version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
@@ -52,6 +55,7 @@ export class App {
   tickNow() { this.tick(); this.changed(); }
   private tick() {
     const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
+    for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // Kardashev milestones pay out dark matter as the civilisation's power grows
     const k = kardashev(this.s, this.R); const m = K_MILESTONES.find((x) => x > (this.s.kMax || 0) && k >= x);
@@ -60,6 +64,7 @@ export class App {
   }
   private note(n: G.Note) {
     if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
+    else if (n.kind === 'core') { this.audio.play('claim'); this.ui.toast(`${n.fused ? 'Fusion complete' : 'Core assembled'}: a ${RARITIES[SPECIES[n.sp].rarity].name} core is ready to activate (Robots → Workshop)`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'robots') this.ui.renderOver(); }
     else if (n.kind === 'rocket') { this.audio.play('done'); this.ui.toast(`${esc(n.name)} is assembled and waiting on the pad`, 'good'); this.ui.renderNav(); if (this.ui.over === 'launch') this.ui.renderOver(); }
     else if (n.kind === 'mission') { this.audio.play('levelup'); this.platform.happytime(); if (n.first) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">MISSION ACCOMPLISHED</div><h1>${esc(n.name)}</h1>${n.reward ? `<div class="rewards">${costHTML(n.reward)}</div>` : ''}<button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); else this.ui.toast(`${esc(n.name)} complete`, 'good'); }
     else if (n.kind === 'sat' || n.kind === 'module') { this.audio.play('levelup'); this.ui.toast(`${esc(n.name)}: in orbit and working`, 'gold'); this.ui.renderNav(); }

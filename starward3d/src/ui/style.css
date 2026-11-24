@@ -125,3 +125,10 @@ a.btn { text-decoration: none; }
 }
 body.orbiting #obj, body.orbiting #panel, body.orbiting #bubbles { display: none !important; }
 .tab:disabled { cursor: default; }
+/* robots */
+.bots { display: grid; gap: 8px; margin-top: 8px; }
+.botc { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); }
+.botc .pic, .card .pic { border-radius: 12px; display: grid; place-items: center; overflow: hidden; flex: none; } .pic img { width: 100%; height: 100%; object-fit: contain; }
+.botc b { font: 700 14px Oxanium; } .botc .meta { font-size: 11px; color: var(--muted); }
+.els { display: inline-flex; gap: 3px; vertical-align: middle; } .el { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; color: #0b1420; font-weight: 700; }
+.rar { font: 700 10px Oxanium; letter-spacing: 0.08em; text-transform: uppercase; }

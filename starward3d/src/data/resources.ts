@@ -5,7 +5,7 @@ export const RES: Record<string, ResDef> = {
   metal: { name: 'Metal', short: 'MT', color: '#b8c4d6', cap: true, start: true, icon: '▣', desc: 'Steel, aluminium and titanium for structures, rockets and ships.' },
   fuel: { name: 'Fuel', short: 'FU', color: '#ff8a5b', cap: true, start: true, icon: '▲', desc: 'Rocket propellant: kerosene, liquid hydrogen and oxygen, later methane and more.' },
   science: { name: 'Science', short: 'SC', color: '#6ee7ff', cap: true, start: true, icon: '✦', desc: 'Research data. Spent to unlock technologies.' },
-  cells: { name: 'Power Cells', short: 'PC', color: '#7cf29a', cap: true, icon: '⚡', desc: 'Charged cells that keep robots running and level them up.' },
+  cells: { name: 'Power Cells', short: 'PC', color: '#7cf29a', cap: true, icon: '⚡', desc: 'Charged cells that level robots up and power new robot cores.' },
   he3: { name: 'Helium-3', short: 'He3', color: '#b892ff', cap: true, icon: '◉', desc: 'A rare isotope found in lunar regolith and gas giants. Fusion fuel.' },
   rare: { name: 'Rare Elements', short: 'RE', color: '#7cf29a', cap: true, icon: '◆', desc: 'Platinum-group metals and rare earths from asteroids.' },
   exotic: { name: 'Exotic Matter', short: 'EX', color: '#ff5cf0', cap: true, icon: '✺', desc: 'Negative-energy matter. It holds warp bubbles and wormholes open.' },

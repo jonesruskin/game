@@ -14,6 +14,7 @@ export interface BStats { prod: Record<string, number>; cap: Record<string, numb
 // extension points for later parts
 export const modHooks: ((s: State, m: Mods) => void)[] = [];
 export const rateHooks: ((s: State, R: Rates) => void)[] = [];
+export const boostHooks: ((s: State) => Record<string, number>)[] = []; // per-building multipliers (robot operators)
 export const baseHooks: { mult: (s: State, base: string, r: string) => number; solar: (s: State, base: string) => number; house: (s: State, base: string) => number; grow: (s: State, base: string) => number } = { mult: () => 1, solar: () => 1, house: () => 0, grow: () => 0 };
 export function mods(s: State): Mods {
   const m: Mods = { mult: {}, gen: 0, buildTime: 0, researchTime: 0, cap: 0, crews: 0, slots: 0, costs: 0, flags: new Set() };
@@ -42,10 +43,10 @@ export const collectsOf = (b: string) => { const d = BUILDINGS[b]; if (!d || !d.
 export function rates(s: State, m = mods(s)): Rates {
   const R: Rates = { prod: {}, cap: {}, gen: 0, draw: 0, eff: 1, speed: 0, m, col: {}, item: {}, collect: {} };
   for (const r in RES) { R.prod[r] = 0; R.cap[r] = RES[r].cap ? 0 : Infinity; }
-  const items: [Item, string, BStats, number][] = [];
+  const items: [Item, string, BStats, number][] = []; const boost: Record<string, number> = {}; for (const h of boostHooks) { const m = h(s); for (const k in m) boost[k] = (boost[k] || 0) + m[k]; }
   for (const bid in s.bases) {
     const B = s.bases[bid]; const colony = bid !== 'earth'; const sts: [Item, BStats][] = []; let house = 0, jobs = 0, grow = 0;
-    for (const it of B.items) { if (it.lvl <= 0) continue; const st = bStats(it.b, it.lvl, m); sts.push([it, st]); house += st.house; jobs += st.jobs; grow += st.grow; }
+    for (const it of B.items) { if (it.lvl <= 0) continue; const st = bStats(it.b, it.lvl, m); const k = 1 + (boost[it.id] || 0); if (k > 1) { for (const r in st.prod) st.prod[r] *= k; for (const r in st.cap) st.cap[r] *= k; st.gen *= k; st.speed *= k; } sts.push([it, st]); house += st.house; jobs += st.jobs; grow += st.grow; }
     let staff = 1; if (colony) { house *= 1 + baseHooks.house(s, bid); grow += baseHooks.grow(s, bid); const pop = B.pop || 0; staff = jobs > 0 ? Math.min(1, pop / jobs) : 1; R.col[bid] = { house: Math.round(house), jobs, grow, staff, pop }; }
     const work = 0.3 + 0.7 * staff; // colonies need hands: output scales with filled jobs
     for (const [it, st] of sts) { const k = it.b === 'hub' ? 1 : work; items.push([it, bid, st, k]);

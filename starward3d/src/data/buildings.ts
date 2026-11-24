@@ -17,7 +17,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   hq: {
     name: 'Mission Control', fp: [5, 5], bases: ['earth'], unique: true, command: true, max: 20, cat: 'core',
     cost: { credits: [400, 2.1], metal: [500, 2.1] }, time: [-6, 13, 'ln'],
-    prod: { credits: [500, 1.2], science: [30, 1.2] }, cap: { credits: [8000, 1.55], metal: [6000, 1.55], fuel: [3000, 1.55], science: [2500, 1.55] }, gen: [12, 1.2],
+    prod: { credits: [500, 1.2], science: [30, 1.2] }, cap: { credits: [8000, 1.55], metal: [6000, 1.55], fuel: [3000, 1.55], science: [2500, 1.55], cells: [400, 1.55] }, gen: [12, 1.2],
     desc: 'The heart of the programme. Raising it expands the spaceport, allows higher building levels and adds construction drones at levels 5, 10 and 15.',
   },
   research: {
@@ -57,7 +57,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   depot: {
     name: 'Logistics Depot', fp: [3, 3], bases: ['earth'], max: 25, cat: 'storage', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
-    cost: { credits: [180, 1.78], metal: [280, 1.78] }, time: [1.5, 2.0], cap: { credits: [5000, 1.48], metal: [6000, 1.48], fuel: [3500, 1.48], science: [1500, 1.48], rare: [800, 1.48], he3: [300, 1.48] }, draw: [1, 1.1],
+    cost: { credits: [180, 1.78], metal: [280, 1.78] }, time: [1.5, 2.0], cap: { credits: [5000, 1.48], metal: [6000, 1.48], fuel: [3500, 1.48], science: [1500, 1.48], cells: [400, 1.48], rare: [800, 1.48], he3: [300, 1.48] }, draw: [1, 1.1],
     desc: 'Warehouses, tank farms and secure data vaults. Raises storage for every basic resource.',
   },
   launch: {
@@ -79,6 +79,27 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     name: 'Astronaut Academy', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'spaceflight', req: { tech: 'lifeSupport' },
     cost: { credits: [3000, 1.87], metal: [3500, 1.87] }, time: [6.5, 2.0], prod: { science: [40, 1.224] }, draw: [4, 1.15],
     desc: 'Centrifuges, pools and simulators. Crewed missions need graduates; each level makes them 1% safer.',
+  },
+  // ---------------- robots ----------------
+  workshop: {
+    name: 'Robotics Workshop', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'robots', req: { tech: 'automation' },
+    cost: { credits: [600, 1.84], metal: [700, 1.84] }, time: [2.5, 2.0], draw: [3, 1.14],
+    desc: 'Assembly cells, welders and a test floor where new robots boot up. Builds robot cores; more assembly bays at levels 5, 10 and 15.',
+  },
+  dock: {
+    name: 'Robot Dock', fp: [3, 3], bases: ['earth', 'moon', 'mars', 'ceres', 'titan'], max: 25, cat: 'robots', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], req: { tech: 'automation' },
+    cost: { credits: [300, 1.76], metal: [380, 1.76] }, time: [1.5, 2.0], draw: [1, 1.1],
+    desc: 'Charging cradles and maintenance arms. Houses robots: 3 plus one per level.',
+  },
+  cellplant: {
+    name: 'Cell Plant', fp: [3, 3], bases: ['earth', 'moon', 'mars', 'ceres', 'titan'], max: 25, cat: 'robots', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 3], req: { tech: 'automation' },
+    cost: { credits: [250, 1.74], metal: [300, 1.74] }, time: [1.5, 2.0], prod: { cells: [60, 1.23] }, cap: { cells: [500, 1.45] }, draw: [3, 1.14],
+    desc: 'Charges Power Cells: they level your robots up and power new robot cores.',
+  },
+  fusionlab: {
+    name: 'Fusion Lab', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'robots', req: { tech: 'robotics', hq: 4 },
+    cost: { credits: [5000, 1.84], metal: [5500, 1.84] }, time: [6, 2.0], draw: [6, 1.15],
+    desc: 'Merges the minds and bodies of two robots into a new hybrid core. Rarer parents make rarer robots; each level fuses 5% faster.',
   },
   // ---------------- colonies ----------------
   hub: {

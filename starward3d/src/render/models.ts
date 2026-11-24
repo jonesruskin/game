@@ -131,6 +131,37 @@ function academy(L: number, look: Look): Model {
   const arm = new THREE.Group(); const ak = new Kit(); ak.box(2.2, 0.08, 0.12, STEEL, 0, 0, 0); ak.sphere(0.2, A, 1.1, 0, 0, { w: 10, h: 7 }); ak.box(0.25, 0.25, 0.25, '#eef0f3', -1.1, -0.1, 0); arm.add(ak.build()); arm.position.set(-0.6, 0.75, 0.8); g.add(arm);
   return { group: g, height: 1.6 + t * 0.15, anim: (tt) => { arm.rotation.y = tt * 1.6; } };
 }
+function workshop(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4);
+  const h = 1.0 + t * 0.12; k.box(2.8, h, 2.2, P, -0.3, 0.1, -0.4); for (let i = 0; i < 4; i++) k.add(new THREE.CylinderGeometry(0.35, 0.35, 2.2, 3, 1, false, 0, Math.PI), shade(P, -0.1), -1.35 + i * 0.7, 0.1 + h, -0.4, { rx: Math.PI / 2, rz: Math.PI / 2 }); // sawtooth roof
+  windows(k, 2.8, 2.2, 0.35, 0.22, -0.3, -0.4); k.box(1.0, h - 0.2, 0.05, '#2b3340', -0.3, 0.1, 0.72); k.box(1.04, 0.08, 0.08, A, -0.3, h - 0.12, 0.73);
+  for (let i = 0; i < Math.min(3, 1 + Math.floor(t / 2)); i++) { k.cyl(0.18, 0.2, 0.32, 10, '#e9edf2', 1.45, 0.1, -1.2 + i * 0.6); k.sphere(0.13, A, 1.45, 0.52, -1.2 + i * 0.6, { glow: true, w: 10, h: 7 }); } // core pods
+  k.box(1.6, 0.1, 0.4, DARK, 0.4, 0.15, 1.35); const g = k.build('workshop');
+  const arm = new THREE.Group(); const ak = new Kit(); ak.cyl(0.12, 0.16, 0.25, 8, '#f5c542', 0, 0, 0); ak.box(0.1, 0.8, 0.1, '#f5c542', 0, 0.25, 0); const ag = ak.build(); arm.add(ag); const fore = new THREE.Group(); const fk = new Kit(); fk.box(0.08, 0.6, 0.08, '#f5c542', 0, 0, 0); fk.sphere(0.06, '#7ff5ff', 0, 0.62, 0, { glow: true }); fore.add(fk.build()); fore.position.y = 1.0; arm.add(fore); arm.position.set(1.0, 0.1, 1.15); g.add(arm);
+  return { group: g, height: h + 0.8, anim: (tt, st) => { const w = st.working ? 1 : 0.2; arm.rotation.y = Math.sin(tt * 0.9) * 1.2 * w; fore.rotation.z = -0.6 + Math.sin(tt * 1.7) * 0.5 * w; } };
+}
+function dock(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#c3c8cf');
+  const n = Math.min(4, 2 + Math.floor(t / 2)); const rings: THREE.Mesh[] = [];
+  for (let i = 0; i < n; i++) { const x = -0.9 + (i % 2) * 1.8, z = -0.7 + Math.floor(i / 2) * 1.3; k.cyl(0.42, 0.46, 0.12, 14, '#8a939e', x, 0.1, z); k.box(0.08, 0.9, 0.08, '#9aa3ad', x - 0.35, 0.1, z); k.box(0.35, 0.06, 0.06, '#9aa3ad', x - 0.18, 0.95, z); }
+  k.box(2.6, 0.06, 0.2, A, 0, 1.2, 0); k.box(0.1, 1.1, 0.1, '#9aa3ad', -1.25, 0.1, 0); k.box(0.1, 1.1, 0.1, '#9aa3ad', 1.25, 0.1, 0); const g = k.build('dock');
+  for (let i = 0; i < n; i++) { const x = -0.9 + (i % 2) * 1.8, z = -0.7 + Math.floor(i / 2) * 1.3; const r = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 6, 24), new THREE.MeshBasicMaterial({ color: A, toneMapped: false, transparent: true, opacity: 0.8 })); r.rotation.x = Math.PI / 2; r.position.set(x, 0.3, z); g.add(r); rings.push(r); }
+  return { group: g, height: 1.4, anim: (tt) => rings.forEach((r, i) => { r.position.y = 0.25 + ((tt * 0.6 + i * 0.3) % 1) * 0.6; (r.material as THREE.MeshBasicMaterial).opacity = 0.9 - ((tt * 0.6 + i * 0.3) % 1) * 0.8; }) };
+}
+function cellplant(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3);
+  const rows = Math.min(3, 1 + Math.floor(t / 2)); for (let r = 0; r < rows; r++) { const z = -0.9 + r * 0.8; k.box(2.0, 0.08, 0.5, '#5b6676', -0.3, 0.1, z); for (let i = 0; i < 6; i++) { k.cyl(0.11, 0.11, 0.42, 8, '#7cf29a', -1.1 + i * 0.32, 0.18, z, { glow: true }); k.cyl(0.08, 0.08, 0.05, 8, '#e9edf2', -1.1 + i * 0.32, 0.6, z); } }
+  k.box(0.7, 0.8, 0.7, '#d9dde2', 1.05, 0.1, 0.8); k.box(0.72, 0.08, 0.72, A, 1.05, 0.9, 0.8); for (let i = 0; i < 3; i++) k.cyl(0.05, 0.05, 0.3, 6, '#9aa3ad', 0.85 + i * 0.2, 0.98, 0.8);
+  return { group: k.build('cellplant'), height: 1.2 };
+}
+function fusionlab(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4);
+  for (const x of [-1.15, 1.15]) { k.cyl(0.55, 0.6, 1.1 + t * 0.1, 12, P, x, 0.1, -0.2); k.sphere(0.55, shade(P, -0.05), x, 1.2 + t * 0.1, -0.2, { theta: Math.PI / 2, w: 14 }); k.cyl(0.57, 0.57, 0.08, 12, A, x, 0.6, -0.2); }
+  k.cyl(0.22, 0.22, 1.6, 10, '#9aa3ad', 0, 0.75, -0.2, { rz: Math.PI / 2 }); k.box(2.6, 0.5, 0.9, shade(P, -0.08), 0, 0.1, 1.2); windows(k, 2.6, 0.9, 0.22, 0.14, 0, 1.2);
+  const g = k.build('fusionlab'); const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 1), new THREE.MeshBasicMaterial({ color: '#c49bff', toneMapped: false })); core.position.set(0, 1.0, -0.2); g.add(core);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 6, 28), new THREE.MeshBasicMaterial({ color: '#ff9be8', toneMapped: false })); ring.position.copy(core.position); g.add(ring);
+  return { group: g, height: 1.9 + t * 0.1, anim: (tt, st) => { const w = st.working ? 1 : 0.3; core.rotation.y = tt * 1.5; core.scale.setScalar(0.85 + Math.sin(tt * 4) * 0.12 * w); ring.rotation.x = tt * 1.1; ring.rotation.y = tt * 0.7; } };
+}
 // unknown types (later parts) get a placeholder block so the base never breaks
 function generic(b: string, look: Look): Model { const d = BUILDINGS[b]; const [w, dd] = d ? d.fp : [3, 3]; const k = new Kit(); pad(k, w, dd); k.box(w * 0.7, 1.2, dd * 0.7, look.primary, 0, 0.1, 0); windows(k, w * 0.7, dd * 0.7, 0.5, 0.2); k.box(w * 0.72, 0.1, dd * 0.72, look.accent, 0, 1.3, 0); return { group: k.build(b), height: 1.6 }; }
 export function buildModel(b: string, L: number, look: Look): Model {
@@ -138,6 +169,7 @@ export function buildModel(b: string, L: number, look: Look): Model {
     case 'hq': return hq(L, look); case 'research': return research(L, look); case 'university': return university(L, look); case 'mine': return mine(L, look);
     case 'refinery': return refinery(L, look); case 'office': return office(L, look); case 'solar': return solar(L); case 'fission': return fission(L, look); case 'depot': return depot(L, look);
     case 'launch': return launch(L, look); case 'vab': return vab(L, look); case 'tracking': return tracking(L, look); case 'academy': return academy(L, look);
+    case 'workshop': return workshop(L, look); case 'dock': return dock(L, look); case 'cellplant': return cellplant(L, look); case 'fusionlab': return fusionlab(L, look);
   }
   return generic(b, look);
 }

@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 in development, Parts 1-2 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
+> **Status: v2 in development, Parts 1-3 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
 
 ## Run it
 ```bash
@@ -40,13 +40,24 @@ Or open the prebuilt `dist/web/` through the repo's static server: `python3 -m h
 - **The space station** grows module by module (core, laboratory, solar wings, habitat, fuel depot, shipyard, docking hub).
 - **The orbit view:** Earth from space (oceans, clouds, day/night with city lights, atmosphere), the Moon, the Sun and stars, every satellite on its orbit and your station; focus on the station to see it up close.
 
+## Part 3: Robots (done)
+Dragon City's core ideas, made ours: robots are collected, housed, levelled and bred, but they exist to make life easier for people.
+- **The Robotics Workshop** (Industrial Automation) assembles cores: Standard, Advanced (level 5) and Elite (level 12), with an element focus; more assembly bays at levels 5, 10 and 15. Your first two robots arrive with it.
+- **Activation** is a reveal: who is in the core? Every new species fills a Botdex page and pays dark matter.
+- **Robot Docks** house robots (3 + level each); **Cell Plants** charge the Power Cells that level them up (to 30).
+- **Operators:** every production, power, science and spaceflight building has robot stations (a 2nd at level 8, a 3rd at 16). A robot boosts its building by its rarity and level, three times as much when its element suits the job (Geo and Kinetic for mines, Neural and Chrono for research, Solar for solar farms, Gravity and Alloy for the Vehicle Assembly...).
+- **The Fusion Lab** (Construction Robotics, Mission Control 4) fuses two level-4 robots into a hybrid core whose elements come from both parents, with the odds of every outcome shown; parents are not used up.
+- **The Botdex:** 114 species across 22 elements and 7 rarities.
+- **Life in the base:** people walk between the buildings, robots hover at the buildings they operate or mill about their docks; new building models for the Workshop (sawtooth roof, swinging arm), Dock (charging rings), Cell Plant (glowing cells) and Fusion Lab (pulsing core).
+- A short robot tutorial joins Chapter 1.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback, save
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), util.ts
-src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters), rockets (parts, presets), space (orbits, satellites, modules, missions)
-src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain, sea, sky, clouds, flora), models.ts (buildings), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders), kit.ts, studio.ts, botmodels.ts (robots, Part 3)
-src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), style.css, fonts
+src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), robots.ts (cores, docks, operators, fusion, Botdex), util.ts
+src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters), rockets (parts, presets), space (orbits, satellites, modules, missions), robots (affinities, boosts, recipes), species, elements, rarities
+src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain, sea, sky, clouds, flora), models.ts (buildings), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders), walkers.ts (people and robots), botmodels.ts (robot models), kit.ts, studio.ts
+src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), robots.ts (crew, Workshop, Fusion, Botdex, operators), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

@@ -13,6 +13,7 @@ export interface Note { kind: string; t?: number; [k: string]: any; }
 export const completers: Record<string, (s: State, j: Job) => Note | null> = {};
 export const stepChecks: Record<string, (s: State, st: Step, R: Rates) => boolean> = {};
 export const events: Note[] = []; // UI-facing notifications (drained by the app)
+export const builtHooks: ((s: State, b: string) => void)[] = []; // a building finished for the first time
 // ---------------- costs and timers ----------------
 export const costOf = (id: string, L: number, m: Mods) => { const d = BUILDINGS[id]; const out: Record<string, number> = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
 export const timeOf = (id: string, L: number, m: Mods) => Math.max(2, Math.round(timeCurve(BUILDINGS[id].time, L) * (1 - m.buildTime)));
@@ -97,7 +98,7 @@ export function startResearch(s: State, id: string, t = Date.now()): Check { con
 // ---------------- time ----------------
 function complete(s: State, j: Job): Note | null {
   s.jobs = s.jobs.filter((x) => x !== j);
-  if (j.kind === 'build') { const it = itemOf(s, j.base!, j.item!); if (!it) return null; it.lvl = j.to!; if (j.from === 0) s.stats.built++; else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, item: j.item, first: j.from === 0 }; }
+  if (j.kind === 'build') { const it = itemOf(s, j.base!, j.item!); if (!it) return null; it.lvl = j.to!; if (j.from === 0) { s.stats.built++; for (const h of builtHooks) h(s, j.b!); } else s.stats.upgrades++; return { kind: 'build', b: j.b, lvl: j.to, base: j.base, item: j.item, first: j.from === 0 }; }
   if (j.kind === 'research') { s.tech[j.tech!] = 1; s.stats.researched++; return { kind: 'research', tech: j.tech }; }
   const f = completers[j.kind]; return f ? f(s, j) : null;
 }
