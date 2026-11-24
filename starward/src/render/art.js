@@ -274,6 +274,12 @@ export const ART = {
     cyl(c, 1.0, 1.0, 0.3, 10, '#c9ced6', 10 + T * 2 + 14); fx.push({ k: 'climber', x, y: y - 30 });
     return 60 + T * 2;
   },
+  antimatter(c, L, S, lights, fx) {
+    const T = tierOf(L); pad(c, S, '#a9aeb6'); const [x, y] = P(1.0, 1.0, 6); const rx = 34 + T * 2, ry = 17 + T;
+    c.lineWidth = 7; c.strokeStyle = '#c9ced6'; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.stroke(); c.lineWidth = 1.5; c.strokeStyle = '#ff4d6d'; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.stroke();
+    const b = box(c, 0.75, 0.75, 0.5, 0.5, 18 + T * 3, '#e6eaf0'); grid(c, b.left, 2, 2, '#ff4d6d', 0.25, lights); fx.push({ k: 'glow', x, y: y - 22, col: '255,77,109' }); fx.push({ k: 'beacon', x: x + rx, y: y - 4, col: '#ff4d6d' });
+    return 40 + T * 4;
+  },
   xenolab(c, L, S, lights, fx) {
     const T = tierOf(L); pad(c, S, '#b9bec6');
     const b = box(c, 0.25, 0.9, 1.5, 0.9, 14 + T * 3, '#e6eaf0'); grid(c, b.left, 2, 5, '#9dff5c', 0.25, lights); grid(c, b.right, 2, 3, '#9dff5c', 0.25, lights);

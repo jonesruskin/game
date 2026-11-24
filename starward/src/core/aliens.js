@@ -14,7 +14,7 @@ export const al = (s) => s.aliens || (s.aliens = { known: {}, xt: {}, ruins: 0, 
 export const known = (s, id) => al(s).known[id];
 // ---------------- discovery and first contact ----------------
 export function discovered(s, id) { const d = allSpecies()[id]; const I = ist(s);
-  if (id === 'hollow') return !!s.flags.relayFound; if (id === 'krthul') return !!s.flags.relayVisit;
+  if (id === 'hollow') return !!s.flags.relayFound; if (id === 'krthul') return !!(s.flags.relayVisit || I.surveyed.kapteyn || Object.keys(al(s).known).length >= 4); // they find you once you are noticeable
   if ((id === 'veyari' || id === 'lumen') && s.flags.relayVisit) return true; return !!(I.surveyed[d.star]); }
 export const pendingContacts = (s) => (s.tech.contactProtocols ? Object.keys(allSpecies()).filter((id) => !known(s, id) && discovered(s, id)) : []);
 export function meet(s, id, opening, t = Date.now()) {

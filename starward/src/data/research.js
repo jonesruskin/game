@@ -116,6 +116,13 @@ export const TECH = {
   capitalShips: { name: 'Capital Ships', branch: 'engineering', tier: 20, req: ['guidedOrdnance', 'planetaryDefence'], effect: {}, unlocks: 'Cruisers and battleships', desc: 'Kilometre-long hulls with layered armour and spinal weapons.' },
   swarmTactics: { name: 'Swarm Tactics', branch: 'computing', tier: 20, req: ['planetaryDefence', 'xenolinguistics'], effect: {}, unlocks: '+25% damage against the Kr\'thul', desc: 'We studied how the Swarm thinks. Now we can think one move ahead of it.' },
   carrierWarfare: { name: 'Carrier Warfare', branch: 'rocketry', tier: 21, req: ['capitalShips'], effect: {}, unlocks: 'Carriers', desc: 'Motherships launching clouds of autonomous missile drones.' },
+  // ---- Part 7: beyond ----
+  antimatterProduction: { name: 'Antimatter Production', branch: 'energy', tier: 21, req: ['casimirEffect', 'dysonSwarm'], effect: {}, unlocks: 'Antimatter Factory', desc: 'Particle accelerators fed by the Dyson Swarm, minting antiprotons by the gram.' },
+  relayNetwork: { name: 'The Relay Network', branch: 'interstellar', tier: 21, req: ['xenolinguistics', 'wormholeGates'], effect: {}, unlocks: 'Rebuilding the Hollow relays', desc: 'The Hollow left relays on the paths between galaxies. We have learned how to wake them.' },
+  matrioshkaBrains: { name: 'Matrioshka Brains', branch: 'computing', tier: 22, req: ['antimatterProduction', 'swarmTactics'], effect: {}, unlocks: 'Matrioshka Brain (megastructure)', desc: 'Nested shells of computers around a star: a mind the size of a solar system.' },
+  intergalacticDrive: { name: 'Intergalactic Drive', branch: 'rocketry', tier: 22, req: ['relayNetwork', 'antimatterProduction'], effect: {}, unlocks: 'Expeditions to other galaxies', desc: 'Antimatter, exotic matter and the relays: two and a half million light-years in ten days.' },
+  ringworlds: { name: 'Ringworld Engineering', branch: 'engineering', tier: 23, req: ['matrioshkaBrains', 'domeWorlds'], effect: {}, unlocks: 'Ringworld (megastructure)', desc: 'A band of land around a star, spun for gravity, walled to hold the air.' },
+  transcendence: { name: 'Transcendence Studies', branch: 'life', tier: 24, req: ['intergalacticDrive', 'ringworlds'], effect: { mult: { science: 0.2, credits: 0.1 } }, desc: 'What the Ascendants became, and how. Science +20%, credits +10%.' },
 };
 // science 60·3.6^(T-1) and credits 200·3.2^(T-1) up to tier 8, then ×2 / ×1.9 per tier (tracks the empire's
 // income instead of exploding); clamped under the storage guaranteed at the tech's Mission Control gate
@@ -127,7 +134,8 @@ const HQ_GATE = { orbital: 4, satComms: 4, lifeSupport: 4, crewed: 5, cryo: 5, d
   beltSettlement: 12, solarFurnace: 12, radiationShielding: 12, fusionDrive: 12, gasGiantScoops: 12, cometCapture: 12, magnetosphere: 12, xenobiology: 13, cryoHabitats: 13, hydrosphere: 13, spaceElevator: 13, extremophiles: 13, advancedFusion: 13, ecopoiesis: 14,
   laserSails: 13, exoplanetology: 13, sleeperShips: 14, starColonies: 14, dysonSwarm: 14, casimirEffect: 15, ramjets: 15, domeWorlds: 15, xenoarchaeology: 15, interstellarTrade: 16, warpTheory: 16, warpDrive: 17, wormholeGates: 17,
   contactProtocols: 16, xenolinguistics: 16, xenodiplomacy: 17, upliftEthics: 17,
-  navalWarfare: 17, planetaryDefence: 18, guidedOrdnance: 18, capitalShips: 18, swarmTactics: 19, carrierWarfare: 19 };
+  navalWarfare: 17, planetaryDefence: 18, guidedOrdnance: 18, capitalShips: 18, swarmTactics: 19, carrierWarfare: 19,
+  antimatterProduction: 18, relayNetwork: 18, matrioshkaBrains: 19, intergalacticDrive: 19, ringworlds: 20, transcendence: 20 };
 for (const k in HQ_GATE) if (TECH[k]) TECH[k].hq = HQ_GATE[k];
 // tier 1 ≈ 1 min, 3 ≈ 1 h, 5 ≈ 12 h, 6 ≈ 1 day, 7 ≈ 2 days, 8 ≈ 4 days, 9+ a week or more (before speed bonuses)
 export const techTime = (t) => t.time || Math.round(ladder(3 + 3.6 * (t.tier - 1)));

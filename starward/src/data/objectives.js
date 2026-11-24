@@ -137,5 +137,49 @@ export const CHAPTERS = [
       { id: 'y8', text: 'Form an alliance', kind: 'deal', deal: 'alliance', reward: { dm: 300, credits: 3000000000 } },
     ],
   },
+  {
+    id: 'ch11', name: 'Chapter 11 · The Swarm', intro: 'Humanity built ships to explore. Now it must build ships to survive. The Kr\'thul do not negotiate twice.',
+    steps: [
+      { id: 'z1', text: 'Research Naval Warfare', kind: 'tech', id2: 'navalWarfare', reward: { metal: 2000000000, dm: 100 } },
+      { id: 'z2', text: 'Build a fleet of 20 warships (Fleet screen)', kind: 'warships', n: 20, reward: { credits: 2000000000, dm: 100 } },
+      { id: 'z3', text: 'Research Planetary Defence', kind: 'tech', id2: 'planetaryDefence', reward: { science: 400000000, dm: 100 } },
+      { id: 'z4', text: 'Fortify a colony to defence level 2', kind: 'defence', lvl: 2, reward: { dm: 120, metal: 3000000000 } },
+      { id: 'z5', text: 'Destroy the Kr\'thul hive at Ross 154', kind: 'hive', hive: 'ross154', reward: { dm: 200, xeno: 20000 } },
+      { id: 'z6', text: 'Research Capital Ships', kind: 'tech', id2: 'capitalShips', reward: { dm: 150, rare: 200000 } },
+    ],
+  },
+  {
+    id: 'ch12', name: 'Chapter 12 · The Brood Queen', intro: 'Three hives stand between us and Kapteyn\'s Star. Beyond them waits the mind of the Swarm.',
+    steps: [
+      { id: 'za1', text: 'Destroy the hive at Luyten 726-8', kind: 'hive', hive: 'uvceti', reward: { dm: 250, credits: 8000000000 } },
+      { id: 'za2', text: 'Build a fleet of 150 warships', kind: 'warships', n: 150, reward: { dm: 200, metal: 8000000000 } },
+      { id: 'za3', text: 'Destroy the hive at Lacaille 9352', kind: 'hive', hive: 'lacaille', reward: { dm: 300, exotic: 5000 } },
+      { id: 'za4', text: 'Research Carrier Warfare', kind: 'tech', id2: 'carrierWarfare', reward: { dm: 200, science: 1000000000 } },
+      { id: 'za5', text: 'Kill the Brood Queen at Kapteyn\'s Star', kind: 'hive', hive: 'kapteyn', reward: { dm: 1000, credits: 30000000000 } },
+    ],
+  },
+  {
+    id: 'ch13', name: 'Chapter 13 · The Dark Between Galaxies', intro: 'The Milky Way is ours to explore for a million years. The Hollow relays point further.',
+    steps: [
+      { id: 'b1', text: 'Research Antimatter Production', kind: 'tech', id2: 'antimatterProduction', reward: { exotic: 20000, dm: 200 } },
+      { id: 'b2', text: 'Build an Antimatter Factory', kind: 'build', b: 'antimatter', lvl: 1, reward: { antimatter: 500, dm: 150 } },
+      { id: 'b3', text: 'Research the Relay Network', kind: 'tech', id2: 'relayNetwork', reward: { xeno: 50000, dm: 150 } },
+      { id: 'b4', text: 'Wake the first relay (Beyond screen)', kind: 'relay', n: 1, reward: { dm: 200, credits: 20000000000 } },
+      { id: 'b5', text: 'Research the Intergalactic Drive', kind: 'tech', id2: 'intergalacticDrive', reward: { dm: 200, antimatter: 1000 } },
+      { id: 'b6', text: 'Send an expedition to the Sagittarius Dwarf galaxy', kind: 'galaxy', gal: 'sagdeg', reward: { dm: 300, exotic: 50000 } },
+      { id: 'b7', text: 'Visit the Veyari home in the Large Magellanic Cloud', kind: 'galaxy', gal: 'lmc', reward: { dm: 400, science: 5000000000 } },
+    ],
+  },
+  {
+    id: 'ch14', name: 'Chapter 14 · The Ascendants', intro: 'Every civilisation in Andromeda is listening to the same voice. It is time to answer it.',
+    steps: [
+      { id: 'c1', text: 'Build the first shell of a Matrioshka Brain', kind: 'mega', mega: 'matrioshka', n: 1, reward: { dm: 300, science: 10000000000 } },
+      { id: 'c2', text: 'Reach the Small Magellanic Cloud', kind: 'galaxy', gal: 'smc', reward: { dm: 400, xeno: 200000 } },
+      { id: 'c3', text: 'Cross to Andromeda', kind: 'galaxy', gal: 'andromeda', reward: { dm: 600, credits: 100000000000 } },
+      { id: 'c4', text: 'Raise a Ringworld', kind: 'mega', mega: 'ringworld', n: 1, reward: { dm: 500, metal: 200000000000 } },
+      { id: 'c5', text: 'Survey the Triangulum galaxy', kind: 'galaxy', gal: 'triangulum', reward: { dm: 600, rare: 100000000 } },
+      { id: 'c6', text: 'Find the Far Shore', kind: 'galaxy', gal: 'farshore', reward: { dm: 2000 } },
+    ],
+  },
 ];
 export const allSteps = () => CHAPTERS.flatMap((c) => c.steps.map((s) => ({ ...s, ch: c.id })));

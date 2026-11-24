@@ -30,6 +30,10 @@ export function battle(compA, compB, seed, opt = {}) {
   const left = (X) => Object.fromEntries(X.filter((x) => x.n > 0).map((x) => [x.k, x.n])); const aw = alive(A).length > 0 && alive(B).length === 0;
   return { win: aw, rounds, leftA: left(A), leftB: left(B), startA: compA, startB: compB, seed };
 }
+// battle forecast: run the real simulator over a few seeds (the weapons triangle and shields matter more than raw numbers)
+export function forecast(compA, compB, opt = {}, n = 6) { if (!Object.values(compA).some((x) => x > 0)) return 0; let w = 0; for (let k = 0; k < n; k++) if (battle(compA, compB, 9001 + k * 7919, opt).win) w++; return w / n; }
+export const raidForecast = (s, raid, withFleet) => { const W = war(s); const defA = { ...defComp(s, raid.target), ...(withFleet ? W.ships : {}) }; return 1 - forecast(raid.comp, defA, { shieldB: shieldOf(s, raid.target), mulB: s.tech.swarmTactics ? 1.25 : 1 }); };
+export const assaultForecast = (s, id) => forecast(war(s).ships, hiveLeft(s, id), { mulA: s.tech.swarmTactics ? 1.25 : 1 });
 export const power = (comp) => Object.entries(comp).reduce((a, [k, n]) => a + Math.sqrt(UNIT(k).atk * UNIT(k).hp) * n, 0);
 // ---------------- warships ----------------
 export const fleet = (s) => ({ ...war(s).ships });
@@ -62,13 +66,13 @@ export function canAssault(s, id) { if (!s.tech.navalWarfare) return { ok: false
 export function startAssault(s, id, t = Date.now()) { const c = canAssault(s, id); if (!c.ok) return c; s.jobs.push({ id: uid(s), kind: 'sortie', hive: id, start: t, end: t + c.time * 1000 }); return c; }
 // ---------------- raids ----------------
 export const raidsOn = (s) => { const k = known(s, 'krthul'); return !!(k && !s.flags.queenDead && (s.flags.krthulAngered || (s.flags.krthulAnswered && !k.tribute) || s.flags.warDeclared)); };
-export function makeRaid(s, t) { const W = war(s); const T = targets(s); if (!T.length) return null; const R = rng((t / 1000) >>> 0); const tg = T[Math.floor(R() * T.length)]; const S = 1 + W.raidsSeen * 0.18;
+export function makeRaid(s, t) { const W = war(s); const T = targets(s); if (!T.length) return null; const R = rng((t / 1000) >>> 0); const tg = T[Math.floor(R() * T.length)]; const S = 1 + Math.min(W.raidsSeen, 30) * 0.15;
   const raid = { id: uid(s), target: tg.key, name: tg.name, comp: { drone: Math.round(45 * S), warrior: Math.round(6 * S), brood: Math.round(0.6 * S) }, eta: t + 8 * 3600e3, seed: (t / 1000) >>> 0 }; W.raids.push(raid); W.raidsSeen++; return raid; }
 function resolveRaid(s, raid) { const W = war(s); const here = W.fleetAt === raid.target && !fleetBusy(s); const defA = { ...defComp(s, raid.target), ...(here ? W.ships : {}) };
   const res = battle(raid.comp, defA, raid.seed, { shieldB: shieldOf(s, raid.target), mulB: s.tech.swarmTactics ? 1.25 : 1 }); // the Swarm attacks; we defend
   if (here) for (const k of Object.keys(W.ships)) W.ships[k] = res.leftB[k] || 0;
   const rep = { t: raid.eta, kind: 'raid', name: raid.name, win: !res.win, res: { ...res, rounds: res.rounds } };
-  if (res.win) { const loot = { credits: Math.min(5e8, Math.floor((s.res.credits || 0) * 0.08)), metal: Math.min(5e8, Math.floor((s.res.metal || 0) * 0.08)) }; for (const r in loot) s.res[r] -= loot[r]; W.blockade[raid.target] = raid.eta + 12 * 3600e3; rep.loot = loot; }
+  if (res.win) { const loot = { credits: Math.min(3e8, Math.floor((s.res.credits || 0) * 0.05)), metal: Math.min(3e8, Math.floor((s.res.metal || 0) * 0.05)) }; for (const r in loot) s.res[r] -= loot[r]; W.blockade[raid.target] = raid.eta + 12 * 3600e3; rep.loot = loot; }
   else { const sal = { metal: round2(power(raid.comp) * 2000), xeno: 300 + W.raidsSeen * 50 }; give(s, sal); rep.salvage = sal; }
   W.log.unshift(rep); W.log = W.log.slice(0, 12); return rep; }
 // once a second (and on catch-up): resolve raids that arrived, launch new ones

@@ -12,6 +12,7 @@ import { completeSolar, sol, terraStage } from './solar.js';
 import { completeStars, ist } from './stars.js';
 import { completeAliens, al, discoverLife } from './aliens.js';
 import { completeWar, war } from './war.js';
+import { completeBeyond, bey } from './beyond.js';
 import { curve, round2, timeCurve } from '../util.js';
 
 export const costOf = (id, L, m) => { const d = BUILDINGS[id]; const out = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
@@ -88,6 +89,7 @@ function complete(s, j) {
   if (['sail', 'drive', 'mega', 'gatebuild', 'develop', 'star'].includes(j.kind)) { const n = completeStars(s, j); if (n && n.kind === 'starcolony') n.life = discoverLife(s, n.star, +n.key.split(':')[1]); return n; }
   if (['decipher', 'embassy', 'uplift', 'dig'].includes(j.kind)) return completeAliens(s, j);
   if (['warship', 'defence', 'sortie'].includes(j.kind)) return completeWar(s, j);
+  if (j.kind === 'relay' || j.kind === 'expedition') return completeBeyond(s, j);
   return completeSpace(s, j);
 }
 // advance the world to time t (handles offline gaps exactly). Returns notifications in order.
@@ -161,6 +163,8 @@ export function stepDone(s, st, R = rates(s)) {
     case 'defence': return Object.values(war(s).def).some((L) => L >= (st.lvl || 1));
     case 'raidWon': return war(s).log.some((r) => r.kind === 'raid' && r.win) || !!s.flags.raidRepelled;
     case 'hive': return !!war(s).hives[st.hive + '_done'];
+    case 'relay': return bey(s).relay >= st.n;
+    case 'galaxy': return !!bey(s).visited[st.gal];
     case 'buildOn': return !!s.bases[st.base] && Object.values(s.bases[st.base].lots).some((l) => l.b === st.b && l.lvl >= (st.lvl || 1));
   }
   return false;

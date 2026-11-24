@@ -159,6 +159,11 @@ export const BUILDINGS = {
     cost: { credits: [4e7, 1.7], metal: [2.5e7, 1.7] }, time: [17, 1.8], prod: { xeno: [25, 1.24], influence: [8, 1.22] }, cap: { xeno: [10000, 1.5], influence: [4000, 1.5] }, draw: [60, 1.15],
     desc: 'Linguists, xenobiologists and diplomats under one roof. Makes xenodata and influence; each level deciphers languages 5% faster.',
   },
+  antimatter: {
+    name: 'Antimatter Factory', icon: 'antimatter', size: 2, bases: ['earth', 'mars', 'ceres', 'titan'], max: 20, cat: 'production', count: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3], req: { tech: 'antimatterProduction' },
+    cost: { credits: [6e9, 1.6], metal: [5e9, 1.6], exotic: [2000, 1.5] }, time: [18, 1.7], prod: { antimatter: [6, 1.24] }, cap: { antimatter: [1500, 1.5] }, draw: [400, 1.15], jobs: [20, 1.06],
+    desc: 'A ring accelerator that smashes protons into antiprotons and traps them in magnetic bottles. Fuel for intergalactic drives.',
+  },
 };
 // command level → building lots open (Earth)
 export const allowedLevel = (def, hq) => Math.min(def.max, def.lot === 'hq' ? def.max : hq * 2 + (def.cat === 'core' ? 0 : 0));

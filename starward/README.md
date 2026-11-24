@@ -3,7 +3,7 @@
 
 A slow-and-steady space empire builder for web portals: Clash of Clans' tactile base building, OGame's patient asynchronous empire and a 4X's alien civilisations. Research, build and upgrade in real time (timers keep running while you're away). Launch rockets and satellites, settle the Moon and planets, terraform worlds, cross interstellar space, meet alien species (some friendly, some not) and spread across galaxies.
 
-> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-5 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar, Contact) are playable.**
+> **Status: in development.** It's built in 8 parts (see [DESIGN.md](DESIGN.md) §11). **Parts 1-7 (Foundation & Earth, Orbit & Moon, the Solar System, Interstellar, Contact, Conflict, Beyond) are playable.** Part 8 is the polish and ship pass.
 
 - 🎮 **Play locally:** from the repo root run `python3 -m http.server 8080`, then open http://localhost:8080/starward/
 - 📦 **Build portal packages:** `node tools/build.mjs` (inside `starward/`) creates `dist/starward-{crazygames,poki,web}.zip`
@@ -58,6 +58,22 @@ A slow-and-steady space empire builder for web portals: Clash of Clans' tactile 
 - **Moral choices:** observe, exploit or uplift the minor species, and the Veyari remember what you did. Pay the **Kr'thul** tribute or refuse them (Part 6 is coming). Excavate the **Hollow ruins**, and log alien life on settled worlds in a codex.
 - **Procedural portraits** for every species, the Xenology Institute building, 4 new techs (89 in all) and Chapters 9-10.
 
+## Part 6: Conflict (done)
+- **Fleet Command:** six warship classes (corvette, frigate, destroyer, cruiser, battleship, carrier) built in batches at the war docks, with a weapons triangle. Lasers shred small hulls, missiles crack capital ships, and railguns punch through shields.
+- **Planetary defences** (laser batteries, missile silos and shields, 10 levels) for every colony and star colony.
+- **Kr'thul raids** if you refuse their tribute (or start the war): each raid is detected 8 hours out with its composition scouted, so you can send the fleet to intercept or trust the defences. A lost battle costs plunder and a 12-hour blockade (half output), never buildings.
+- **A deterministic battle simulator** (round-based, stack-vs-stack, seeded) with **animated replays:** beams, missile arcs, railgun streaks, explosions and live counts.
+- **The campaign:** three Kr'thul hives at real stars (Ross 154, Luyten 726-8, Lacaille 9352), then the **Brood Queen** at Kapteyn's Star. Garrisons persist between assaults, and victory brings spoils and ends the raids.
+- 6 new techs (95 in all) and Chapters 11-12. Fleet values are calibrated against the economy: roughly a day of income beats the first raid, about a week takes the first hive, and the Queen needs the late-game fleet with carriers.
+
+## Part 7: Beyond (done)
+- **The Local Group:** a map of the Milky Way's neighbourhood with real distances (Sagittarius Dwarf, the Large and Small Magellanic Clouds, Andromeda, Triangulum) and one last coordinate past Andromeda: the Far Shore.
+- **The Hollow Relay Network** (6 stages) and **expeditions** fuelled by antimatter and exotic matter. Each brings back a story and a permanent gift: the Veyari home in the LMC, the Hollow's last city in the SMC, Andromeda's listening civilisations, Triangulum's untouched riches.
+- **Endgame megaprojects** on the Sun's panel: the **Matrioshka Brain** (research) and the **Ringworld** (credits and living space). New Antimatter Factory building.
+- **Ascension:** at the Far Shore the Ascendants offer a new beginning. Reset the programme and keep your Ascension points, perks (prosperity, construction, research, head start, extra crews, dark reserves), achievements and dark matter: a prestige loop for years of play.
+- **30 achievements** that pay dark matter, and a **codex** of worlds, stars, civilisations, alien life and galaxies.
+- 6 new techs (101 in all) and Chapters 13-14 (110 objectives across 14 chapters).
+
 ## Balance
 `node tools/sim.mjs` runs a bot through the campaign on the real rules (see the header for engaged, casual and first-session modes). Pacing rules are in DESIGN.md §10.1.
 
@@ -83,4 +99,8 @@ src/render/stars.js the 3D Neighbourhood (and the Milky Way zoom-out)   src/ui/s
 src/data/aliens.js  the civilisations, first-contact openings, xenotech, requests, minor species, fauna
 src/core/aliens.js  discovery, contact, deciphering, relations, deals, embassies, requests, uplift, ruins
 src/render/portraits.js procedural alien portraits      src/ui/contact.js  the Contact screen
+src/data/war.js     warships, defences, the Swarm, hives      src/core/war.js  battle simulator, raids, fleet, assaults
+src/render/battle.js battle replays                            src/ui/war.js    Fleet Command
+src/data/beyond.js  the Local Group, expeditions, endgame megaprojects, Ascension perks
+src/core/beyond.js  relays, expeditions, Ascension, achievements    src/ui/beyond.js  the Beyond screen
 ```
