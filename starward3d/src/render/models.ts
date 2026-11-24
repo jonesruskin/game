@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { Kit, shade, mix, MATS } from './kit';
 import { ELEMENTS } from '../data/elements';
 export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; }
-export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: { working?: boolean; ready?: number }) => void; }
+export interface AnimState { working?: boolean; ready?: number; cores?: { color: string; ready: boolean }[]; }
+export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: AnimState) => void; }
 const STEEL = '#c8d0da', DARK = '#3a4250', GLASSC = '#bfe9ff', WIN = '#ffe9a8';
 function glowMesh(geo: THREE.BufferGeometry, color: string) { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, toneMapped: false })); return m; }
 function flag(look: Look, w = 0.7, h = 0.45) {
@@ -91,6 +92,32 @@ function fab(lvl: number, look: Look): Model {
   return { group: g, height: 2.1, anim: (t, s) => { const f = s.ready ? 1 : s.working ? 0.15 + 0.7 * ((t * 0.08) % 1) : 0.08; liquid.scale.y = THREE.MathUtils.lerp(liquid.scale.y || 0.1, f * 1.2, 0.08);
     arm.rotation.y = s.working ? Math.sin(t * 2.4) * 0.9 : 0; (liquid.material as THREE.MeshBasicMaterial).color.set(s.ready ? (Math.sin(t * 5) > 0 ? '#c8ff7a' : CELL) : CELL); } };
 }
+// ---------------- Assembly Bay ----------------
+function assembly(lvl: number, look: Look): Model {
+  const k = new Kit(), P = look.primary, A = look.accent; const pods = Math.min(3, 1 + Math.floor((lvl - 1) / 3));
+  k.box(2.8, 0.2, 2.8, shade(P, -0.2), 0, 0, 0); k.box(2.6, 0.05, 0.4, '#ffcc33', 0, 0.2, 1.05); k.box(2.0, 0.6, 0.7, P, 0, 0.2, -0.95); k.box(2.04, 0.06, 0.74, A, 0, 0.8, -0.95); k.box(1.4, 0.1, 0.02, WIN, 0, 0.55, -0.59, { glow: true });
+  const xs = [-0.85, 0, 0.85]; for (let i = 0; i < 3; i++) { const on = i < pods; k.cyl(0.36, 0.4, 0.14, 12, on ? STEEL : DARK, xs[i], 0.2, 0.15); if (on) { k.cyl(0.32, 0.32, 0.9, 12, GLASSC, xs[i], 0.34, 0.15, { glass: true }); k.cyl(0.36, 0.36, 0.08, 12, A, xs[i], 1.24, 0.15); } }
+  const g = k.build('assembly');
+  // gantry arm sweeping across the pods
+  const arm = new THREE.Group(); const ak = new Kit(); ak.box(0.08, 1.5, 0.08, '#ffb23e', -1.3, 0, -0.3); ak.box(2.7, 0.08, 0.08, '#ffb23e', 0, 1.5, -0.3); ak.box(0.12, 0.3, 0.12, DARK, 0, 1.22, -0.3); arm.add(ak.build()); arm.position.y = 0.2; g.add(arm);
+  const coreM: THREE.Mesh[] = []; for (let i = 0; i < 3; i++) { const m = glowMesh(new THREE.IcosahedronGeometry(0.17, 1), '#ffffff'); m.position.set(xs[i], 0.8, 0.15); m.visible = false; g.add(m); coreM.push(m); }
+  return { group: g, height: 1.8, anim: (t, s) => { const cs = s.cores || []; coreM.forEach((m, i) => { const c = cs[i]; m.visible = !!c && i < pods; if (!c) return; (m.material as THREE.MeshBasicMaterial).color.set(c.color);
+      m.rotation.y = t * (c.ready ? 3 : 1.2); m.rotation.x = t * 0.7; const pulse = c.ready ? 1 + Math.sin(t * 6) * 0.15 : 0.85 + Math.sin(t * 2 + i) * 0.08; m.scale.setScalar(pulse); m.position.y = 0.8 + Math.sin(t * 1.5 + i) * 0.05; });
+    arm.position.x = cs.some((c) => !c.ready) ? Math.sin(t * 0.9) * 0.8 : arm.position.x * 0.95; } };
+}
+// ---------------- Fusion Lab ----------------
+function fusionLab(lvl: number, look: Look): Model {
+  const k = new Kit(), P = look.primary, A = look.accent;
+  k.box(3.8, 0.22, 2.8, shade(P, -0.2), 0, 0, 0); k.box(3.6, 0.04, 0.3, A, 0, 0.22, 1.15, { glow: true });
+  for (const x of [-1.25, 1.25]) { k.cyl(0.62, 0.7, 0.35, 12, P, x, 0.22, 0); k.cyl(0.66, 0.66, 0.06, 12, A, x, 0.57, 0); k.sphere(0.58, GLASSC, x, 0.62, 0, { theta: Math.PI / 2, w: 16, h: 7, glass: true }); k.cyl(0.4, 0.4, 0.03, 14, '#b06dff', x, 0.6, 0, { glow: true }); }
+  k.cyl(0.22, 0.3, 1.0 + Math.min(0.4, lvl * 0.04), 10, STEEL, 0, 0.22, 0); k.box(2.0, 0.12, 0.18, DARK, 0, 0.62, 0); k.box(0.7, 0.5, 0.6, P, 0, 0.22, -0.95); k.box(0.5, 0.08, 0.02, WIN, 0, 0.5, -0.64, { glow: true });
+  const g = k.build('fusion'); const top = 1.25 + Math.min(0.4, lvl * 0.04);
+  const ring = new THREE.Group(); const rk = new Kit(); rk.add(new THREE.TorusGeometry(0.55, 0.07, 8, 32), A); rk.add(new THREE.TorusGeometry(0.42, 0.03, 6, 28), '#b06dff', 0, 0, 0, { glow: true }); ring.add(rk.build()); ring.position.y = top; g.add(ring);
+  const orb = glowMesh(new THREE.IcosahedronGeometry(0.16, 1), '#e2c8ff'); orb.position.y = top; g.add(orb);
+  const beam = glowMesh(new THREE.CylinderGeometry(0.035, 0.035, 2.5, 6), '#d6b8ff'); beam.rotation.z = Math.PI / 2; beam.position.y = 0.95; beam.visible = false; g.add(beam);
+  return { group: g, height: top + 0.6, anim: (t, s) => { ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.5) * 0.2; ring.rotation.z = t * (s.working ? 4 : 0.4); orb.scale.setScalar(s.working ? 1 + Math.sin(t * 9) * 0.25 : 0.7);
+    beam.visible = !!s.working; beam.scale.x = 1 + Math.sin(t * 20) * 0.3; (orb.material as THREE.MeshBasicMaterial).color.set(s.ready ? '#fff2a8' : '#e2c8ff'); } };
+}
 // ---------------- decorations ----------------
 function decor(t: string, look: Look): Model {
   const k = new Kit();
@@ -120,6 +147,8 @@ export function buildModel(t: string, lvl: number, el: string | undefined, look:
   if (t === 'command') return command(L, look);
   if (t === 'bay') return bay(L, el || 'solar', look);
   if (t === 'fab') return fab(L, look);
+  if (t === 'assembly') return assembly(L, look);
+  if (t === 'fusion') return fusionLab(L, look);
   return decor(t, look);
 }
 // construction scaffold drawn over a building in progress

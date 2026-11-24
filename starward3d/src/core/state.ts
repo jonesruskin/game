@@ -1,15 +1,17 @@
 // Save format. Everything the colony is; versioned so later parts can migrate old saves.
 import { uid } from './util';
+import { STEPS } from '../data/progress';
 export const VERSION = 1;
 export interface Item { id: string; t: string; el?: string; lvl: number; x: number; z: number; r: number; }
-export interface BotRec { id: string; sp: string; lvl: number; fed: number; bay: string | null; nick?: string; born: number; }
-export interface Job { id: string; kind: 'build' | 'craft'; item: string; start: number; end: number; lvl?: number; recipe?: number; }
+export interface BotRec { id: string; sp: string; lvl: number; fed: number; bay: string | null; nick?: string; born: number; post?: string; stored?: boolean; }
+export interface Core { id: string; sp: string; from: 'fusion' | 'shop' | 'gift'; state: 'waiting' | 'booting' | 'ready'; at: number; }
+export interface Job { id: string; kind: 'build' | 'craft' | 'fuse' | 'boot'; item: string; start: number; end: number; lvl?: number; recipe?: number; sp?: string; core?: string; parents?: [string, string]; }
 export interface State {
   v: number; created: number; last: number; name: string;
   res: { credits: number; cells: number; dm: number };
   xp: number; lvl: number;
   isl: { plots: string[]; items: Item[] };
-  bots: BotRec[]; jobs: Job[];
+  bots: BotRec[]; jobs: Job[]; cores: Core[]; dex: Record<string, number>;
   bay: Record<string, number>;
   ready: Record<string, { cells: number; xp: number }>;
   obj: { i: number; claimed: Record<string, number> };
@@ -28,7 +30,7 @@ export function fresh(now = Date.now()): State {
     isl: { plots: ['1,1', '2,1', '3,1', '1,2', '2,2', '3,2', '1,3', '2,3', '3,3'],
       items: [cc, bay, fab, item('tree', 12, 9), item('tree', 17, 18), item('rock', 8, 19), item('tree', 9, 18), item('path', 14, 17), item('path', 15, 17), item('path', 14, 18), item('path', 15, 18)] },
     bots: [{ id: uid('b'), sp: 'helio', lvl: 1, fed: 0, bay: bay.id, born: now }],
-    jobs: [], bay: { [bay.id]: 120 }, ready: {},
+    jobs: [], cores: [], dex: { helio: now }, bay: { [bay.id]: 120 }, ready: {},
     obj: { i: 0, claimed: {} }, stats: {},
     settings: { sfx: 0.8, music: 0.45, quality: 'auto' },
     paint: { primary: '#e9eef5', accent: '#22c7e8' },
@@ -41,5 +43,8 @@ export function migrate(s: State): State {
   const f = fresh(s.created || Date.now()) as any; const o = s as any;
   for (const k in f) if (o[k] === undefined) o[k] = f[k];
   for (const k in f.settings) if ((o.settings as any)[k] === undefined) (o.settings as any)[k] = f.settings[k];
+  for (const b of s.bots) if (!s.dex[b.sp]) s.dex[b.sp] = b.born || Date.now();
+  // missions are tracked by id: resume at the first one not yet claimed (steps can be reordered between versions)
+  const i = STEPS.findIndex((st) => !s.obj.claimed[st.id]); s.obj.i = i < 0 ? STEPS.length : i;
   s.v = VERSION; return s;
 }

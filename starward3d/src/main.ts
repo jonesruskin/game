@@ -11,9 +11,11 @@ import { UI } from './ui/ui';
 import { Audio } from './audio';
 import { $, fmt, esc } from './core/util';
 import { BUILDINGS, landCost, landLevel } from './data/buildings';
+import { SPECIES } from './data/species';
+import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
 export class App {
-  version = '0.1'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; world!: World; studio!: Studio; ui!: UI; private last = performance.now(); private saveAt = 0; private queue: (() => void)[] = [];
+  version = '0.2'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; world!: World; studio!: Studio; ui!: UI; private last = performance.now(); private saveAt = 0; private queue: (() => void)[] = [];
   async boot() {
     await this.platform.init(); this.platform.loadingStart();
     const raw = this.platform.load(SAVE_KEY); let s: State; try { s = raw ? migrate(JSON.parse(raw)) : fresh(); } catch (e) { console.warn('save unreadable, starting fresh', e); s = fresh(); }
@@ -38,13 +40,18 @@ export class App {
       if (e.kind === 'levelup') { this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.levelUp(e.lvl, e.reward)); this.ui.renderHud(); }
       else if (e.kind === 'built') { this.audio.play('done'); const p = this.world.topOf(e.item); this.changed(); const it = G.item(this.s, e.item); if (it) { const at = this.world.topOf(it.id); if (at) this.world.burst(at, '#ffd36a', 30); this.ui.toast(`${it.t === 'bay' ? 'Bay' : BUILDINGS[it.t].name} ${e.first ? 'is ready' : `reached level ${e.lvl}`}!`, 'good'); } void p; }
       else if (e.kind === 'crafted') { this.changed(); }
+      else if (e.kind === 'discover') { this.ui.toast(`New species in the Botdex: +${e.dm} Dark Matter`, 'gold'); }
+      else if (e.kind === 'fused') { this.audio.play('done'); this.changed(); this.ui.toast(`Fusion complete: a ${RARITIES[SPECIES[e.sp].rarity].name} core is in the Assembly Bay`, 'gold'); }
+      else if (e.kind === 'booted') { this.audio.play('claim'); this.changed(); this.ui.toast(`A ${RARITIES[SPECIES[e.sp].rarity].name} core has booted: activate it in the Assembly Bay`, 'good'); }
+      else if (e.kind === 'core') { this.changed(); }
       else if (e.kind === 'land') this.changed(); }
     if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
   private enqueue(fn: () => void) { this.queue.push(fn); }
   changed() { this.world.sync(this.s); this.ui.renderObjIfChanged(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
   save() { try { this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } }
   // ---------------- taps ----------------
-  private tapped(h: { item?: string; plot?: string; tile?: [number, number] }) { this.audio.unlock(); const s = this.s;
+  private tapped(h: { item?: string; plot?: string; tile?: [number, number]; bot?: string }) { this.audio.unlock(); const s = this.s;
+    if (h.bot) { this.ui.selectBot(h.bot); this.audio.play('tap'); return; }
     if (h.item) { const it = G.item(s, h.item); if (!it) return;
       if (it.t === 'bay' && (s.bay[it.id] || 0) >= 1 && !G.jobOf(s, it.id, 'build')) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
       if (it.t === 'fab' && s.ready[it.id]) { this.harvest(it); this.ui.select(it.id); return; }

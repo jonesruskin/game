@@ -5,6 +5,8 @@ import { BUILDINGS, bayLimit, fabLimit, CC_REQ, bayCapacity, bayStore, RECIPES, 
 import { SPECIES } from '../data/species';
 import { RARITIES } from '../data/rarities';
 import { xpNeed, levelReward, MAX_LEVEL, STEPS, Step } from '../data/progress';
+import { addCore, pumpAssembly, discover, helperBonus, homeFor, dexCount, coreOf } from './crew';
+export { homeFor };
 export type Res = 'credits' | 'cells' | 'dm';
 export interface Ev { kind: string; [k: string]: any; }
 // events the UI reacts to (level-ups, completions); drained by the app each frame
@@ -42,7 +44,7 @@ export function canBuild(s: State, t: string, el?: string): Check {
   if (d.unique && owned) return { ok: false, why: 'Already built' };
   if (t === 'bay' && owned >= bayLimit(cc)) return { ok: false, why: `Bay limit (${bayLimit(cc)}): upgrade the Command Center` };
   if (t === 'fab' && owned >= fabLimit(cc)) return { ok: false, why: `Fabricator limit (${fabLimit(cc)}): upgrade the Command Center` };
-  const cost = t === 'bay' && el && !itemsOf(s, 'bay').some((b) => b.el === el) ? Math.round(d.buildCost(Math.max(0, owned - 1)) * 0.7) : d.buildCost(owned); const time = d.time(1);
+  const cost = t === 'bay' && el && !itemsOf(s, 'bay').some((b) => b.el === el) ? Math.round(d.buildCost(Math.max(0, owned - 1)) * 0.7) : d.buildCost(owned); const time = Math.round(d.time(1) * buildSpeed(s));
   if (time > 0 && buildersBusy(s) >= s.builders) return { ok: false, why: 'All builder drones are busy', cost, time };
   if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost, time };
   return { ok: true, cost, time };
@@ -63,7 +65,7 @@ export function canUpgrade(s: State, it: Item): Check {
   if (it.t !== 'command' && it.lvl >= ccLevel(s)) return { ok: false, why: `Upgrade the Command Center to level ${it.lvl + 1} first` };
   if (it.t === 'command' && s.lvl < CC_REQ[it.lvl + 1]) return { ok: false, why: `Commander level ${CC_REQ[it.lvl + 1]} needed` };
   if (it.t === 'fab' && jobOf(s, it.id, 'craft')) return { ok: false, why: 'Finish or harvest the recipe first' };
-  const cost = d.upCost(it.lvl), time = d.time(it.lvl + 1);
+  const cost = d.upCost(it.lvl), time = Math.round(d.time(it.lvl + 1) * (it.t === 'command' ? 1 : buildSpeed(s)));
   if (buildersBusy(s) >= s.builders) return { ok: false, why: 'All builder drones are busy', cost, time };
   if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost, time };
   return { ok: true, cost, time };
@@ -73,6 +75,7 @@ export function upgrade(s: State, it: Item, now = Date.now()): Check {
   s.jobs.push({ id: uid('j'), kind: 'build', item: it.id, start: now, end: now + (c.time || 0) * 1000, lvl: it.lvl + 1 }); return c;
 }
 const xpFor = (cost: number) => Math.max(5, Math.round(cost / 15));
+const buildSpeed = (s: State) => { const cc = itemsOf(s, 'command')[0]; return cc ? 1 - helperBonus(s, cc) : 1; };
 export function moveItem(s: State, it: Item, x: number, z: number, r: number) { const [w, d] = dims({ t: it.t, r }); if (!areaFree(s, x, z, w, d, it.id)) return false; it.x = x; it.z = z; it.r = r; return true; }
 export function sellDecor(s: State, it: Item) { if (BUILDINGS[it.t].cat !== 'decor') return false; s.isl.items = s.isl.items.filter((i) => i !== it); s.res.credits += Math.floor(BUILDINGS[it.t].buildCost(0) * 0.5); return true; }
 // dark matter to finish a timer now (free under a minute)
@@ -83,7 +86,7 @@ export const botEarn = (b: BotRec) => { const sp = SPECIES[b.sp]; return RARITIE
 export const BOT_MAX = 40;
 export const feedCost = (lvl: number) => Math.round(4 * Math.pow(1.33, lvl - 1));
 export const botsIn = (s: State, bayId: string) => s.bots.filter((b) => b.bay === bayId);
-export const bayRate = (s: State, bayId: string) => botsIn(s, bayId).reduce((a, b) => a + botEarn(b), 0) / 60; // credits per second
+export const bayRate = (s: State, bayId: string) => botsIn(s, bayId).filter((b) => !b.post).reduce((a, b) => a + botEarn(b), 0) / 60; // credits per second
 export const bayCap = (it: Item) => bayStore(Math.max(1, it.lvl));
 export function feed(s: State, b: BotRec): Check & { lvlUp?: boolean } {
   if (b.lvl >= BOT_MAX) return { ok: false, why: 'Maximum level' }; const c = feedCost(b.lvl); if (s.res.cells < c) return { ok: false, why: 'Not enough Power Cells', cost: c };
@@ -91,23 +94,22 @@ export function feed(s: State, b: BotRec): Check & { lvlUp?: boolean } {
   if (b.fed >= 4) { b.fed = 0; b.lvl++; up = true; emit({ kind: 'botLevel', bot: b.id, lvl: b.lvl }); }
   return { ok: true, cost: c, lvlUp: up };
 }
-// a bay of one of the species' elements with room for one more
-export function homeFor(s: State, sp: string, except?: string) { const els = SPECIES[sp].el;
-  return itemsOf(s, 'bay').filter((b) => b.lvl > 0 && b.el && els.includes(b.el) && b.id !== except && botsIn(s, b.id).length < bayCapacity(b.lvl)).sort((a, b) => botsIn(s, a.id).length - botsIn(s, b.id).length)[0]; }
 export function canRecruit(s: State, sp: string): Check {
   const d = SPECIES[sp]; if (!d || !d.price) return { ok: false, why: 'Not for sale' }; const owned = s.bots.filter((b) => b.sp === sp).length; const cost = Math.round(d.price * (1 + 0.5 * owned));
   if (s.lvl < (d.unlock || 1)) return { ok: false, why: `Commander level ${d.unlock}`, cost };
-  if (!homeFor(s, sp)) { const els = d.el.map((e) => e[0].toUpperCase() + e.slice(1)); const has = itemsOf(s, 'bay').some((b) => b.el && d.el.includes(b.el));
+  if (d.rarity !== 'standard') { const asm = itemsOf(s, 'assembly')[0]; if (!asm || asm.lvl < 1) return { ok: false, why: 'Build the Assembly Bay first: rarer bots boot there', cost }; }
+  else if (!homeFor(s, sp)) { const els = d.el.map((e) => e[0].toUpperCase() + e.slice(1)); const has = itemsOf(s, 'bay').some((b) => b.el && d.el.includes(b.el));
     return { ok: false, why: has ? `No room: upgrade or add a ${els.join('/')} Bay` : `Build a ${els.join(' or ')} Bay first`, cost }; }
   if (s.res.credits < cost) return { ok: false, why: 'Not enough credits', cost };
   return { ok: true, cost };
 }
 export function recruit(s: State, sp: string, now = Date.now()): Check & { bot?: BotRec } {
-  const c = canRecruit(s, sp); if (!c.ok) return c; s.res.credits -= c.cost || 0; const home = homeFor(s, sp)!;
-  const b: BotRec = { id: uid('b'), sp, lvl: 1, fed: 0, bay: home.id, born: now }; s.bots.push(b); stat(s, 'recruits'); addXp(s, 10 + Math.round((c.cost || 0) / 50)); emit({ kind: 'newBot', bot: b.id });
+  const c = canRecruit(s, sp); if (!c.ok) return c; s.res.credits -= c.cost || 0; stat(s, 'recruits'); addXp(s, 10 + Math.round((c.cost || 0) / 50));
+  if (SPECIES[sp].rarity !== 'standard') { const core = addCore(s, sp, 'shop', now); return { ...c, core: core.id } as any; }
+  const home = homeFor(s, sp)!; const b: BotRec = { id: uid('b'), sp, lvl: 1, fed: 0, bay: home.id, born: now }; s.bots.push(b); discover(s, sp, now); emit({ kind: 'newBot', bot: b.id });
   return { ...c, bot: b };
 }
-export function moveBot(s: State, b: BotRec, bayId: string) { const bay = item(s, bayId); if (!bay || !bay.el || !SPECIES[b.sp].el.includes(bay.el)) return false; if (botsIn(s, bayId).length >= bayCapacity(bay.lvl)) return false; b.bay = bayId; return true; }
+export function moveBot(s: State, b: BotRec, bayId: string) { const bay = item(s, bayId); if (!bay || !bay.el || !SPECIES[b.sp].el.includes(bay.el)) return false; if (b.bay === bayId) return false; if (botsIn(s, bayId).length >= bayCapacity(bay.lvl)) return false; b.bay = bayId; delete b.stored; return true; }
 export function collectBay(s: State, it: Item) { const n = Math.floor(s.bay[it.id] || 0); if (n <= 0) return 0; s.bay[it.id] -= n; s.res.credits += n; stat(s, 'collects'); stat(s, 'collected', n);
   const xf = (s.stats.xpFrac || 0) + n / 50; const xi = Math.floor(xf); s.stats.xpFrac = xf - xi; addXp(s, xi); return n; }
 // ---------------- fabricators ----------------
@@ -130,8 +132,10 @@ export function buyPlot(s: State, key: string) { const c = canBuyPlot(s, key); i
 // ---------------- time ----------------
 function complete(s: State, j: Job) {
   s.jobs = s.jobs.filter((x) => x !== j); const it = item(s, j.item); if (!it) return;
-  if (j.kind === 'build') { const first = it.lvl === 0; it.lvl = j.lvl || it.lvl + 1; const d = BUILDINGS[it.t]; addXp(s, xpFor(first ? d.buildCost(0) : d.upCost(it.lvl - 1))); emit({ kind: 'built', item: it.id, lvl: it.lvl, first }); }
-  if (j.kind === 'craft') { const r = RECIPES[j.recipe || 0]; s.ready[it.id] = { cells: fabOutput(r, Math.max(1, it.lvl)), xp: r.xp }; emit({ kind: 'crafted', item: it.id }); }
+  if (j.kind === 'build') { const first = it.lvl === 0; it.lvl = j.lvl || it.lvl + 1; const d = BUILDINGS[it.t]; addXp(s, xpFor(first ? d.buildCost(0) : d.upCost(it.lvl - 1))); emit({ kind: 'built', item: it.id, lvl: it.lvl, first }); if (it.t === 'assembly') pumpAssembly(s, j.end); }
+  if (j.kind === 'craft') { const r = RECIPES[j.recipe || 0]; s.ready[it.id] = { cells: Math.round(fabOutput(r, Math.max(1, it.lvl)) * (1 + helperBonus(s, it))), xp: r.xp }; emit({ kind: 'crafted', item: it.id }); }
+  if (j.kind === 'fuse' && j.sp) { const c = addCore(s, j.sp, 'fusion', j.end); emit({ kind: 'fused', item: it.id, core: c.id, sp: j.sp }); }
+  if (j.kind === 'boot') { const c = coreOf(s, j.core); if (c) { c.state = 'ready'; emit({ kind: 'booted', core: c.id, sp: c.sp }); } pumpAssembly(s, j.end); }
 }
 // integrate everything up to `now`: bays fill (capped) piecewise between job completions
 export function advance(s: State, now = Date.now()) {
@@ -157,6 +161,11 @@ export function stepDone(s: State, st: Step): boolean {
     case 'bots': return s.bots.length >= (st.n || 1);
     case 'level': return s.lvl >= (st.n || 1);
     case 'rarity': return s.bots.some((b) => SPECIES[b.sp].rarity === st.t);
+    case 'build': return itemsOf(s, st.t || '').some((i) => i.lvl > 0);
+    case 'fusions': return (s.stats.fusions || 0) >= (st.n || 1);
+    case 'boots': return (s.stats.boots || 0) >= (st.n || 1);
+    case 'helper': return s.bots.some((b) => !!b.post);
+    case 'dex': return dexCount(s) >= (st.n || 1);
   }
   return false;
 }

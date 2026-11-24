@@ -22,6 +22,10 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     buildCost: (n) => round2(150 * Math.pow(1.6, n)), upCost: (L) => round2(250 * Math.pow(1.9, L - 1)), time: (L) => tl(L, -1) },
   fab: { name: 'Fabricator', size: [3, 3], cat: 'production', max: 10, unlock: 1, desc: 'Prints Power Cells for your bots. Pick a recipe that matches when you will be back.',
     buildCost: (n) => round2(300 * Math.pow(2.4, n)), upCost: (L) => round2(400 * Math.pow(1.95, L - 1)), time: (L) => tl(L, -1) },
+  assembly: { name: 'Assembly Bay', size: [3, 3], cat: 'production', max: 10, unique: true, unlock: 4, desc: 'Boots new bot cores: from the shop, from the Fusion Lab and from events. More levels boot more cores at once, faster.',
+    buildCost: () => 1500, upCost: (L) => round2(1800 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 0) },
+  fusion: { name: 'Fusion Lab', size: [4, 3], cat: 'production', max: 10, unique: true, unlock: 5, desc: 'Fuses two bots of level 4 or more into a new core. The child may take after either parent, or be a hybrid of both: sometimes a rarer one.',
+    buildCost: () => 3000, upCost: (L) => round2(3500 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
   // decorations: the personal touch (no gameplay effect beyond XP on purchase)
   tree:     decor('Holo Tree', [1, 1], 40, 1, 'A glowing tree grown from engineered moss and fibre optics.'),
   rock:     decor('Moon Rock', [1, 1], 30, 1, 'A souvenir boulder. Every colony keeps one.'),
@@ -33,7 +37,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   dish:     decor('Dish Array', [2, 2], 900, 7, 'Listening to the stars, mostly for show.'),
   statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A monument to the bots who built the colony.'),
 };
-export const SHOP_ORDER = ['bay', 'fab', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
+export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
 // limits by Command Center level
 export const bayLimit = (cc: number) => 2 + cc;
 export const fabLimit = (cc: number) => 1 + Math.floor(cc / 3);
@@ -41,7 +45,12 @@ export const fabLimit = (cc: number) => 1 + Math.floor(cc / 3);
 export const CC_REQ = [0, 0, 2, 3, 5, 7, 9, 12, 15, 18, 21, 25, 29, 33, 38, 44];
 // Bays: bot capacity and credit storage by level
 export const bayCapacity = (L: number) => 2 + Math.floor((L - 1) / 3);
-export const bayStore = (L: number) => round2(400 * Math.pow(1.75, L - 1));
+export const bayStore = (L: number) => round2(400 * Math.pow(2, L - 1));
+// helpers: bots posted to a building boost it (and stop earning while they work)
+export const HELP_AFFINITY: Record<string, string[]> = { command: ['alloy', 'geo', 'kinetic'], fab: ['solar', 'volt', 'plasma'], fusion: ['neural', 'chrono', 'photon'], assembly: ['alloy', 'neural', 'volt'] };
+export const HELP_EFFECT: Record<string, string> = { command: 'construction speed', fab: 'Power Cells per recipe', fusion: 'fusion speed', assembly: 'boot speed' };
+export const helperSlots = (L: number) => 1 + (L >= 5 ? 1 : 0) + (L >= 9 ? 1 : 0);
+export const assemblySlots = (L: number) => 1 + Math.floor((Math.max(1, L) - 1) / 3);
 // Fabricator recipes: unlocked by Fabricator level; output grows 10% per level
 export interface Recipe { name: string; sec: number; cells: number; cost: number; xp: number; lvl: number; }
 export const RECIPES: Recipe[] = [

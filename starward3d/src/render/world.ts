@@ -10,8 +10,10 @@ import { State, Item } from '../core/state';
 import * as G from '../core/game';
 import { BUILDINGS } from '../data/buildings';
 import { clamp } from '../core/util';
+import { SPECIES } from '../data/species';
+import { RARITIES } from '../data/rarities';
 interface View { key: string; root: THREE.Group; model: Model; pick: THREE.Mesh; scaf?: THREE.Group; }
-interface BotView { key: string; model: BotModel; pos: THREE.Vector3; target: THREE.Vector3; wait: number; bay: string; }
+interface BotView { key: string; model: BotModel; pos: THREE.Vector3; target: THREE.Vector3; wait: number; bay: string; pick: THREE.Mesh; }
 export interface Ghost { t: string; el?: string; r: number; x: number; z: number; move?: string; ok: boolean; }
 export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; island = new IslandView(); backdrop: Backdrop;
@@ -20,7 +22,7 @@ export class World {
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostFoot: THREE.Mesh | null = null;
   selRing: THREE.Mesh; selected: string | null = null; t = 0; quality: 'high' | 'low';
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = [];
-  onTap: (hit: { item?: string; plot?: string; tile?: [number, number] }) => void = () => {};
+  onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string }) => void = () => {};
   onGhostMove: () => void = () => {};
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator as any).maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820;
@@ -67,6 +69,7 @@ export class World {
   private tap(cx: number, cy: number) {
     if (this.ghost) { this.ghostTo(cx, cy); return; }
     const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
+    const bh = this.ray.intersectObjects([...this.bots.values()].map((b) => b.pick), false)[0]; if (bh) { this.onTap({ bot: bh.object.userData.bot }); return; }
     const picks = [...this.views.values()].map((v) => v.pick); const hit = this.ray.intersectObjects(picks, false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
     const hp = this.ray.intersectObjects(this.island.holoMeshes(), false)[0]; if (hp) { this.onTap({ plot: hp.object.userData.plot }); return; }
     const g = this.groundAt(cx, cy); this.onTap(g ? { tile: [Math.floor(g.x + N / 2), Math.floor(g.z + N / 2)] } : {});
@@ -94,9 +97,11 @@ export class World {
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
     // bots live on their bay's docking pads and wander inside its footprint
     const bseen = new Set<string>();
-    for (const b of s.bots) { if (!b.bay) continue; const bay = G.item(s, b.bay); if (!bay) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
-      if (!bv || bv.key !== key || bv.bay !== b.bay) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
-        m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: b.bay }; this.bots.set(b.id, bv); } }
+    for (const b of s.bots) { const home = b.post || b.bay; if (!home) continue; const bay = G.item(s, home); if (!bay) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
+      if (!bv || bv.key !== key) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
+        const pick = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.45; pick.userData.bot = b.id; m.group.add(pick);
+        m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: home, pick }; this.bots.set(b.id, bv); }
+      if (bv.bay !== home) { bv.bay = home; bv.wait = 0; } }
     for (const [id, bv] of this.bots) if (!bseen.has(id)) { this.scene.remove(bv.model.group); this.bots.delete(id); }
   }
   centerOf(it: Item) { const [w, d] = G.dims(it); return new THREE.Vector3(it.x + w / 2 - N / 2, 0, it.z + d / 2 - N / 2); }
@@ -115,10 +120,13 @@ export class World {
   // ---------------- frame ----------------
   frame(dt: number, s: State) {
     this.t += dt; const t = this.t; this.placeCamera(); this.backdrop.update(t, this.camera); this.island.update(t);
-    for (const [id, v] of this.views) { const crafting = !!G.jobOf(s, id, 'craft'); v.model.anim?.(t, { working: crafting, ready: s.ready[id] ? 1 : 0 }); if (v.scaf) { const cr = v.scaf.getObjectByName('crane'); if (cr) cr.rotation.y = t * 0.8; } }
+    for (const [id, v] of this.views) { const working = !!(G.jobOf(s, id, 'craft') || G.jobOf(s, id, 'fuse')); const it = G.item(s, id);
+      const cores = it && it.t === 'assembly' ? s.cores.filter((c) => c.state !== 'waiting').map((c) => ({ color: RARITIES[SPECIES[c.sp].rarity].color, ready: c.state === 'ready' })) : undefined;
+      v.model.anim?.(t, { working, ready: s.ready[id] ? 1 : 0, cores }); if (v.scaf) { const cr = v.scaf.getObjectByName('crane'); if (cr) cr.rotation.y = t * 0.8; } }
     for (const [, bv] of this.bots) { const bay = G.item(s, bv.bay); if (!bay) continue; const c = this.centerOf(bay); const to = bv.target.clone().sub(bv.pos); to.y = 0; const dist = to.length(); let moving = false;
-      if (dist > 0.05) { moving = true; to.normalize(); bv.pos.addScaledVector(to, Math.min(dist, dt * 0.7)); const ang = Math.atan2(to.x, to.z); const g = bv.model.group; let dr = ang - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 6); }
-      else { bv.wait -= dt; if (bv.wait <= 0) { const a = Math.random() * Math.PI * 2, rr = 0.35 + Math.random() * 0.75; bv.target.set(c.x + Math.cos(a) * rr, 0.26, c.z + Math.sin(a) * rr); bv.wait = 1.5 + Math.random() * 4; } }
+      if (dist > 0.05) { moving = true; to.normalize(); bv.pos.addScaledVector(to, Math.min(dist, dt * (dist > 2 ? 2.2 : 0.7))); bv.pos.y += (bv.target.y - bv.pos.y) * Math.min(1, dt * 4); const ang = Math.atan2(to.x, to.z); const g = bv.model.group; let dr = ang - g.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y += dr * Math.min(1, dt * 6); }
+      else { bv.wait -= dt; if (bv.wait <= 0) { const a = Math.random() * Math.PI * 2; const isBay = bay.t === 'bay'; const [bw, bd] = G.dims(bay); const rr = isBay ? 0.35 + Math.random() * 0.75 : Math.max(bw, bd) / 2 + 0.25 + Math.random() * 0.3;
+        bv.target.set(c.x + Math.cos(a) * rr, isBay ? 0.26 : 0, c.z + Math.sin(a) * rr); bv.wait = (isBay ? 1.5 : 3) + Math.random() * 4; } }
       bv.model.group.position.copy(bv.pos); bv.model.anim(t, moving); }
     if (this.selRing.visible) (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 4) * 0.3;
     if (this.ghost && this.ghostObj) { const [w, d] = G.dims({ t: this.ghost.t, r: this.ghost.r }); this.ghostObj.position.set(this.ghost.x + w / 2 - N / 2, 0.02 + Math.sin(t * 5) * 0.03, this.ghost.z + d / 2 - N / 2); }
