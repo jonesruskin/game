@@ -176,6 +176,9 @@ async function video(b, base, name, g, w, h, outDir, coverPng, shots) {
 
 (async () => {
   const only = process.argv.slice(2).filter((a) => !a.startsWith('--')); const noVideo = process.argv.includes('--no-video');
+  // Starward 3D is a Vite + TypeScript build with its own asset tool (it renders the built game on a virtual clock)
+  if (!only.length || only.includes('starward3d')) execFileSync('node', [path.join(ROOT, 'starward3d', 'tools', 'store-assets.cjs'), ...(noVideo ? ['--no-video'] : [])], { stdio: 'inherit' });
+  if (only.length && only.every((n) => n === 'starward3d')) return;
   const srv = await serve(); const base = `http://localhost:${srv.address().port}`; const b = await chromium.launch();
   for (const [name, g] of Object.entries(GAMES)) {
     if (only.length && !only.includes(name)) continue;

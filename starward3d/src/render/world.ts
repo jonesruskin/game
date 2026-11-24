@@ -26,7 +26,7 @@ export class World {
   views = new Map<string, View>(); bots = new Map<string, BotView>(); sun: THREE.DirectionalLight;
   cam = { x: 0, z: 1, dist: 30, yaw: Math.PI / 4, tx: 0, tz: 1, tdist: 30, tyaw: Math.PI / 4 };
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostFoot: THREE.Mesh | null = null;
-  selRing: THREE.Mesh; selected: string | null = null; t = 0; quality: 'high' | 'low';
+  selRing: THREE.Mesh; selected: string | null = null; t = 0; private shF = 0; private shX = 1e9; private shZ = 1e9; quality: 'high' | 'low';
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = [];
   onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) => void = () => {};
   private pod: THREE.Group | null = null; private podPick: THREE.Mesh | null = null; private podY = 0;
@@ -112,10 +112,13 @@ export class World {
       if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it, key, !!job, it.t === 'pad' && !padFree); this.views.set(it.id, v); }
       if (this.ghost && this.ghost.move === it.id) v.root.visible = false; else v.root.visible = true; }
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
+    // lamp lights cost every lit pixel on the island: a few real ones on high quality, none on low (the bulbs still glow)
+    let pl = 0; const maxL = this.quality === 'high' ? 4 : 0; for (const v of this.views.values()) v.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) o.visible = pl++ < maxL; });
     // bots live on their bay's docking pads and wander inside its footprint
     const bseen = new Set<string>();
     for (const b of s.bots) { const home = b.post || b.bay; if (!home || G.onMission(s, b)) continue; const bay = G.item(s, home); if (!bay || G.islandOf(s, home) !== s.at) continue; bseen.add(b.id); const key = `${b.sp}|${Math.floor(b.lvl / 5)}`; let bv = this.bots.get(b.id);
-      if (!bv || bv.key !== key) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
+      if (!bv || bv.key !== key) { if (bv) this.scene.remove(bv.model.group); const m = buildBot(b.sp, b.lvl); const low = this.quality === 'low';
+        m.group.traverse((o) => { const mm = o as THREE.Mesh; if (!mm.isMesh || !mm.castShadow) return; if (low) { mm.castShadow = false; return; } const gg = mm.geometry; if (!gg.boundingSphere) gg.computeBoundingSphere(); if (gg.boundingSphere!.radius < 0.12) mm.castShadow = false; }); const c = this.centerOf(bay); const p = new THREE.Vector3(c.x + (Math.random() - 0.5) * 1.6, 0.26, c.z + (Math.random() - 0.5) * 1.6);
         const pick = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.45; pick.userData.bot = b.id; m.group.add(pick);
         m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: home, pick }; this.bots.set(b.id, bv); }
       if (bv.bay !== home) { bv.bay = home; bv.wait = 0; } }
@@ -130,6 +133,7 @@ export class World {
   topOf(id: string) { const v = this.views.get(id); if (!v) return null; const p = v.root.position.clone(); p.y = v.model.height + 0.3; return p; }
   private makeView(it: Item, key: string, building: boolean, noRocket = false): View {
     const root = new THREE.Group(); const m = buildModel(it.t, it.lvl, it.el, noRocket ? { ...this.look, noRocket: true } : this.look); m.group.rotation.y = -it.r * Math.PI / 2; root.add(m.group); const [w, d] = G.dims(it);
+    if (m.height <= 0.15) m.group.traverse((o) => { o.castShadow = false; }); // flat decor casts nothing anyone can see
     root.position.copy(this.centerOf(it)); const pick = new THREE.Mesh(new THREE.BoxGeometry(w * 0.95, Math.max(0.6, m.height), d * 0.95), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = Math.max(0.6, m.height) / 2; pick.userData.item = it.id; root.add(pick);
     let scaf; if (building) { scaf = scaffold(w, d, Math.max(0.8, m.height * 0.8)); root.add(scaf); if (it.lvl === 0) { m.group.scale.y = 0.25; } }
     this.scene.add(root); return { key, root, model: m, pick, scaf };
@@ -160,6 +164,8 @@ export class World {
     if (this.ghost && this.ghostObj) { const [w, d] = G.dims({ t: this.ghost.t, r: this.ghost.r }); this.ghostObj.position.set(this.ghost.x + w / 2 - N / 2, 0.02 + Math.sin(t * 5) * 0.03, this.ghost.z + d / 2 - N / 2); }
     for (const f of [...this.fx]) { f.life -= dt * 1.1; const p = f.pts.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < p.count; i++) { f.v[i * 3 + 1] -= dt * 6; p.setXYZ(i, p.getX(i) + f.v[i * 3] * dt, p.getY(i) + f.v[i * 3 + 1] * dt, p.getZ(i) + f.v[i * 3 + 2] * dt); }
       p.needsUpdate = true; (f.pts.material as THREE.PointsMaterial).opacity = Math.max(0, f.life); if (f.life <= 0) { this.scene.remove(f.pts); f.pts.geometry.dispose(); this.fx.splice(this.fx.indexOf(f), 1); } }
+    // phones: shadows refresh every third frame while the camera is still (every frame while it moves, so nothing swims)
+    if (this.quality === 'low') { const sm = this.renderer.shadowMap, tp = this.sun.target.position; sm.autoUpdate = false; if (++this.shF % 3 === 0 || Math.abs(tp.x - this.shX) + Math.abs(tp.z - this.shZ) > 1e-3) { sm.needsUpdate = true; this.shX = tp.x; this.shZ = tp.z; } }
     this.renderer.render(this.scene, this.camera);
   }
 }

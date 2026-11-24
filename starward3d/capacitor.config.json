@@ -1,0 +1,10 @@
+{
+  "appId": "com.yourstudio.starward3d",
+  "appName": "Starward 3D",
+  "webDir": "dist/mobile",
+  "backgroundColor": "#02040a",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "LocalNotifications": { "iconColor": "#22c7e8" }
+  }
+}

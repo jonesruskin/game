@@ -21,7 +21,7 @@ import { ISLANDS } from './data/islands';
 import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
 export class App {
-  version = '0.2'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; world!: World; studio!: Studio; ui!: UI; private last = performance.now(); private saveAt = 0; private queue: (() => void)[] = [];
+  version = '1.0'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; world!: World; studio!: Studio; ui!: UI; private last = performance.now(); private saveAt = 0; private queue: (() => void)[] = [];
   async boot() {
     await this.platform.init(); this.platform.loadingStart();
     const raw = this.platform.load(SAVE_KEY); let s: State; try { s = raw ? migrate(JSON.parse(raw)) : fresh(); } catch (e) { console.warn('save unreadable, starting fresh', e); s = fresh(); }

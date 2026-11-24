@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-7 of 8 (Foundation, The Crew, The Daily Loop, The Arena, The Road to the Stars, New Worlds, Events and the Vault) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: v1.0, all 8 parts done and ready to upload.** The portal builds are in `dist/`, store assets and listing copy in `store/`, and the upload guide in [UPLOAD.md](UPLOAD.md). [DESIGN.md](DESIGN.md) has the design and the 8-part plan.
 
 ## Run it
 ```bash
@@ -81,14 +81,24 @@ Rewards at every rhythm, so there is always a reason to come back:
   - **Relic Sanctums** (one per colour) wake **Relic AIs** from crystals: Minor (Epic), Major (Legendary) and Prime (Prototype), 18 in all. They never fight; they earn **Iridium**, the Vault's own currency, which fills the sanctum for you to tap and collect. Crystals also **evolve** them from one to five stars, each star adding 60% to their earnings.
 - 114 species in all, new missions for the event and the Vault, and an Iridium counter in the HUD (tap it to see your crystals).
 
+## Part 8: Personal touch and ship (done)
+- **The Style Locker:** 16 paint schemes, 12 banner colours, 8 emblem colours, 12 emblems and 9 island turfs (Haven Meadow, Dune Mesa, Sakura Terrace, Frost Shelf, Ember Grove, Neon Grid, Lunar Regolith, Red Sands, Precursor Stone). Each is earned through play: Commander levels, Arena wins, Swarm raids, founding islands, meeting aliens, event rewards, login days and the Botdex. A new unlock pops a toast and lights a dot on the Style button. Every island can wear its own turf.
+- **New decorations:** Park Bench, Topiary Bot, Neon Sign (your colony's name in flickering neon), Wind Turbine, Holo Beacon (your emblem as a turning hologram) and Koi Pond. The **Bot Statue** now casts the bot you choose in gold.
+- **Colony card:** one tap makes a 1200×630 image of your island as it looks right now, with your banner, name, level, stats and best bots, to save or share.
+- **Audio:** new sounds for hits and crits in the Arena, rocket launches, crystals, evolving and unlocks.
+- **Rewarded ads (CrazyGames build only, optional):** "▶ Ad: −30 min" on every running timer, next to the existing login double and extra spin.
+- **Ship:** covers, a text-free thumbnail, screenshots and two 18-second trailers rendered from the real build (`tools/store-assets.cjs`, on Playwright's virtual clock), listing copy and [UPLOAD.md](UPLOAD.md).
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals, raids), space.ts (expeditions, outposts), events.ts (weekly events), vault.ts (mines, forge, Relic AIs), util.ts
-src/data/              elements, rarities, species, buildings + recipes, levels + missions, islands, vault
+src/core/              style.ts (Style Locker unlocks), state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), arena.ts (battles, leagues, seasons, rivals, raids), space.ts (expeditions, outposts), events.ts (weekly events), vault.ts (mines, forge, Relic AIs), util.ts
+src/data/              elements, rarities, species, buildings + recipes, levels + missions, islands, vault, cosmetics
 src/render/            world.ts (renderer, camera, picking, sync), sky.ts (Earth + space), island.ts,
                        models.ts (buildings), botmodels.ts (bots), arena.ts (the holo-arena), system.ts (the Solar System map), kit.ts (merged procedural geometry), studio.ts (thumbnails)
 src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), arena.ts (Arena and battle HUD), space.ts (map HUD, destinations, returns), vault.ts (event screen, mine, forge, sanctums), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
+tools/store-assets.cjs covers, thumbnail, screenshots and trailers from the built game (run from the repo root)
+tools/covers.html      cover compositor used by store-assets.cjs
 ```
