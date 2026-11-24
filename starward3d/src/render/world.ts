@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { Backdrop } from './sky';
 import { IslandView, N } from './island';
-import { buildModel, scaffold, Look, Model } from './models';
+import { buildModel, scaffold, dropPod, Look, Model } from './models';
+import { daily } from '../core/daily';
 import { buildBot, BotModel } from './botmodels';
 import { MATS } from './kit';
 import { State, Item } from '../core/state';
@@ -22,7 +23,8 @@ export class World {
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostFoot: THREE.Mesh | null = null;
   selRing: THREE.Mesh; selected: string | null = null; t = 0; quality: 'high' | 'low';
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = [];
-  onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string }) => void = () => {};
+  onTap: (hit: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) => void = () => {};
+  private pod: THREE.Group | null = null; private podPick: THREE.Mesh | null = null; private podY = 0;
   onGhostMove: () => void = () => {};
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator as any).maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820;
@@ -69,6 +71,7 @@ export class World {
   private tap(cx: number, cy: number) {
     if (this.ghost) { this.ghostTo(cx, cy); return; }
     const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
+    if (this.podPick && this.pod && this.pod.visible && this.ray.intersectObject(this.podPick, false)[0]) { this.onTap({ drop: true }); return; }
     const bh = this.ray.intersectObjects([...this.bots.values()].map((b) => b.pick), false)[0]; if (bh) { this.onTap({ bot: bh.object.userData.bot }); return; }
     const picks = [...this.views.values()].map((v) => v.pick); const hit = this.ray.intersectObjects(picks, false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
     const hp = this.ray.intersectObjects(this.island.holoMeshes(), false)[0]; if (hp) { this.onTap({ plot: hp.object.userData.plot }); return; }
@@ -103,7 +106,12 @@ export class World {
         m.group.position.copy(p); this.scene.add(m.group); bv = { key, model: m, pos: p, target: p.clone(), wait: Math.random() * 2, bay: home, pick }; this.bots.set(b.id, bv); }
       if (bv.bay !== home) { bv.bay = home; bv.wait = 0; } }
     for (const [id, bv] of this.bots) if (!bseen.has(id)) { this.scene.remove(bv.model.group); this.bots.delete(id); }
+    // the supply drop pod
+    const D = daily(s); if (D.drops > 0 && D.dropAt) { if (!this.pod) { this.pod = dropPod(); this.podPick = new THREE.Mesh(new THREE.BoxGeometry(1, 1.6, 1), new THREE.MeshBasicMaterial({ visible: false })); this.podPick.position.y = 0.6; this.pod.add(this.podPick); this.pod.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; }); this.scene.add(this.pod); this.podY = 30; }
+      this.pod.position.set(D.dropAt[0] + 0.5 - N / 2, this.pod.position.y, D.dropAt[1] + 0.5 - N / 2); this.pod.visible = true; }
+    else if (this.pod) { this.pod.visible = false; this.scene.remove(this.pod); this.pod = null; }
   }
+  podTop() { return this.pod && this.pod.visible ? new THREE.Vector3(this.pod.position.x, this.pod.position.y + 1.6, this.pod.position.z) : null; }
   centerOf(it: Item) { const [w, d] = G.dims(it); return new THREE.Vector3(it.x + w / 2 - N / 2, 0, it.z + d / 2 - N / 2); }
   topOf(id: string) { const v = this.views.get(id); if (!v) return null; const p = v.root.position.clone(); p.y = v.model.height + 0.3; return p; }
   private makeView(it: Item, key: string, building: boolean): View {
@@ -129,6 +137,8 @@ export class World {
         bv.target.set(c.x + Math.cos(a) * rr, isBay ? 0.26 : 0, c.z + Math.sin(a) * rr); bv.wait = (isBay ? 1.5 : 3) + Math.random() * 4; } }
       bv.model.group.position.copy(bv.pos); bv.model.anim(t, moving); }
     if (this.selRing.visible) (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 4) * 0.3;
+    if (this.pod && this.pod.visible) { this.podY = Math.max(0, this.podY - dt * Math.max(4, this.podY * 1.6)); this.pod.position.y = this.podY; const fl = this.pod.userData.flame as THREE.Mesh; fl.visible = this.podY > 0.05; fl.scale.y = 0.8 + Math.random() * 0.5;
+      (this.pod.userData.beacon.material as THREE.MeshBasicMaterial).color.set(Math.sin(t * 5) > 0 ? '#7cf29a' : '#1a4a2a'); this.pod.rotation.y += dt * (this.podY > 0 ? 2 : 0); }
     if (this.ghost && this.ghostObj) { const [w, d] = G.dims({ t: this.ghost.t, r: this.ghost.r }); this.ghostObj.position.set(this.ghost.x + w / 2 - N / 2, 0.02 + Math.sin(t * 5) * 0.03, this.ghost.z + d / 2 - N / 2); }
     for (const f of [...this.fx]) { f.life -= dt * 1.1; const p = f.pts.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < p.count; i++) { f.v[i * 3 + 1] -= dt * 6; p.setXYZ(i, p.getX(i) + f.v[i * 3] * dt, p.getY(i) + f.v[i * 3 + 1] * dt, p.getZ(i) + f.v[i * 3 + 2] * dt); }
       p.needsUpdate = true; (f.pts.material as THREE.PointsMaterial).opacity = Math.max(0, f.life); if (f.life <= 0) { this.scene.remove(f.pts); f.pts.geometry.dispose(); this.fx.splice(this.fx.indexOf(f), 1); } }

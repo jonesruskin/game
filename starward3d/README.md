@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): a floating asteroid island in low Earth orbit that you lay out yourself, a crew of collectible bots that earn your credits, and a daily rhythm of things to collect. Built in TypeScript on Three.js, with every model procedural (no asset files, ~260 KB zipped).
 
-> **Status: Parts 1-2 of 8 (Foundation, The Crew) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
+> **Status: Parts 1-3 of 8 (Foundation, The Crew, The Daily Loop) are playable.** See [DESIGN.md](DESIGN.md) for the full plan: the crew (fusion, 22 elements, 7 rarities), the daily loop, the Arena, the road to the stars, events and the Precursor Vault, and the personal-touch pass.
 
 ## Run it
 ```bash
@@ -41,14 +41,25 @@ Vite picks the adapter per target through the `@platform` alias, so each build c
 - **Bots help humans:** post a bot to the Command Center (construction speed), a Fabricator (cells per recipe), the Fusion Lab or the Assembly Bay (speed). Element matches help 50% more; helpers walk over and work on site, and stop earning while they do.
 - **Bot panel:** feed or feed to the next level, rename, move between bays, store and release; combat stats ready for the Arena. All 15 element bays in the shop. 11 new missions.
 
+## Part 3: The Daily Loop (done)
+Rewards at every rhythm, so there is always a reason to come back:
+- **A 28-day login calendar** whose rewards grow day by day, with jackpot days: Dark Matter, an Advanced core (day 7), an Elite core (day 14), the exclusive **Starlight Arch** decoration (day 21) and an Epic core (day 28). A missed day pauses the calendar; it never resets. Later cycles pay more and upgrade the jackpot cores. Streak counter with personal best; on CrazyGames a rewarded ad doubles the day's reward.
+- **Three daily missions** (collect, harvest, feed, fuse, upgrade, open a drop...) with a **bonus chest** for finishing all three: Dark Matter, cells and a chance of an Advanced or Elite core.
+- **Supply drops** every 4 hours (two can stack): a pod falls from orbit on a flame trail, lands beside the Command Center and blinks until you open it.
+- **A free daily core** on a slot-machine reel that ticks past bots and slows onto your prize (a second spin from a rewarded ad on CrazyGames). Gifts lean towards species you haven't discovered yet.
+- **13 achievements** with 4 tiers each, paying Dark Matter.
+- **"While you were away"**: a report on return (credits waiting, recipes ready, constructions finished, cores booted, drops landed) with Collect everything.
+- **Milestone levels:** every 5th Commander level pays a bonus core.
+- **Mobile reminders:** the mobile build schedules local notifications for full bays, finished recipes, landed drops and the daily reward.
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), util.ts
+src/core/              state.ts (save format), game.ts (rules), crew.ts (fusion, assembly, Botdex, helpers), daily.ts (calendar, missions, drops, spin, achievements), util.ts
 src/data/              elements, rarities, species, buildings + recipes, levels + missions
 src/render/            world.ts (renderer, camera, picking, sync), sky.ts (Earth + space), island.ts,
                        models.ts (buildings), botmodels.ts (bots), kit.ts (merged procedural geometry), studio.ts (thumbnails)
-src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), style.css, fonts
+src/ui/                ui.ts (HUD, panels, shop, style, bubbles, modals), crew.ts (bot panel, fusion, assembly, Botdex), daily.ts (daily screens and reveals), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

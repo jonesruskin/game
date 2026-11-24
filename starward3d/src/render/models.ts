@@ -137,6 +137,10 @@ function decor(t: string, look: Look): Model {
       arcs.children.forEach((m) => { (m as THREE.Mesh).geometry.translate(0.28, 0, 0); }); g.add(arcs); return { group: g, height: 1.2, anim: (tt) => { arcs.rotation.y = tt * 0.6; arcs.scale.y = 1 + Math.sin(tt * 3) * 0.08; } }; }
     case 'dish': { k.box(0.9, 0.2, 0.9, '#9aa4b1'); k.cyl(0.1, 0.14, 0.6, 8, STEEL, 0, 0.2); k.sphere(0.65, '#e9eef5', 0, 1.05, 0, { theta: Math.PI / 2.6, rx: Math.PI * 0.8, w: 16, h: 6 }); k.cyl(0.02, 0.02, 0.5, 4, DARK, 0.12, 0.95, 0.1, { rx: -0.6 });
       const g = k.build('dish'); const tip = glowMesh(new THREE.SphereGeometry(0.05, 6, 4), '#7af7ff'); tip.position.set(0.22, 1.32, 0.3); g.add(tip); return { group: g, height: 1.6 }; }
+    case 'arch': { for (const x of [-0.75, 0.75]) { k.cyl(0.12, 0.16, 0.12, 8, '#c8d0da', x, 0); k.cyl(0.07, 0.07, 0.6, 8, '#e9eef5', x, 0.12); }
+      k.add(new THREE.TorusGeometry(0.75, 0.07, 8, 28, Math.PI), '#e6b84a', 0, 0.72, 0); k.add(new THREE.TorusGeometry(0.62, 0.025, 6, 28, Math.PI), '#fff4c2', 0, 0.72, 0, { glow: true });
+      const g = k.build('arch'); const sparks = new THREE.Group(); for (let i = 0; i < 7; i++) { const m = glowMesh(new THREE.OctahedronGeometry(0.04, 0), '#fff4c2'); const a = (i / 6) * Math.PI; m.position.set(Math.cos(a) * 0.75, 0.72 + Math.sin(a) * 0.75, 0); sparks.add(m); } g.add(sparks);
+      return { group: g, height: 1.6, anim: (tt) => sparks.children.forEach((m, i) => { m.scale.setScalar(0.6 + 0.6 * Math.abs(Math.sin(tt * 2 + i))); m.rotation.y = tt * 3; }) }; }
     case 'statue': { k.box(1.2, 0.3, 1.2, '#d9dee5'); k.box(1.0, 0.5, 1.0, '#c3cad4', 0, 0.3); k.sphere(0.38, '#e6b84a', 0, 1.22, 0, { w: 14, h: 10 }); k.add(new THREE.TorusGeometry(0.52, 0.05, 6, 24), '#e6b84a', 0, 1.22, 0, { rx: 1.2 });
       k.sphere(0.1, '#fff4c2', 0, 1.26, 0.33, { glow: true }); return { group: k.build('statue'), height: 1.8 }; }
   }
@@ -151,6 +155,11 @@ export function buildModel(t: string, lvl: number, el: string | undefined, look:
   if (t === 'fusion') return fusionLab(L, look);
   return decor(t, look);
 }
+// the supply drop pod: falls from orbit on thrusters, lands, blinks until opened
+export function dropPod() { const k = new Kit(); k.cyl(0.32, 0.42, 0.7, 8, '#e9eef5', 0, 0.1); k.cyl(0.43, 0.43, 0.08, 8, '#ff7a3c', 0, 0.3); k.add(new THREE.ConeGeometry(0.32, 0.4, 8), '#e9eef5', 0, 1.0, 0); k.box(0.3, 0.2, 0.02, '#2c3340', 0, 0.42, 0.37);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; k.box(0.05, 0.35, 0.22, '#ff7a3c', Math.cos(a) * 0.38, 0, Math.sin(a) * 0.38, { ry: -a }); }
+  const g = k.build('pod'); const flame = glowMesh(new THREE.ConeGeometry(0.2, 0.7, 8), '#ffd27a'); flame.rotation.x = Math.PI; flame.position.y = -0.3; g.add(flame);
+  const beacon = glowMesh(new THREE.SphereGeometry(0.06, 8, 6), '#7cf29a'); beacon.position.y = 1.22; g.add(beacon); g.userData.flame = flame; g.userData.beacon = beacon; return g; }
 // construction scaffold drawn over a building in progress
 export function scaffold(w: number, d: number, h: number) {
   const g = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: '#f2b233', roughness: 0.6, metalness: 0.3 });

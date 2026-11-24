@@ -39,7 +39,9 @@ export const buildersBusy = (s: State) => s.jobs.filter((j) => j.kind === 'build
 export const jobOf = (s: State, itemId: string, kind?: string) => s.jobs.find((j) => j.item === itemId && (!kind || j.kind === kind));
 export interface Check { ok: boolean; why?: string; cost?: number; time?: number; }
 export function canBuild(s: State, t: string, el?: string): Check {
-  const d = BUILDINGS[t]; if (!d) return { ok: false, why: 'Unknown' }; if (s.lvl < d.unlock) return { ok: false, why: `Commander level ${d.unlock}`, cost: d.buildCost(itemsOf(s, t).length) };
+  const d = BUILDINGS[t]; if (!d) return { ok: false, why: 'Unknown' };
+  if (d.exclusive) { const owned = s.stats['decor_' + t] || 0, placed = itemsOf(s, t).length; return placed < owned ? { ok: true, cost: 0, time: 0 } : { ok: false, why: owned ? 'All placed' : 'Earned from the login calendar', cost: 0 }; }
+  if (s.lvl < d.unlock) return { ok: false, why: `Commander level ${d.unlock}`, cost: d.buildCost(itemsOf(s, t).length) };
   const owned = itemsOf(s, t).length, cc = ccLevel(s);
   if (d.unique && owned) return { ok: false, why: 'Already built' };
   if (t === 'bay' && owned >= bayLimit(cc)) return { ok: false, why: `Bay limit (${bayLimit(cc)}): upgrade the Command Center` };
@@ -71,13 +73,13 @@ export function canUpgrade(s: State, it: Item): Check {
   return { ok: true, cost, time };
 }
 export function upgrade(s: State, it: Item, now = Date.now()): Check {
-  const c = canUpgrade(s, it); if (!c.ok) return c; s.res.credits -= c.cost || 0;
+  const c = canUpgrade(s, it); if (!c.ok) return c; s.res.credits -= c.cost || 0; stat(s, 'upgrades');
   s.jobs.push({ id: uid('j'), kind: 'build', item: it.id, start: now, end: now + (c.time || 0) * 1000, lvl: it.lvl + 1 }); return c;
 }
 const xpFor = (cost: number) => Math.max(5, Math.round(cost / 15));
 const buildSpeed = (s: State) => { const cc = itemsOf(s, 'command')[0]; return cc ? 1 - helperBonus(s, cc) : 1; };
 export function moveItem(s: State, it: Item, x: number, z: number, r: number) { const [w, d] = dims({ t: it.t, r }); if (!areaFree(s, x, z, w, d, it.id)) return false; it.x = x; it.z = z; it.r = r; return true; }
-export function sellDecor(s: State, it: Item) { if (BUILDINGS[it.t].cat !== 'decor') return false; s.isl.items = s.isl.items.filter((i) => i !== it); s.res.credits += Math.floor(BUILDINGS[it.t].buildCost(0) * 0.5); return true; }
+export function sellDecor(s: State, it: Item) { if (BUILDINGS[it.t].cat !== 'decor' || BUILDINGS[it.t].exclusive) return false; s.isl.items = s.isl.items.filter((i) => i !== it); s.res.credits += Math.floor(BUILDINGS[it.t].buildCost(0) * 0.5); return true; }
 // dark matter to finish a timer now (free under a minute)
 export const dmCost = (sec: number) => (sec <= 60 ? 0 : Math.ceil(1.1 * Math.pow(sec / 60, 0.7)));
 export function finishNow(s: State, j: Job, now = Date.now()) { const c = dmCost((j.end - now) / 1000); if (s.res.dm < c) return false; s.res.dm -= c; j.end = now; advance(s, now); return true; }

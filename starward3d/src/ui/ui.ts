@@ -12,6 +12,7 @@ import { N } from '../render/island';
 import { emblemPath } from '../render/models';
 import type { App } from '../main';
 import { CrewUI } from './crew';
+import { DailyUI } from './daily';
 import * as C from '../core/crew';
 import { CORE_ELEMENTS } from '../data/elements';
 import { RARITY_ORDER } from '../data/rarities';
@@ -23,8 +24,8 @@ const PAINTS = [['#e9eef5', '#22c7e8'], ['#f4efe6', '#ff7a3c'], ['#dfe7d8', '#4f
 const BANNER_BG = ['#1b6fd8', '#d83a3a', '#1f9c5a', '#7a3fd6', '#e08a1a', '#14202e', '#e6e6ea', '#0fb3c9'];
 const EMBLEMS = ['star', 'planet', 'bolt', 'gear', 'rocket', 'circle'];
 export class UI {
-  sel: string | null = null; selBot: string | null = null; crew: CrewUI; tab = 'bays'; over: '' | 'shop' | 'bots' | 'custom' | 'settings' | 'dex' = ''; private bubbles = new Map<string, HTMLElement>(); private lastRes = { credits: 0, cells: 0, dm: 0 }; private panelKey = ''; private tick = 0;
-  constructor(public app: App) { this.crew = new CrewUI(this);
+  sel: string | null = null; selBot: string | null = null; crew: CrewUI; daily: DailyUI; tab = 'bays'; over: '' | 'shop' | 'bots' | 'custom' | 'settings' | 'dex' | 'daily' = ''; private bubbles = new Map<string, HTMLElement>(); private lastRes = { credits: 0, cells: 0, dm: 0 }; private panelKey = ''; private tick = 0;
+  constructor(public app: App) { this.crew = new CrewUI(this); this.daily = new DailyUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('input', (e) => { const t = e.target as HTMLInputElement; if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); if (t.id === 'cname') { this.s.name = t.value.slice(0, 24) || 'New Haven'; this.renderHud(); } });
     this.renderHud(); this.renderNav(); this.renderObj();
@@ -34,7 +35,7 @@ export class UI {
   renderHud() { const s = this.s; const p = (s.xp / G.xpNeedOf(s)) * 100;
     $('#hud').innerHTML = `<div class="lvl" title="Commander level"><div class="badge" style="--p:${p}%"><b>${s.lvl}</b></div><div class="nm"><b>${esc(s.name)}</b><i>${fmt(s.xp)} / ${fmt(G.xpNeedOf(s))} XP</i></div></div>
       <div class="res" id="r-credits">${IC.credits}<span class="v">${fmt(s.res.credits)}</span></div><div class="res" id="r-cells">${IC.cells}<span class="v">${fmt(s.res.cells)}</span></div><div class="res" id="r-dm">${IC.dm}<span class="v">${fmt(s.res.dm)}</span></div>
-      <div class="sp"></div><button class="ibtn" data-a="settings" title="Settings">⚙</button>`; }
+      <div class="sp"></div><span id="dailyHud" class="row" style="gap:6px;flex-wrap:nowrap">${this.daily.hudHTML()}</span><button class="ibtn" data-a="settings" title="Settings">⚙</button>`; }
   private updHud() { const s = this.s; for (const r of ['credits', 'cells', 'dm'] as const) { const v = Math.floor(s.res[r]); if (v !== Math.floor(this.lastRes[r])) { const el = $(`#r-${r}`); if (el) { el.querySelector('.v')!.textContent = fmt(v); if (v > this.lastRes[r]) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } this.lastRes[r] = v; } }
     const b = $('.lvl .badge') as HTMLElement; if (b) { b.style.setProperty('--p', (s.xp / G.xpNeedOf(s)) * 100 + '%'); b.querySelector('b')!.textContent = String(s.lvl); const i = $('.lvl .nm i'); if (i) i.textContent = `${fmt(s.xp)} / ${fmt(G.xpNeedOf(s))} XP`; } }
   renderNav() { $('#nav').innerHTML = `<button data-a="shop" id="n-shop"><span class="g">🛒</span>Shop</button><button data-a="bots"><span class="g">🤖</span>Crew</button><button data-a="dex"><span class="g">📖</span>Botdex</button><button data-a="custom"><span class="g">🎨</span>Style</button><button data-a="zoomout"><span class="g">🛰</span>Overview</button>`; }
@@ -42,7 +43,8 @@ export class UI {
   renderObj() { const s = this.s, st = G.currentStep(s); const el = $('#obj'); if (!st) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const done = G.stepDone(s, st);
     el.classList.toggle('done', done); el.innerHTML = `<div class="t">Mission ${s.obj.i + 1} of ${STEPS.length}</div><p>${esc(st.text)}</p><div class="rw">Reward: ${cost(st.reward)}</div>${done ? '<button class="btn gold claim" data-a="claim">✓ Claim reward</button>' : ''}`; }
   // ---------------- per-frame ----------------
-  frame() { this.tick++; this.updHud(); this.placeBubbles(); if (this.tick % 15 === 0) { this.refreshPanel(); this.renderObjIfChanged(); if (this.over === 'shop' || this.over === 'bots') this.refreshOverCosts(); } }
+  private dailyKey = ''; frame() { this.tick++; this.updHud(); this.placeBubbles(); if (this.tick % 20 === 0) { const h = this.daily.hudHTML(); if (h !== this.dailyKey) { this.dailyKey = h; const el = $('#dailyHud'); if (el) el.innerHTML = h; } }
+    if (this.tick % 15 === 0) { this.refreshPanel(); this.renderObjIfChanged(); if (this.over === 'shop' || this.over === 'bots') this.refreshOverCosts(); } }
   private objKey = ''; renderObjIfChanged() { const st = G.currentStep(this.s); const k = (st ? st.id : '-') + (st && G.stepDone(this.s, st) ? 1 : 0); if (k !== this.objKey) { this.objKey = k; this.renderObj(); } }
   // bubbles over buildings: credits waiting, cells ready, timers, idle fabricators, land for sale
   private placeBubbles() { const s = this.s, w = this.world, seen = new Set<string>(); const root = $('#bubbles');
@@ -112,12 +114,14 @@ export class UI {
       else if (this.tab === 'bots') body = SPECIES_ORDER.filter((k) => SPECIES[k].price).map((k) => { const d = SPECIES[k], c = G.canRecruit(s, k); const owned = s.bots.filter((b) => b.sp === k).length;
         return this.shopCard(this.app.studio.bot(k), d.name, d.desc + (d.rarity !== 'standard' ? ` Boots in the Assembly Bay (${fmtTime(RARITIES[d.rarity].assembly * 0.5)}).` : ''), c, `data-a="recruit" data-sp="${k}"`, `${elPills(d.el)} <span class="rar" style="color:${RARITIES[d.rarity].color}">${RARITIES[d.rarity].name}</span> · ${fmt(G.botEarn({ sp: k, lvl: 1 } as BotRec))}/min${owned ? ` · owned ${owned}` : ''}${s.dex[k] ? '' : ' · <b style="color:#ffd36a">new</b>'}`, (d.unlock || 1) > s.lvl); }).join('');
       else if (this.tab === 'buildings') body = ['fab', 'assembly', 'fusion'].map((t) => { const c = G.canBuild(s, t); return this.shopCard(this.app.studio.building(t, 1, undefined, this.world.look), BUILDINGS[t].name, BUILDINGS[t].desc, c, `data-a="buyB" data-t="${t}"`, t === 'fab' ? `${G.itemsOf(s, t).length}/${fabLimit(G.ccLevel(s))} built` : G.itemsOf(s, t).length ? 'Built' : `Unlocks at Commander level ${BUILDINGS[t].unlock}`, BUILDINGS[t].unlock > s.lvl); }).join('');
-      else body = SHOP_ORDER.filter((t) => BUILDINGS[t].cat === 'decor').map((t) => { const c = G.canBuild(s, t); return this.shopCard(this.app.studio.building(t, 1, undefined, this.world.look), BUILDINGS[t].name, BUILDINGS[t].desc, c, `data-a="buyB" data-t="${t}"`, '', BUILDINGS[t].unlock > s.lvl); }).join('');
+      else body = [...(s.stats.decor_arch ? ['arch'] : []), ...SHOP_ORDER.filter((t) => BUILDINGS[t].cat === 'decor')].map((t) => { const c = G.canBuild(s, t); return this.shopCard(this.app.studio.building(t, 1, undefined, this.world.look), BUILDINGS[t].name, BUILDINGS[t].desc, c, `data-a="buyB" data-t="${t}"`, '', BUILDINGS[t].unlock > s.lvl); }).join('');
       el.innerHTML = `<div class="head"><h1>Shop</h1><div class="res">${IC.credits}<span>${fmt(s.res.credits)}</span></div><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${this.tab === k ? 'on' : ''}" data-a="tab" data-tab="${k}">${n}</button>`).join('')}</div><div class="body"><div class="grid">${body}</div></div>`; }
     else if (this.over === 'bots') { const byRate = [...s.bots].sort((a, b) => G.botEarn(b) - G.botEarn(a)); const total = s.bots.reduce((a, b) => a + G.botEarn(b), 0);
-      el.innerHTML = `<div class="head"><h1>Your crew</h1><span class="sub">${s.bots.length} bots · ${IC.credits} ${fmt(total)}/min</span><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="bots" style="max-width:640px;margin:0 auto">${byRate.map((b) => this.botCard(b, true)).join('')}</div></div>`; }
+      const waiting = s.cores.length ? `<div class="botc" style="grid-template-columns:54px 1fr auto;border-color:var(--gold)"><div style="font-size:30px;text-align:center">🤖</div><div><b>${s.cores.length} core${s.cores.length > 1 ? 's' : ''} waiting</b><div class="meta">${s.cores.map((c) => `<span style="color:${RARITIES[SPECIES[c.sp].rarity].color}">●</span>`).join(' ')} ${G.itemsOf(s, 'assembly').some((i) => i.lvl > 0) ? 'in the Assembly Bay' : 'Build the Assembly Bay (Commander level 4) to boot them'}</div></div><span></span></div>` : '';
+      el.innerHTML = `<div class="head"><h1>Your crew</h1><span class="sub">${s.bots.length} bots · ${IC.credits} ${fmt(total)}/min</span><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="bots" style="max-width:640px;margin:0 auto">${waiting}${byRate.map((b) => this.botCard(b, true)).join('')}</div></div>`; }
     else if (this.over === 'custom') { el.innerHTML = this.customHTML(); }
     else if (this.over === 'dex') { el.innerHTML = this.crew.dexHTML(); }
+    else if (this.over === 'daily') { el.innerHTML = this.daily.overHTML(); }
     else if (this.over === 'settings') { const st = s.settings; el.innerHTML = `<div class="head"><h1>Settings</h1><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="card" style="max-width:420px;margin:0 auto;gap:12px">
       <label>Sound effects <input type="range" min="0" max="1" step="0.05" value="${st.sfx}" data-set="sfx" style="width:100%"></label><label>Music <input type="range" min="0" max="1" step="0.05" value="${st.music}" data-set="music" style="width:100%"></label>
       <label>Graphics <select data-set="quality" style="width:100%;padding:8px;border-radius:8px;background:#0d1a2e;color:#fff;border:1px solid var(--line)">${['auto', 'high', 'low'].map((q) => `<option ${st.quality === q ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
@@ -147,12 +151,12 @@ export class UI {
       setTimeout(() => { f.style.transform = `translate(${r.left + 13 - parseFloat(f.style.left)}px, ${r.top + 13 - parseFloat(f.style.top)}px) scale(0.6)`; f.style.opacity = '0.4'; }, 30 + i * 45); setTimeout(() => f.remove(), 800 + i * 45); } }
   modal(html: string, rays = false) { const m = $('#modal'); m.innerHTML = `${rays ? '<div class="rays"></div>' : ''}<div class="box">${html}</div>`; m.classList.remove('hidden'); this.app.platform.gameplayStop(); }
   closeModal() { $('#modal').classList.add('hidden'); $('#modal').innerHTML = ''; if (!this.over) this.app.platform.gameplayStart(); }
-  levelUp(lvl: number, reward: Record<string, number>) { const unl = [...SPECIES_ORDER.filter((k) => SPECIES[k].unlock === lvl).map((k) => SPECIES[k].name), ...SHOP_ORDER.filter((t) => BUILDINGS[t].unlock === lvl).map((t) => BUILDINGS[t].name)];
-    this.modal(`<div class="ox sub" style="letter-spacing:.2em">COMMANDER LEVEL</div><div class="big">${lvl}</div><h1>Level up!</h1><div class="rewards">${cost(reward)}</div>${unl.length ? `<p class="desc">Unlocked: <b>${unl.map(esc).join(', ')}</b></p>` : ''}${CC_REQ.indexOf(lvl) > 1 ? `<p class="desc">You can now upgrade the Command Center to level ${CC_REQ.indexOf(lvl)}.</p>` : ''}<button class="btn gold" data-a="closeModal" style="margin-top:8px;min-width:160px">Awesome!</button>`, true); }
+  levelUp(lvl: number, reward: Record<string, number>, gift: any = null) { const unl = [...SPECIES_ORDER.filter((k) => SPECIES[k].unlock === lvl).map((k) => SPECIES[k].name), ...SHOP_ORDER.filter((t) => BUILDINGS[t].unlock === lvl).map((t) => BUILDINGS[t].name)];
+    this.modal(`<div class="ox sub" style="letter-spacing:.2em">COMMANDER LEVEL</div><div class="big">${lvl}</div><h1>Level up!</h1><div class="rewards">${cost(reward)}</div>${gift ? `<div class="sub" style="margin:0">Milestone bonus</div>${this.daily.giftLine(gift)}` : ''}${unl.length ? `<p class="desc">Unlocked: <b>${unl.map(esc).join(', ')}</b></p>` : ''}${CC_REQ.indexOf(lvl) > 1 ? `<p class="desc">You can now upgrade the Command Center to level ${CC_REQ.indexOf(lvl)}.</p>` : ''}<button class="btn gold" data-a="closeModal" style="margin-top:8px;min-width:160px">Awesome!</button>`, true); }
   newBot(b: BotRec) { const d = SPECIES[b.sp]; const fresh = Date.now() - (this.s.dex[b.sp] || 0) < 4000 && Object.keys(this.s.dex).length > 1; const rc = RARITIES[d.rarity].color; const ri = RARITY_ORDER.indexOf(d.rarity);
     this.modal(`<div class="ox sub" style="letter-spacing:.2em;color:${rc}">${fresh ? '★ NEW SPECIES DISCOVERED ★' : 'NEW CREWMATE'}</div>${ri >= 2 ? `<div style="position:absolute;inset:0;border-radius:22px;box-shadow:inset 0 0 60px ${rc}66;pointer-events:none"></div>` : ''}<img src="${this.app.studio.bot(b.sp)}" style="width:180px;height:180px;margin:-6px auto -10px;display:block"><h1>${esc(d.name)}</h1><div>${elPills(d.el)} <span class="rar" style="color:${RARITIES[d.rarity].color}">${RARITIES[d.rarity].name}</span></div><p class="desc">${esc(d.desc)}</p><p class="sub">Earns ${IC.credits} ${fmt(G.botEarn(b))} per minute. Feed it Power Cells to level it up.</p><button class="btn gold" data-a="closeModal" style="min-width:160px">Welcome aboard!</button>`, true); }
   // ---------------- actions ----------------
-  act(a: string, t: HTMLElement) { const A = this.app, s = this.s; A.audio.unlock(); if (this.crew.act(a, t)) return;
+  act(a: string, t: HTMLElement) { const A = this.app, s = this.s; A.audio.unlock(); if (this.crew.act(a, t) || this.daily.act(a, t)) return;
     const id = t.dataset.id || '', it = id ? G.item(s, id) : undefined;
     switch (a) {
       case 'shop': this.openOver('shop', t.dataset.tab || this.tab); A.audio.play('tap'); break;

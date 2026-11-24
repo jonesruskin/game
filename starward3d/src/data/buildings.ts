@@ -3,7 +3,7 @@
 import { round2 } from '../core/util';
 export type Cat = 'core' | 'bay' | 'production' | 'decor';
 export interface BuildingDef {
-  name: string; size: [number, number]; cat: Cat; max: number; unique?: boolean; unlock: number; desc: string;
+  name: string; size: [number, number]; cat: Cat; max: number; unique?: boolean; unlock: number; desc: string; exclusive?: string;
   /** credits to build (owned = how many of this kind you already have) */
   buildCost: (owned: number) => number;
   /** credits to upgrade from level L to L+1 */
@@ -36,6 +36,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   fountain: decor('Gravity Fountain', [2, 2], 600, 5, 'Water arcing in a gentle artificial gravity well.'),
   dish:     decor('Dish Array', [2, 2], 900, 7, 'Listening to the stars, mostly for show.'),
   statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A monument to the bots who built the colony.'),
+  arch:     { ...decor('Starlight Arch', [2, 1], 0, 1, 'A ring of light that only loyal commanders own. Earned on day 21 of the login calendar.'), exclusive: 'calendar' },
 };
 export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
 // limits by Command Center level

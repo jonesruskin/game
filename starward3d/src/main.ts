@@ -12,6 +12,7 @@ import { Audio } from './audio';
 import { $, fmt, esc } from './core/util';
 import { BUILDINGS, landCost, landLevel } from './data/buildings';
 import { SPECIES } from './data/species';
+import * as D from './core/daily';
 import { RARITIES } from './data/rarities';
 const SAVE_KEY = 'starward3d_v1';
 export class App {
@@ -19,7 +20,8 @@ export class App {
   async boot() {
     await this.platform.init(); this.platform.loadingStart();
     const raw = this.platform.load(SAVE_KEY); let s: State; try { s = raw ? migrate(JSON.parse(raw)) : fresh(); } catch (e) { console.warn('save unreadable, starting fresh', e); s = fresh(); }
-    this.s = s; const away = Date.now() - (s.last || Date.now()); const before = Object.values(s.bay).reduce((a, b) => a + b, 0); G.advance(s, Date.now()); const earned = Object.values(s.bay).reduce((a, b) => a + b, 0) - before; G.events.length = 0;
+    this.s = s; const away = Date.now() - (s.last || Date.now()); G.advance(s, Date.now()); const built = G.events.filter((e) => e.kind === 'built').length; G.events.length = 0; D.tickDrops(s); D.refreshMissions(s);
+    const pend = G.itemsOf(s, 'bay').map((b) => Math.floor(s.bay[b.id] || 0)).filter((n) => n >= 1); const sum = { credits: pend.reduce((a, b) => a + b, 0), bays: pend.length, ready: Object.keys(s.ready).length, cores: s.cores.filter((c) => c.state === 'ready').length, built };
     this.world = new World($('#gl') as HTMLCanvasElement, s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
     this.audio.setVolume(s.settings.sfx); this.audio.mvol = s.settings.music; this.platform.onMute = (m) => this.audio.setMuted(m); if (this.platform.muted()) this.audio.setMuted(true);
     this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.validatePlacing();
@@ -28,16 +30,17 @@ export class App {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else { G.advance(this.s, Date.now()); } });
     window.addEventListener('pagehide', () => this.save());
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
-    if (raw && away > 120000 && earned >= 1) setTimeout(() => this.ui.toast(`Welcome back! Your crew earned ${fmt(earned)} credits while you were away. Tap the bays to collect.`, 'gold'), 700);
+    if (raw && away > 10 * 60000) setTimeout(() => this.enqueue(() => this.ui.daily.offlineReport(away, sum)), 600);
     if (!raw) setTimeout(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">WELCOME, COMMANDER</div><h1>${esc(s.name)}</h1><p class="desc">An asteroid in low Earth orbit, a Command Center, a fabricator and one small, cheerful robot named Helio. Everything else is up to you.</p><p class="desc">Your bots earn credits in their bays. Tap a bay to collect, print Power Cells, feed your crew and grow the colony.</p><button class="btn gold" data-a="closeModal" style="min-width:180px">Let's go!</button>`, true), 400);
     window.__app = this; (window as any).__G = G;
   }
+  private dayCheck = 0;
   private loop(t: number) { const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t; const now = Date.now();
-    G.advance(this.s, now); this.drain(); this.world.frame(dt, this.s); this.ui.frame();
+    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); } this.drain(); this.world.frame(dt, this.s); this.ui.frame();
     if (now > this.saveAt) { this.saveAt = now + 10000; this.save(); }
     requestAnimationFrame((tt) => this.loop(tt)); }
   private drain() { while (G.events.length) { const e = G.events.shift()!;
-      if (e.kind === 'levelup') { this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.levelUp(e.lvl, e.reward)); this.ui.renderHud(); }
+      if (e.kind === 'levelup') { this.audio.play('levelup'); this.platform.happytime(); const gift = e.lvl % 5 === 0 ? D.giveCore(this.s, e.lvl % 10 === 0 ? 'advanced' : 'standard', e.lvl * 7919 + (this.s.created >>> 0)) : null; this.enqueue(() => this.ui.levelUp(e.lvl, e.reward, gift)); this.ui.renderHud(); }
       else if (e.kind === 'built') { this.audio.play('done'); const p = this.world.topOf(e.item); this.changed(); const it = G.item(this.s, e.item); if (it) { const at = this.world.topOf(it.id); if (at) this.world.burst(at, '#ffd36a', 30); this.ui.toast(`${it.t === 'bay' ? 'Bay' : BUILDINGS[it.t].name} ${e.first ? 'is ready' : `reached level ${e.lvl}`}!`, 'good'); } void p; }
       else if (e.kind === 'crafted') { this.changed(); }
       else if (e.kind === 'discover') { this.ui.toast(`New species in the Botdex: +${e.dm} Dark Matter`, 'gold'); }
@@ -47,10 +50,22 @@ export class App {
       else if (e.kind === 'land') this.changed(); }
     if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
   private enqueue(fn: () => void) { this.queue.push(fn); }
+  // the drop pod lands on a free tile near the Command Center
+  private placeDrop() { const dd = D.daily(this.s); if (dd.drops <= 0) { if (dd.dropAt) { dd.dropAt = null; this.world.sync(this.s); } return; } if (dd.dropAt && G.areaFree(this.s, dd.dropAt[0], dd.dropAt[1], 1, 1)) { if (!this.world.podTop()) this.world.sync(this.s); return; }
+    const cc = G.itemsOf(this.s, 'command')[0]; const cx = cc ? cc.x + 2 : 15, cz = cc ? cc.z + 2 : 15; let best: [number, number] | null = null, bd = 1e9;
+    for (let x = 0; x < 30; x++) for (let z = 0; z < 30; z++) { if (!G.areaFree(this.s, x, z, 1, 1)) continue; const d = Math.abs(Math.hypot(x - cx, z - cz) - 4.5); if (d < bd) { bd = d; best = [x, z]; } } dd.dropAt = best; this.world.sync(this.s); }
   changed() { this.world.sync(this.s); this.ui.renderObjIfChanged(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
-  save() { try { this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } }
+  save() { try { this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } this.notifications(); }
+  // mobile: remind the player when there is something to collect (no-op on the web)
+  private notifications() { if (this.platform.name !== 'mobile') return; const s = this.s, now = Date.now(); let full = Infinity;
+    for (const b of G.itemsOf(s, 'bay')) { const r = G.bayRate(s, b.id); if (r > 0) full = Math.min(full, now + ((G.bayCap(b) - (s.bay[b.id] || 0)) / r) * 1000); }
+    if (isFinite(full)) this.platform.notify('bays', full, 'Your bays are full', 'Your crew has filled their bays with credits. Come and collect!');
+    const fab = s.jobs.filter((j) => j.kind === 'craft').map((j) => j.end).sort()[0]; if (fab) this.platform.notify('fab', fab, 'Power Cells ready', 'Your Fabricator has finished printing.');
+    const dd = D.daily(s); this.platform.notify('drop', dd.drops ? now + 3600e3 : dd.drop, 'A supply drop has landed', 'Open it before the next one arrives.');
+    const tm = new Date(); tm.setDate(tm.getDate() + 1); tm.setHours(19, 0, 0, 0); this.platform.notify('daily', tm.getTime(), 'Your daily reward is waiting', `Day ${dd.day + 1} of your calendar is ready. Keep the streak going!`); }
   // ---------------- taps ----------------
-  private tapped(h: { item?: string; plot?: string; tile?: [number, number]; bot?: string }) { this.audio.unlock(); const s = this.s;
+  private tapped(h: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) { this.audio.unlock(); const s = this.s;
+    if (h.drop) { const top = this.world.podTop(); this.ui.daily.act('drop', document.body); if (top) this.world.burst(top, '#7cf29a', 40); this.placeDrop(); return; }
     if (h.bot) { this.ui.selectBot(h.bot); this.audio.play('tap'); return; }
     if (h.item) { const it = G.item(s, h.item); if (!it) return;
       if (it.t === 'bay' && (s.bay[it.id] || 0) >= 1 && !G.jobOf(s, it.id, 'build')) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }

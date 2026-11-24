@@ -114,3 +114,23 @@ h1, h2, h3, .ox { font-family: Oxanium, Barlow, sans-serif; letter-spacing: 0.02
   #nav { bottom: 8px; gap: 2px; padding: 4px; } #nav button { width: 58px; height: 54px; }
   #place { bottom: 88px; }
 }
+
+/* ---------- daily ---------- */
+.rdot { position: absolute; top: -2px; right: -2px; width: 11px; height: 11px; border-radius: 50%; background: var(--red); box-shadow: 0 0 8px var(--red); border: 2px solid #0a1222; }
+.ibtn { position: relative; }
+.chip { height: 42px; padding: 0 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font: 700 13px Oxanium; backdrop-filter: blur(8px); white-space: nowrap; }
+.chip.hot { border-color: var(--green); color: #d6ffe0; box-shadow: 0 0 14px rgba(124, 242, 154, 0.45); animation: bob 1.4s ease-in-out infinite; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 760px; margin: 0 auto; }
+.day { position: relative; min-height: 92px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.day b { font: 700 11px Oxanium; color: var(--muted); } .day .dr { display: flex; flex-direction: column; gap: 1px; } .day .dr .cost { font-size: 11px; } .day .lbl { font: 700 9px Oxanium; color: var(--gold); text-transform: uppercase; }
+.day.special { border-color: rgba(255, 211, 106, 0.45); background: linear-gradient(rgba(255, 211, 106, 0.08), var(--bg2)); }
+.day.done { opacity: 0.45; } .day .tick { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; color: var(--green); text-shadow: 0 0 10px rgba(0,0,0,0.6); }
+.day.today { border-color: var(--gold); box-shadow: 0 0 18px rgba(255, 211, 106, 0.5); cursor: pointer; animation: bob 1.4s ease-in-out infinite; } .day.today b { color: var(--gold); }
+.chest.ready { border-color: var(--gold); box-shadow: 0 0 16px rgba(255, 211, 106, 0.4); }
+.gift { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 10px auto; padding: 8px 12px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--rc, var(--line)); box-shadow: 0 0 22px color-mix(in srgb, var(--rc, #6ee7ff) 35%, transparent); width: fit-content; text-align: left; }
+.lootrow { display: flex; gap: 12px; justify-content: center; margin: 10px 0; } .loot { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 700 18px Oxanium; animation: zoom 0.45s both; }
+.reel { position: relative; height: 112px; overflow: hidden; margin: 12px -10px; border-radius: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--line); }
+.strip { display: flex; height: 100%; align-items: center; will-change: transform; } .rc { flex: none; width: 92px; height: 92px; margin: 0 2px; border-radius: 12px; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--rc) 45%, transparent), rgba(255,255,255,0.03) 70%); border: 1px solid color-mix(in srgb, var(--rc) 60%, transparent); }
+.rc img { width: 100%; height: 100%; } .needle { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1.5px; background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+.report { text-align: left; display: flex; flex-direction: column; gap: 8px; margin: 12px 0 16px; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.04); }
+@media (max-width: 640px) { .cal { gap: 4px; } .day { min-height: 76px; padding: 4px 2px; } .day .dr .cost { font-size: 9px; } .chip { height: 34px; padding: 0 8px; font-size: 11px; } #hud .ibtn { width: 34px; height: 34px; font-size: 15px; } }
