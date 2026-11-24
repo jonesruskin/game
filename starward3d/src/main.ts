@@ -20,6 +20,8 @@ import * as SO from './core/solar';
 import * as DY from './core/daily';
 import * as WG from './core/war';
 import * as STR from './core/stars';
+import * as AL from './core/aliens';
+import * as CF from './core/conflict';
 import * as NET from './core/net';
 import { Battle, deployLive, surrender, resultOf, canDeployAt, BattleInput } from './core/battle';
 import { SPECIES } from './data/species';
@@ -32,7 +34,7 @@ export class App {
     await this.platform.init(); this.platform.loadingStart();
     let raw: string | null = null; try { raw = this.platform.load(SAVE_KEY); } catch (e) { raw = null; }
     let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
-    const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); this.s.stats.sessions++;
+    const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
     this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
     this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
     const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - 26; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
@@ -40,7 +42,7 @@ export class App {
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else this.tickNow(); }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k);
+    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
@@ -55,7 +57,7 @@ export class App {
     const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt; this.s.stats.playS += dt;
     if (this.acc >= 0.25) { this.acc = 0; this.tick(); }
     this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel();
-    if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing) this.queue.shift()!();
+    if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing && this.world.mode !== 'battle' && this.world.mode !== 'space') this.queue.shift()!(); // never over a battle
     requestAnimationFrame((tt) => this.loop(tt));
   }
   tickNow() { this.tick(); this.changed(); }
@@ -65,6 +67,8 @@ export class App {
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
     DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
+    // contact and conflict: relations drift, civilisations make requests, the Swarm raids
+    AL.drift(this.s, 1); for (const n of [...AL.tickAliens(this.s, this.R), ...CF.tickWar(this.s)]) this.note(n); if (this.ui.tick % 30 === 11 && this.world.mode === 'base' && !this.ui.over) this.ui.contact.maybePrompt();
     if (this.ui.tick % 60 === 7) NET.pushSnapshot(this.s, { primary: this.world.look.banner.bg, accent: this.world.look.banner.fg });
     if (this.ui.tick % 10 === 3 && WG.unlocked(this.s) && this.world.mode === 'base') { const d = WG.drill(this.s); if (d) this.ui.toast(d.held ? `The Academy drilled your defences: they held (${d.pct}%). Bounty waiting in the War Games log.` : `The Academy drill broke through (${d.stars}★, ${d.pct}%). Check the replay in the War Games log.`, d.held ? 'good' : 'bad'); } this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
     // Kardashev milestones pay out dark matter as the civilisation's power grows
@@ -82,12 +86,24 @@ export class App {
     else if (n.kind === 'survey') { this.audio.play('levelup'); this.ui.toast(`Survey complete: ${esc(SO.BODIES[n.body].name)} is mapped`, 'gold'); }
     else if (n.kind === 'terra') { this.audio.play('levelup'); this.platform.happytime(); const T = SO.TERRA[n.body], st = T.stages[n.stage]; if (this.s.at === n.body && this.world.mode === 'base') { this.world.setWorld(this.s, n.body); this.world.sync(this.s); }
       this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${esc(SO.BODIES[n.body].name.toUpperCase())} · STAGE ${n.stage + 1} OF ${T.stages.length}</div><h1>${esc(st.name)}</h1><p class="desc">${esc(st.desc)}</p>${n.last ? '<p class="desc good">Terraforming is complete. A new living world.</p>' : ''}${this.s.at !== n.body ? `<button class="btn gold" data-a="travel" data-k="${n.body}">See it</button> ` : ''}<button class="btn" data-a="closeModal">${this.s.at === n.body ? 'Look around' : 'Later'}</button>`, { rays: true })); this.ui.renderHud(); }
+    else if (n.kind === 'request') { const d = AL.allSpecies()[n.sp]; this.audio.play('claim'); this.ui.toast(`${esc(d.name)} has a request (Contact)`, 'gold'); }
+    else if (n.kind === 'reqExpired') { this.ui.toast(`A request from ${esc(AL.allSpecies()[n.sp].name)} went unanswered`, 'bad'); }
+    else if (n.kind === 'decipher') { this.audio.play('levelup'); this.ui.toast(`${esc(AL.allSpecies()[n.sp].name)}: language ${n.und}% understood`, 'gold'); }
+    else if (n.kind === 'embassy') { this.audio.play('done'); this.ui.toast(`Embassy to the ${esc(AL.allSpecies()[n.sp].name)}: level ${n.lvl}`, 'good'); }
+    else if (n.kind === 'uplift') { this.audio.play('levelup'); this.platform.happytime(); this.ui.toast(`The ${esc(AL.allSpecies()[n.sp].name)} take their first steps toward the stars`, 'gold'); }
+    else if (n.kind === 'dig') { this.audio.play('levelup'); this.ui.toast(`The Hollow ruins: level ${n.lvl} excavated`, 'gold'); }
+    else if (n.kind === 'warship') { this.audio.play('done'); this.ui.toast(`${n.n} × ${esc(CF.WARSHIPS[n.ship].name)} join the fleet`, 'good'); }
+    else if (n.kind === 'defence') { this.audio.play('done'); this.ui.toast(`Defences raised to level ${n.lvl}`, 'good'); }
+    else if (n.kind === 'fleetMoved') { this.ui.toast('The fleet has arrived', 'good'); }
+    else if (n.kind === 'raidIncoming') { this.audio.play('deny'); const r = n.raid; this.ui.toast(r.target === 'earth' ? `⚠ The Swarm is coming for Cape Horizon: landing in ${fmtTime((r.eta - Date.now()) / 1000)}. Check Defence Command.` : `⚠ Kr'thul raid inbound to ${esc(r.name)} in ${fmtTime((r.eta - Date.now()) / 1000)}`, 'bad'); }
+    else if (n.kind === 'raidResult' || n.kind === 'assault') { const r = n.rep; this.audio.play(r.win ? 'levelup' : 'deny'); const title = `${r.kind === 'assault' ? 'Assault on' : r.kind === 'landing' ? 'Swarm landing at' : 'Raid on'} ${r.name}`;
+      this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${r.win ? (r.kind === 'assault' ? 'VICTORY' : 'DEFENCE HELD') : r.kind === 'assault' ? 'REPULSED' : 'BREACHED'}</div><h1>${esc(title)}</h1><p class="desc">${r.loot && r.kind !== 'assault' ? `They carried off ${Object.entries(r.loot).map(([k, v]: any) => `${fmt(v)} ${esc(RES[k].name.toLowerCase())}`).join(' and ')}.` : r.loot ? `Spoils: ${Object.entries(r.loot).map(([k, v]: any) => `${fmt(v)} ${esc(RES[k].name.toLowerCase())}`).join(', ')}.` : r.salvage ? `Salvage: ${Object.entries(r.salvage).map(([k, v]: any) => `${fmt(v)} ${esc(RES[k].name.toLowerCase())}`).join(', ')}.` : ''}</p><button class="btn gold" data-a="watchBattle" data-i="0">▶ Watch the battle</button> <button class="btn" data-a="closeModal">Close</button>`, { rays: r.win })); }
     else if (n.kind === 'sail') { this.audio.play('levelup'); this.ui.toast(`Light sail arrived: ${esc(STR.STARS[n.star].name)} is surveyed`, 'gold'); if (n.story) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">EPSILON ERIDANI</div><h1>A lighthouse</h1><p class="desc">The sail's cameras find a structure in the inner belt, older than our species, still transmitting. Whoever built it wanted to be found.</p><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
     else if (n.kind === 'drive') { this.audio.play('done'); this.ui.toast(`The ${esc(STR.DRIVES[n.ship].name)} leaves the shipyard`, 'gold'); }
     else if (n.kind === 'mega') { this.audio.play('levelup'); this.platform.happytime(); this.ui.toast(`${esc(STR.MEGA[n.mega].name)}: stage ${n.stage + 1} complete`, 'gold'); }
     else if (n.kind === 'gatebuild') { this.audio.play('levelup'); this.ui.toast(`A wormhole gate opens at ${esc(STR.STARS[n.star].name)}`, 'gold'); }
     else if (n.kind === 'develop') { this.audio.play('done'); this.ui.toast(`${esc(this.s.bases[n.key]?.name || 'A star colony')} reaches level ${n.lvl}`, 'good'); }
-    else if (n.kind === 'starcolony') { this.audio.play('levelup'); this.platform.happytime(); this.ui.renderHud(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${n.first ? "HUMANITY'S FIRST STAR COLONY" : 'A NEW WORLD UNDER ANOTHER SUN'}</div><h1>${esc(n.name)}</h1><p class="desc">The settlers wake from their long sleep under the light of ${esc(STR.STARS[n.star].name)}. Robots unfold the first habitats; the rest of the world waits to be developed.</p><button class="btn gold" data-a="travel" data-k="${n.key}">Visit the colony</button> <button class="btn" data-a="closeModal">Later</button>`, { rays: true })); }
+    else if (n.kind === 'starcolony') { const life = AL.discoverLife(this.s, n.star, +n.key.split(':')[1]); if (life) this.ui.toast(`Life on ${esc(n.name)}: ${esc(life)} (+600 xenodata)`, 'gold'); this.audio.play('levelup'); this.platform.happytime(); this.ui.renderHud(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${n.first ? "HUMANITY'S FIRST STAR COLONY" : 'A NEW WORLD UNDER ANOTHER SUN'}</div><h1>${esc(n.name)}</h1><p class="desc">The settlers wake from their long sleep under the light of ${esc(STR.STARS[n.star].name)}. Robots unfold the first habitats; the rest of the world waits to be developed.</p><button class="btn gold" data-a="travel" data-k="${n.key}">Visit the colony</button> <button class="btn" data-a="closeModal">Later</button>`, { rays: true })); }
     else if (n.kind === 'relay') { this.audio.play('done'); this.ui.toast(`Relays around ${esc(SO.BODIES[n.body].name)} online: level ${n.lvl}`, 'good'); }
     else if (n.kind === 'ship') { this.audio.play('done'); this.ui.toast(`The ${esc(SO.SHIPS[n.ship].name)} leaves the shipyard`, 'good'); }
     else if (n.kind === 'voyage') { this.audio.play('levelup'); this.platform.happytime(); if (n.founded) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">A NEW WORLD</div><h1>${esc(this.s.bases[n.body].name)}</h1><p class="desc">Colonists step out onto ${esc(SO.BODIES[n.body].name)}. Keep them housed, watered and breathing, and they will build a civilisation.</p><button class="btn gold" data-a="travel" data-k="${n.body}">Visit the colony</button> <button class="btn" data-a="closeModal">Later</button>`, { rays: true })); else this.ui.toast(`${esc(n.name)}: done${n.people ? ` (+${n.people} colonists)` : ''}`, 'gold'); this.ui.renderHud(); }
@@ -127,6 +143,8 @@ export class App {
     window.setTimeout(() => { this.ui.war.hideHud(); this.ui.war.result(r, out, b.who); }, 900); this.changed(); this.save(); }
   replay(input: BattleInput, look: { primary: string; accent: string } | null, who: string) { this.ui.closeOver(); const bv = this.world.openBattle(JSON.parse(JSON.stringify(input)), look ? this.oppLook(look) : this.world.look, false); this.battle = { B: bv.B!, live: false, opp: null, who }; document.body.classList.add('battling'); this.ui.war.hud(bv.B!, false, who); bv.onTick = () => this.ui.war.upd(bv.B!); bv.onOver = () => this.battleOver(); }
   closeBattle() { this.battle = null; this.world.closeBattle(); document.body.classList.remove('battling'); this.ui.war.hideHud(); this.ui.renderNav(); this.ui.renderPanel(); this.world.sync(this.s); }
+  watchSpace(res: any, title: string) { this.ui.select(null); const V = this.world.openSpace(res); document.body.classList.add('battling'); this.ui.fleet.hud(title); V.onRound = () => this.ui.fleet.updHud(); V.onDone = () => { const el = document.getElementById('sres'); if (el) el.innerHTML = `<div class="banner ${res.win ? 'good' : 'bad'}">${res.win ? 'The attackers win' : 'The defenders hold'}</div>`; }; }
+  closeSpace() { this.world.space?.clear(); this.world.closeOrbit(); document.body.classList.remove('battling'); this.ui.fleet.hideHud(); this.ui.renderNav(); this.ui.renderPanel(); this.world.sync(this.s); }
   openDropNow() { const at = this.world.capsulePos(); const r = DY.openDrop(this.s); if (!r) return; this.audio.play('levelup'); if (at) { at.y += 1; this.world.burst(at, '#ffd36a', 36); } this.world.setCapsule(this.s, false); this.ui.daily.reveal('SUPPLY CAPSULE', '📦', r.res, r.gift); this.changed(); this.ui.daily.renderRail(); }
   focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
   collect(id: string) {

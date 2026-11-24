@@ -15,6 +15,8 @@ import { SolarUI, worldIcon } from './solar';
 import { DailyUI } from './daily';
 import { WarUI } from './war';
 import { StarsUI } from './stars';
+import { ContactUI } from './contact';
+import { FleetUI } from './fleet';
 import { isExo } from '../core/stars';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
@@ -22,10 +24,10 @@ const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${RES[r]?.icon || ''}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 export class UI {
-  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI;
+  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
-    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this);
+    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.id === 'aname') { const v = t.value.trim().slice(0, 24); if (v) { this.s.name = v; this.s.bases.earth.name = v; this.app.changed(); this.renderHud(); } } if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); });
   }
@@ -136,6 +138,8 @@ export class UI {
     if (this.over === 'daily') { el.innerHTML = this.daily.html(); return; }
     if (this.over === 'war') { el.innerHTML = this.war.html(); return; }
     if (this.over === 'empire') { el.innerHTML = this.stars.empireHTML(); return; }
+    if (this.over === 'contact') { el.innerHTML = this.contact.html(); return; }
+    if (this.over === 'defence') { el.innerHTML = this.fleet.html(); return; }
     if (this.over === 'goals') { el.innerHTML = this.goalsHTML(); return; }
   }
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
@@ -183,7 +187,7 @@ export class UI {
       <p class="muted" style="font-size:12px">Graphics changes apply after a reload. Camera: drag to pan, scroll or pinch to zoom, right-drag, two-finger twist or Q/E to rotate.</p><div class="row" style="justify-content:center"><button class="btn red small" data-a="reset">Start over</button><button class="btn" data-a="closeModal">Close</button></div>`; }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement) {
-    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
+    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t) || this.contact.act(a, t) || this.fleet.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
     switch (a) {
       case 'orbit': A.openOrbit('earth'); A.audio.play('whoosh'); break;
       case 'base': A.toBase(); A.audio.play('whoosh'); break;

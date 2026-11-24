@@ -193,3 +193,21 @@ body.battling #obj, body.battling #panel, body.battling #nav, body.battling #bub
 .specs { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .specs .tab { padding: 4px 8px; font-size: 11px; }
 .box.planet { border-left: 3px solid rgba(110, 231, 255, 0.35); }
 body.mapping #bubbles .bub:not(.lbl) { display: none !important; }
+/* Contact */
+.body.contact { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 12px; align-items: start; }
+.civs { display: flex; flex-direction: column; gap: 6px; } .civ { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); cursor: pointer; }
+.civ.on { border-color: var(--gold); background: rgba(255, 211, 106, 0.07); } .civ.pend { border-color: var(--cyan); animation: pulse 1.8s infinite; }
+.portrait { border-radius: 12px; flex: none; background: #05080f; } .portrait.unknown { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font: 700 24px Oxanium; color: var(--cyan); border: 1px dashed var(--cyan); }
+.portrait.unknown.big { width: 96px; height: 96px; font-size: 44px; margin: 8px auto; }
+.relbar { position: relative; height: 6px; border-radius: 3px; margin: 4px 0; background: linear-gradient(90deg, #ff6b7a, #ffb35a 35%, #ffd36a 50%, #7cf29a 85%); opacity: 0.85; }
+.relbar i { position: absolute; top: -3px; width: 4px; height: 12px; border-radius: 2px; margin-left: -2px; box-shadow: 0 0 0 2px #0a1222; }
+.botc.opening { cursor: pointer; } .botc.opening:hover { border-color: var(--gold); }
+.box.warn { border-color: rgba(255, 107, 122, 0.55); background: rgba(255, 107, 122, 0.06); }
+@media (max-width: 720px) { .body.contact { grid-template-columns: 1fr; } }
+/* space battles */
+#shud { position: fixed; inset: 0; pointer-events: none; z-index: 12; } #shud > * { pointer-events: auto; }
+#shud .bt { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+#shud .who, #shud .mid, #shud .ctl { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; display: flex; gap: 8px; align-items: center; backdrop-filter: blur(8px); }
+#shud .sides { position: absolute; bottom: 12px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 8px; pointer-events: none; }
+#shud .sides > div { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px; min-width: 140px; } #shud .sides > div:empty { display: none; }
+#shud .banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font: 700 32px Oxanium; padding: 12px 28px; border-radius: 16px; background: var(--bg); border: 2px solid currentColor; animation: zoom 0.5s both; }

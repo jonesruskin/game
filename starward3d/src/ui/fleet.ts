@@ -1,0 +1,70 @@
+// Defence Command: the war fleet (built at the Orbital Shipyard, stationed where you send it), planetary defences on
+// every world, incoming Kr'thul raids with a forecast and advice (an exact one for landings on Earth, because the
+// battle engine is deterministic: fix your base and watch the forecast change), the Swarm's hives, and the battle log
+// with replays (space battles in 3D; landings in the War Games arena).
+import { esc, fmt, fmtTime, clamp } from '../core/util';
+import * as CF from '../core/conflict';
+import { run } from '../core/battle';
+import { layoutOf, aiDeploys } from '../core/war';
+import { WARSHIPS, WARSHIP_ORDER, SWARM, HIVES, HIVE_ORDER, DEF_MAX, defCost } from '../data/fleet';
+import { STARS } from '../data/stars';
+import { RES } from '../data/resources';
+import { TECH } from '../data/research';
+import type { UI } from './ui';
+import { costHTML } from './ui';
+const WPN: Record<string, string> = { laser: '🔦 laser', missile: '🚀 missile', rail: '➖ railgun' };
+const comp = (c: Record<string, number>) => Object.entries(c).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost">${esc((WARSHIPS[k] || SWARM[k] || { name: k }).name)} ×${fmt(n)}</span>`).join(' ') || '<span class="muted">none</span>';
+export class FleetUI {
+  tab: 'fleet' | 'def' | 'threats' | 'log' = 'threats'; private fc = new Map<string, string>();
+  constructor(private ui: UI) {}
+  get s() { return this.ui.app.s; } get A() { return this.ui.app; }
+  available() { const s = this.s; return !!(s.tech.navalWarfare || s.tech.planetaryDefence || CF.war(s).raids.length || CF.raidsOn(s)); }
+  private job(kind: string, f: (j: any) => boolean = () => true) { return this.s.jobs.find((j) => j.kind === kind && f(j)); }
+  private prog(j: any, label: string) { return `<div class="now"><div class="grow"><div class="tier">${esc(label)}</div><div class="bar gold" style="margin-top:6px"><i style="width:${clamp((Date.now() - j.start) / (j.end - j.start)) * 100}%"></i></div></div><div style="text-align:right"><b class="ox">${fmtTime((j.end - Date.now()) / 1000)}</b><br><button class="btn gold small" data-a="finish" data-job="${j.id}">Finish</button></div></div>`; }
+  private btn(c: any, act: string, label: string, data = '') { return `<button class="btn small ${c.ok ? 'gold' : ''}" data-a="${act}" ${data} ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? label : esc(c.why === 'Research required' && c.tech ? `Research ${TECH[c.tech]?.name}` : c.why || label)}</button>`; }
+  private placeName(key: string) { if (key === 'home') return 'Earth orbit'; const s = this.s; return s.bases[key]?.name || (key.includes(':') ? STARS[key.split(':')[0]].planets[+key.split(':')[1]].name : key); }
+  html() { const s = this.s, W = CF.war(s); const tabs: [string, string][] = [['threats', `Threats${W.raids.length ? ` · ${W.raids.length}` : ''}`], ['fleet', 'Fleet'], ['def', 'Defences'], ['log', 'Log']];
+    const body = this.tab === 'fleet' ? this.fleet() : this.tab === 'def' ? this.defs() : this.tab === 'log' ? this.log() : this.threats();
+    return `<div class="head"><h1>Defence Command</h1><span class="chip">⚔ ${fmt(Object.values(W.ships).reduce((a, n) => a + n, 0))} warships · ${esc(this.placeName(W.fleetAt))}</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${this.tab === k ? 'on' : ''}" data-a="ftab" data-t="${k}">${esc(n)}</button>`).join('')}</div><div class="body">${body}</div>`; }
+  // the exact outcome of a landing on Earth if it came now (cached per raid and base layout)
+  private landingForecast(raid: any) { const s = this.s; const L = layoutOf(s); const key = raid.id + JSON.stringify(L.items.map((i) => i.id + i.lvl + i.x + i.z)); let v = this.fc.get(key);
+    if (!v) { const army = CF.groundArmy(s, raid); const r = run({ layout: L, army, deploys: aiDeploys(L, army, raid.seed), seed: raid.seed }); v = `${r.stars}|${r.pct}|${army.length}`; this.fc.set(key, v); } const [st, pct, n] = v.split('|').map(Number); return { stars: st, pct, n }; }
+  private threats() { const s = this.s, W = CF.war(s); let h = '';
+    if (!W.raids.length) h += `<p class="desc">${CF.raidsOn(s) ? 'No raid inbound right now. The Swarm strikes every few days: build defences, warships and walls while you can.' : 'No threats. The Kr\'thul Swarm leaves you alone while you pay tribute or before it has noticed you.'}</p>`;
+    for (const raid of W.raids) { const earth = raid.target === 'earth'; h += `<div class="box warn"><div class="row"><b class="ox grow">⚠ ${earth ? 'Landing at' : 'Raid on'} ${esc(raid.name)}</b><b class="ox">${fmtTime((raid.eta - Date.now()) / 1000)}</b></div>`;
+      if (earth) { const f = this.landingForecast(raid); h += `<p class="desc">${f.n} Swarm ground troops will land outside Cape Horizon and attack your real base. Your turrets, lasers, missiles, shields, EMP towers and walls fight them; orbital defences thin the landing first.</p><div class="meta">If they landed now: <b class="${f.stars <= 1 ? 'good' : 'bad'}">${'★'.repeat(f.stars)}${'☆'.repeat(3 - f.stars)} ${f.pct}% destroyed: ${f.stars <= 1 ? 'you would hold' : 'they would break through and loot your stores'}</b>. Add walls, upgrade or add defences and assign robot operators, then check again.</div><button class="btn small" data-a="landPreview" data-k="${raid.id}">▶ Watch the forecast</button>`; }
+      else { const p0 = CF.raidForecast(s, raid, false), p1 = CF.raidForecast(s, raid, true); h += `<div class="meta">Inbound: ${comp(raid.comp)}</div><div class="meta">Chance to hold: <b>${Math.round(p0 * 100)}%</b> with local defences${Object.values(W.ships).some((n) => n > 0) ? `, <b>${Math.round(p1 * 100)}%</b> with the fleet there` : ''}.</div>${W.fleetAt !== raid.target && Object.values(W.ships).some((n) => n > 0) ? this.btn(CF.canMove(s, raid.target), 'fleetMove', `Send the fleet (${fmtTime(CF.moveTime(s, raid.target))})`, `data-k="${raid.target}"`) : W.fleetAt === raid.target ? '<span class="good">The fleet is in position.</span>' : ''}`; }
+      h += '</div>'; }
+    h += `<h3 style="margin-top:10px">The Swarm's hives</h3><div class="bots">${HIVE_ORDER.map((id) => { const H = HIVES[id]; const done = !!W.hives[id + '_done']; const c = CF.canAssault(s, id); const left = CF.hiveLeft(s, id); const fc = !done && Object.values(W.ships).some((n) => n > 0) ? CF.assaultForecast(s, id) : null; const adv = fc !== null && fc < 0.5 ? CF.assaultAdvice(s, id) : null; const go = this.job('sortie', (j) => j.hive === id);
+      return `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${esc(H.name)}</b>${done ? ' <span class="good ox">destroyed</span>' : ''}<div class="meta">${esc(H.desc)}</div>${done ? '' : `<div class="meta">Garrison: ${comp(left)}</div><div class="meta">Spoils: ${Object.entries(H.loot).map(([r, n]) => `<span style="color:${RES[r].color}">${RES[r].icon}</span>${fmt(n)}`).join(' ')}</div>${fc !== null ? `<div class="meta">Forecast: <b class="${fc >= 0.5 ? 'good' : 'bad'}">${Math.round(fc * 100)}% to win</b></div>` : ''}${adv ? `<div class="why">${esc(adv)}</div>` : ''}`}</div>${done ? '' : go ? this.prog(go, 'FLEET EN ROUTE') : this.btn(c, 'assault', '⚔ Assault', `data-k="${id}"`)}</div>`; }).join('')}</div>`;
+    return h; }
+  private fleet() { const s = this.s, W = CF.war(s); const wj = this.job('warship'), mj = this.job('sortie', (j) => !!j.dest);
+    let h = `<div class="box"><b class="ox">The fleet</b><div class="meta">${comp(W.ships)}</div><div class="meta">Stationed at ${esc(this.placeName(W.fleetAt))}. Strength ${fmt(CF.power(W.ships))}.</div>${mj ? this.prog(mj, `MOVING TO ${this.placeName(mj.dest).toUpperCase()}`) : `<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${['home', ...CF.targets(s).map((t) => t.key).filter((k) => k !== 'earth')].filter((k) => k !== W.fleetAt).slice(0, 8).map((k) => `<button class="btn small" data-a="fleetMove" data-k="${k}" ${Object.values(W.ships).some((n) => n > 0) ? '' : 'disabled'}>→ ${esc(this.placeName(k))}</button>`).join('')}</div>`}</div>`;
+    h += `<p class="desc">Lasers shred small hulls, missiles crack large ones, railguns punch through shields. Mix your fleet to match what you face.</p>${wj ? this.prog(wj, `BUILDING ${wj.n} × ${WARSHIPS[wj.ship].name.toUpperCase()}`) : ''}<div class="bots">${WARSHIP_ORDER.map((k) => { const d = WARSHIPS[k];
+      return `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${esc(d.name)}</b> <span class="muted" style="font-size:11px">${d.size} hull · ${WPN[d.wpn]} · ${fmt(d.hp)} hull, ${fmt(d.sh)} shields, ${fmt(d.atk)} firepower</span><div class="meta">${esc(d.desc)} · ${W.ships[k] || 0} in service</div><div>${costHTML(CF.warCost(k, 1), s.res)} each</div></div><div class="row" style="flex-direction:column;gap:4px">${[1, 5, 10].map((n) => this.btn(CF.canWarship(s, k, n), 'warship', `Build ${n}`, `data-k="${k}" data-n="${n}"`)).join('')}</div></div>`; }).join('')}</div>`;
+    return h; }
+  private defs() { const s = this.s; const T = CF.targets(s); if (!s.tech.planetaryDefence) return `<p class="desc">Research Planetary Defence to fortify your worlds with orbital laser batteries, missile silos and shields.</p>`;
+    return `<p class="desc">Orbital defences fight every raid on that world: two laser batteries and two missile silos per level, and stronger shields. Over Earth they also shoot down landing craft before they touch the ground.</p><div class="bots">${T.map((t) => { const L = CF.defLevel(s, t.key), c = CF.canDefence(s, t.key), j = this.job('defence', (x) => x.key === t.key);
+      return `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${esc(t.name)}</b> <span class="muted">level ${L} / ${DEF_MAX}</span>${L < DEF_MAX && !j ? `<div>${costHTML(c.cost || defCost(L + 1), s.res)}</div>` : ''}</div>${j ? this.prog(j, 'UNDER CONSTRUCTION') : this.btn(c, 'fortify', L ? 'Upgrade' : 'Fortify', `data-k="${t.key}"`)}</div>`; }).join('')}</div>`; }
+  private log() { const W = CF.war(this.s); if (!W.log.length) return '<p class="desc">No battles yet.</p>';
+    return `<div class="bots">${W.log.map((r: any, i: number) => `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${r.kind === 'assault' ? 'Assault on' : r.kind === 'landing' ? 'Landing at' : 'Raid on'} ${esc(r.name)}</b> <span class="${r.win ? 'good' : 'bad'} ox">${r.win ? (r.kind === 'assault' ? 'VICTORY' : 'HELD') : r.kind === 'assault' ? 'REPULSED' : 'LOST'}</span><div class="meta">${fmtTime((Date.now() - r.t) / 1000)} ago${r.loot ? ` · lost/won ${Object.entries(r.loot).map(([k, n]: any) => `<span style="color:${RES[k].color}">${RES[k].icon}</span>${fmt(n)}`).join(' ')}` : ''}${r.salvage ? ` · salvage ${Object.entries(r.salvage).map(([k, n]: any) => `<span style="color:${RES[k].color}">${RES[k].icon}</span>${fmt(n)}`).join(' ')}` : ''}</div></div><button class="btn small" data-a="watchBattle" data-i="${i}">▶ Watch</button></div>`).join('')}</div>`; }
+  // the space battle HUD
+  hud(title: string) { let el = document.getElementById('shud'); if (!el) { el = document.createElement('div'); el.id = 'shud'; document.body.appendChild(el); } el.classList.remove('hidden'); el.innerHTML = `<div class="bt"><div class="who"><span class="tag">BATTLE</span> <b>${esc(title)}</b></div><div class="mid"><b id="sround">Round 0 / 6</b></div><div class="ctl"><button class="btn small" data-a="sSpeed" id="sspd">×1</button> <button class="btn small" data-a="sClose">Close</button></div></div><div class="sides"><div id="sideA"></div><div id="sideB"></div></div><div id="sres"></div>`; this.updHud(); }
+  updHud() { const V = this.A.world.space; if (!V) return; const c = V.counts(); const f = (L: [string, number][]) => L.map(([k, n]) => `<div>${esc((WARSHIPS[k] || SWARM[k] || { name: k === 'battery' ? 'Laser battery' : 'Missile silo' }).name)} <b>${fmt(n)}</b></div>`).join(''); const e = (id: string) => document.getElementById(id);
+    if (e('sround')) e('sround')!.textContent = `Round ${Math.max(0, Math.min(6, V.round + 1))} / ${V.res ? V.res.rounds.length : 6}`; if (e('sideA')) e('sideA')!.innerHTML = f(c.A); if (e('sideB')) e('sideB')!.innerHTML = f(c.B); }
+  hideHud() { document.getElementById('shud')?.classList.add('hidden'); }
+  act(a: string, t: HTMLElement): boolean { const s = this.s, A = this.A, ui = this.ui; const k = t.dataset.k!; const rr = (r: any, msg: string) => { if (r && r.ok) { A.audio.play('build'); ui.toast(msg, 'good'); A.changed(); ui.renderOver(); } else ui.deny(r && r.why); return true; };
+    switch (a) {
+      case 'defence': ui.openOver('defence'); A.audio.play('tap'); return true;
+      case 'ftab': this.tab = t.dataset.t as any; ui.renderOver(); A.audio.play('tap'); return true;
+      case 'warship': return rr(CF.startWarship(s, k, +t.dataset.n!), `The war docks start on ${t.dataset.n} × ${WARSHIPS[k].name}`);
+      case 'fortify': return rr(CF.startDefence(s, k), 'Defence construction begins');
+      case 'fleetMove': return rr(CF.startMove(s, k), `The fleet sets course for ${this.placeName(k)}`);
+      case 'assault': return rr(CF.startAssault(s, k), 'The fleet launches the assault');
+      case 'watchBattle': { const r: any = CF.war(s).log[+t.dataset.i!]; if (!r) return true; ui.closeOver(); ui.closeModal(); if (r.kind === 'landing' && r.ground) A.replay(r.ground, null, `Swarm landing at ${r.name}`); else if (r.res) A.watchSpace(r.res, `${r.kind === 'assault' ? 'Assault on' : 'Raid on'} ${r.name}`); return true; }
+      case 'landPreview': { const raid = CF.war(s).raids.find((x: any) => x.id === k); if (!raid) return true; const L = layoutOf(s); const army = CF.groundArmy(s, raid); ui.closeOver(); A.replay({ layout: L, army, deploys: aiDeploys(L, army, raid.seed), seed: raid.seed }, null, 'Forecast: Swarm landing'); return true; }
+      case 'sSpeed': { const V = A.world.space; if (V) { V.speed = V.speed === 1 ? 2 : V.speed === 2 ? 4 : 1; const b = document.getElementById('sspd'); if (b) b.textContent = '×' + V.speed; } return true; }
+      case 'sClose': A.closeSpace(); return true;
+    }
+    return false; }
+}
