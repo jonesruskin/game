@@ -1,0 +1,22 @@
+{
+  "name": "starward3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsc --noEmit",
+    "build": "node tools/build.mjs",
+    "build:crazygames": "node tools/build.mjs crazygames",
+    "build:web": "node tools/build.mjs web",
+    "build:mobile": "node tools/build.mjs mobile"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.187.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.8"
+  }
+}

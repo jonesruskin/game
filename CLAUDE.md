@@ -1,6 +1,6 @@
 # Repo instructions for Claude
 - **Git workflow:** commit all work directly to `main` and push to `origin main`. No feature branches, no pull requests (owner's standing instruction).
-- Repo layout: Stealstorm at the repo root, `hordemind/`, `driftline/`, `emberkeep/`, `fuseworks/` (flagship), `glint/` (ray-traced gem-cutting simulator), `starward/` (space empire builder, built in 8 parts; see starward/DESIGN.md §11). Each game has `dist/` (portal zips), `store/` (covers, videos, listing copy) and `UPLOAD.md`.
-- After changing a game's code, rebuild its zips (`node tools/build.mjs` inside that game's folder, or at the root for Stealstorm) and commit the updated zips.
+- Repo layout: Stealstorm at the repo root, `hordemind/`, `driftline/`, `emberkeep/`, `fuseworks/` (flagship), `glint/` (ray-traced gem-cutting simulator), `starward/` (space empire builder, built in 8 parts; see starward/DESIGN.md §11), `starward3d/` (its 3D TypeScript + Three.js evolution with collectible bots; npm project, see starward3d/DESIGN.md §8). Each game has `dist/` (portal zips), `store/` (covers, videos, listing copy) and `UPLOAD.md`.
+- After changing a game's code, rebuild its zips (`node tools/build.mjs` inside that game's folder, or at the root for Stealstorm; for `starward3d/` run `npm install` once, then `npm run build`) and commit the updated zips.
 - After visual changes, regenerate store assets with `node tools/store-assets.cjs <game>` (needs Playwright + ffmpeg).
-- Run locally: `python3 -m http.server 8080` from the repo root, then open `/`, `/hordemind/`, `/driftline/`, `/emberkeep/`, `/fuseworks/`, `/glint/` or `/starward/`.
+- Run locally: `python3 -m http.server 8080` from the repo root, then open `/`, `/hordemind/`, `/driftline/`, `/emberkeep/`, `/fuseworks/`, `/glint/`, `/starward/` or `/starward3d/dist/web/` (or `npm run dev` inside `starward3d/`).
