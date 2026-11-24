@@ -1,115 +1,95 @@
 // STARWARD 3D: app shell. Boots the platform, loads (and catches up) the save, runs the frame loop, routes taps,
-// handles placement and turns game events into feedback.
+// handles placement and feedback, and saves. Rules live in core/, the 3D world in render/, the interface in ui/.
 import './ui/style.css';
 import { Platform } from '@platform';
 import type { PlatformAPI } from './platform/types';
-import { State, fresh, migrate, Item } from './core/state';
+import { State, fresh, migrate, SAVE_KEY } from './core/state';
 import * as G from './core/game';
-import { World, Ghost } from './render/world';
+import { rates, kardashev, K_MILESTONES, Rates } from './core/econ';
+import { World } from './render/world';
 import { Studio } from './render/studio';
-import { UI } from './ui/ui';
+import { UI, costHTML, kReward } from './ui/ui';
 import { Audio } from './audio';
-import { $, fmt, esc } from './core/util';
-import { BUILDINGS, landCost, landLevel } from './data/buildings';
-import { SPECIES } from './data/species';
-import * as D from './core/daily';
-import * as AR from './core/arena';
-import * as SP from './core/space';
-import * as V from './core/vault';
-import { CRYSTALS } from './data/vault';
-import { ISLANDS } from './data/islands';
-import { RARITIES } from './data/rarities';
-const SAVE_KEY = 'starward3d_v1';
+import { $, fmt, esc, fmtTime } from './core/util';
+import { BUILDINGS } from './data/buildings';
+import { TECH } from './data/research';
+import { RES } from './data/resources';
 export class App {
-  version = '1.0'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; world!: World; studio!: Studio; ui!: UI; private last = performance.now(); private saveAt = 0; private queue: (() => void)[] = [];
+  version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
+  private last = performance.now(); private acc = 0; private saveAt = 0; private queue: (() => void)[] = []; private placing: { b: string; move?: string } | null = null;
   async boot() {
     await this.platform.init(); this.platform.loadingStart();
-    const raw = this.platform.load(SAVE_KEY); let s: State; try { s = raw ? migrate(JSON.parse(raw)) : fresh(); } catch (e) { console.warn('save unreadable, starting fresh', e); s = fresh(); }
-    this.s = s; const away = Date.now() - (s.last || Date.now()); G.advance(s, Date.now()); const built = G.events.filter((e) => e.kind === 'built').length; G.events.length = 0; D.tickDrops(s); D.refreshMissions(s);
-    const pend = G.itemsOf(s, 'bay').map((b) => Math.floor(s.bay[b.id] || 0)).filter((n) => n >= 1); const sum = { credits: pend.reduce((a, b) => a + b, 0), bays: pend.length, ready: Object.keys(s.ready).length, cores: s.cores.filter((c) => c.state === 'ready').length, built };
-    this.world = new World($('#gl') as HTMLCanvasElement, s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
-    this.audio.setVolume(s.settings.sfx); this.audio.mvol = s.settings.music; this.platform.onMute = (m) => this.audio.setMuted(m); if (this.platform.muted()) this.audio.setMuted(true);
-    this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.validatePlacing();
-    this.world.sync(s); const cc = G.itemsOf(s, 'command')[0]; if (cc) { const c = this.world.centerOf(cc); this.world.cam.x = this.world.cam.tx = c.x - 1; this.world.cam.z = this.world.cam.tz = c.z + 1; }
-    document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.setMusic(this.s.settings.music); }, { once: true });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else { G.advance(this.s, Date.now()); } });
-    window.addEventListener('pagehide', () => this.save());
+    let raw: string | null = null; try { raw = this.platform.load(SAVE_KEY); } catch (e) { raw = null; }
+    let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
+    const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); this.s.stats.sessions++;
+    this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
+    this.world.setWorld(this.s.at, this.s.bases[this.s.at].body); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
+    const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - 26; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
+    this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
+    this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
+    document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else this.tickNow(); }); window.addEventListener('pagehide', () => this.save());
+    (window as any).__app = this; (window as any).__G = G;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
-    if (raw && away > 10 * 60000) setTimeout(() => this.enqueue(() => this.ui.daily.offlineReport(away, sum)), 600);
-    if (!raw) setTimeout(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">WELCOME, COMMANDER</div><h1>${esc(s.name)}</h1><p class="desc">An asteroid in low Earth orbit, a Command Center, a fabricator and one small, cheerful robot named Helio. Everything else is up to you.</p><p class="desc">Your bots earn credits in their bays. Tap a bay to collect, print Power Cells, feed your crew and grow the colony.</p><button class="btn gold" data-a="closeModal" style="min-width:180px">Let's go!</button>`, true), 400);
-    window.__app = this; (window as any).__G = G; (window as any).__daily = D;
+    if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
+    else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
   }
-  private dayCheck = 0; private spaceCheck = 0;
-  private loop(t: number) { const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t; const now = Date.now();
-    G.advance(this.s, now); D.tickDrops(this.s, now); if (now > this.spaceCheck) { this.spaceCheck = now + 1000; for (const b of SP.tickSpace(this.s, now)) { this.changed(); this.enqueue(() => this.ui.space.reveal(b)); } } if (now > this.dayCheck) { this.dayCheck = now + 5000; D.refreshMissions(this.s, now); this.placeDrop(); AR.tickArena(this.s, now); const rd = AR.tickRaid(this.s, now); if (rd && rd.kind === 'warn') { this.audio.play('deny'); this.ui.toast("⚠ A Kr'thul raid is coming: defend your colony!", 'bad'); this.platform.notify('raid', Date.now() + 60000, 'Swarm raid incoming!', 'The Kr\'thul arrive in 2 hours. Defend your colony!'); }
-      if (rd && rd.kind === 'hit') this.enqueue(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em;color:#ff6b7a">RAID</div><div class="big">🔥</div><h1>The Swarm raided the colony</h1><p class="desc">Nobody stood in their way. They carried off ${fmt(rd.stolen)} credits from your bays.</p><p class="sub">Next time, tap the red Swarm warning at the top and defend with your Arena team.</p><button class="btn gold" data-a="closeModal">We'll be ready</button>`));
-      const sr = AR.rollSeason(this.s, now);
-      if (sr) this.enqueue(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">ARENA SEASON ENDED</div><div class="big">🏆</div><h1>${AR.LEAGUES[sr.league][0]}</h1><p class="desc">Your best league this season. Here are your rewards:</p><div class="rewards">${Object.entries(sr.reward).map(([k, n]) => `<span class="cost">${k === 'dm' ? '◆' : k === 'cells' ? '⚡' : 'C'} ${fmt(n)}</span>`).join(' ')}</div><button class="btn gold" data-a="closeModal">Collect</button>`, true)); } this.drain(); this.world.frame(dt, this.s); this.ui.frame();
-    if (now > this.saveAt) { this.saveAt = now + 10000; this.save(); }
-    requestAnimationFrame((tt) => this.loop(tt)); }
-  private drain() { while (G.events.length) { const e = G.events.shift()!;
-      if (e.kind === 'levelup') { this.audio.play('levelup'); this.platform.happytime(); const gift = e.lvl % 5 === 0 ? D.giveCore(this.s, e.lvl % 10 === 0 ? 'advanced' : 'standard', e.lvl * 7919 + (this.s.created >>> 0)) : null; this.enqueue(() => this.ui.levelUp(e.lvl, e.reward, gift)); this.ui.renderHud(); }
-      else if (e.kind === 'built') { this.audio.play('done'); const p = this.world.topOf(e.item); this.changed(); const it = G.item(this.s, e.item); if (it) { const at = this.world.topOf(it.id); if (at) this.world.burst(at, '#ffd36a', 30); this.ui.toast(`${it.t === 'bay' ? 'Bay' : BUILDINGS[it.t].name} ${e.first ? 'is ready' : `reached level ${e.lvl}`}!`, 'good'); } void p; }
-      else if (e.kind === 'crafted') { this.changed(); }
-      else if (e.kind === 'discover') { this.ui.toast(`New species in the Botdex: +${e.dm} Dark Matter`, 'gold'); }
-      else if (e.kind === 'fused') { this.audio.play('done'); this.changed(); this.ui.toast(`Fusion complete: a ${RARITIES[SPECIES[e.sp].rarity].name} core is in the Assembly Bay`, 'gold'); }
-      else if (e.kind === 'booted') { this.audio.play('claim'); this.changed(); this.ui.toast(`A ${RARITIES[SPECIES[e.sp].rarity].name} core has booted: activate it in the Assembly Bay`, 'good'); }
-      else if (e.kind === 'core') { this.changed(); }
-      else if (e.kind === 'launch') { const p = SP.pad(this.s); this.changed(); if (p) { this.world.launchFx(p.id, SP.rocketTier(p.lvl)); this.audio.play('launch'); } }
-      else if (e.kind === 'expBack') { this.audio.play('levelup'); this.changed(); }
-      else if (e.kind === 'land') this.changed();
-      else if (e.kind === 'dug') { this.audio.play('done'); this.changed(); const at = this.world.topOf(e.item); if (at) this.world.burst(at, '#c49bff', 24); this.ui.toast('Crystals dug up: tap the mine to collect', 'good'); }
-      else if (e.kind === 'evolved') { this.platform.happytime(); this.changed(); } }
-    if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
-  private enqueue(fn: () => void) { this.queue.push(fn); }
-  // the drop pod lands on a free tile near the Command Center
-  private placeDrop() { const dd = D.daily(this.s); if (dd.drops <= 0) { if (dd.dropAt) { dd.dropAt = null; this.world.sync(this.s); } return; } if (dd.dropAt && G.areaFree(this.s, dd.dropAt[0], dd.dropAt[1], 1, 1)) { if (!this.world.podTop()) this.world.sync(this.s); return; }
-    const cc = G.itemsOf(this.s, 'command')[0]; const cx = cc ? cc.x + 2 : 15, cz = cc ? cc.z + 2 : 15; let best: [number, number] | null = null, bd = 1e9;
-    for (let x = 0; x < 30; x++) for (let z = 0; z < 30; z++) { if (!G.areaFree(this.s, x, z, 1, 1)) continue; const d = Math.abs(Math.hypot(x - cx, z - cz) - 4.5); if (d < bd) { bd = d; best = [x, z]; } } dd.dropAt = best; this.world.sync(this.s); }
-  changed() { this.world.sync(this.s); this.ui.renderObjIfChanged(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
-  save() { try { this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } this.notifications(); }
-  // mobile: remind the player when there is something to collect (no-op on the web)
-  private notifications() { if (this.platform.name !== 'mobile') return; const s = this.s, now = Date.now(); let full = Infinity;
-    for (const b of G.itemsOf(s, 'bay')) { const r = G.bayRate(s, b.id); if (r > 0) full = Math.min(full, now + ((G.bayCap(b, s) - (s.bay[b.id] || 0)) / r) * 1000); }
-    if (isFinite(full)) this.platform.notify('bays', full, 'Your bays are full', 'Your crew has filled their bays with credits. Come and collect!');
-    const fab = s.jobs.filter((j) => j.kind === 'craft').map((j) => j.end).sort()[0]; if (fab) this.platform.notify('fab', fab, 'Power Cells ready', 'Your Fabricator has finished printing.');
-    const dd = D.daily(s); this.platform.notify('drop', dd.drops ? now + 3600e3 : dd.drop, 'A supply drop has landed', 'Open it before the next one arrives.');
-    const tm = new Date(); tm.setDate(tm.getDate() + 1); tm.setHours(19, 0, 0, 0); this.platform.notify('daily', tm.getTime(), 'Your daily reward is waiting', `Day ${dd.day + 1} of your calendar is ready. Keep the streak going!`); }
+  private report(away: number, before: Record<string, number>, notes: G.Note[]) {
+    const gained = Object.keys(RES).filter((r) => (this.s.res[r] || 0) - (before[r] || 0) >= 1).map((r) => `<span class="cost">${RES[r].icon} +${fmt(this.s.res[r] - before[r])}</span>`).join(' ');
+    const held = this.s.bases[this.s.at].items.reduce((a, it) => a + (it.held || 0), 0); const done = notes.filter((n) => n.kind === 'build' || n.kind === 'research').map((n) => n.kind === 'build' ? `${esc(BUILDINGS[n.b].name)} → level ${n.lvl}` : `Researched ${esc(TECH[n.tech].name)}`);
+    this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">WELCOME BACK</div><h1>${fmtTime(away / 1000)} away</h1><div class="report"><div>${gained || 'Your stockpile is full or unchanged.'}</div>${held >= 1 ? `<div>Waiting in your collectors: <b>${fmt(held)}</b>. Tap the bubbles!</div>` : ''}${done.length ? `<div>${done.slice(0, 6).join('<br>')}</div>` : ''}</div><button class="btn gold" data-a="closeModal">Back to work</button>`);
+  }
+  // ---------------- loop ----------------
+  private loop(t: number) {
+    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt; this.s.stats.playS += dt;
+    if (this.acc >= 0.25) { this.acc = 0; this.tick(); }
+    this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel();
+    if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing) this.queue.shift()!();
+    requestAnimationFrame((tt) => this.loop(tt));
+  }
+  tickNow() { this.tick(); this.changed(); }
+  private tick() {
+    const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
+    this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
+    // Kardashev milestones pay out dark matter as the civilisation's power grows
+    const k = kardashev(this.s, this.R); const m = K_MILESTONES.find((x) => x > (this.s.kMax || 0) && k >= x);
+    if (m) { this.s.kMax = m; const dm = kReward(m); this.s.res.dm = (this.s.res.dm || 0) + dm; this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV MILESTONE</div><div class="big">${m.toFixed(2)}</div><p class="desc">Your civilisation now commands more power than ever. Reward:</p><div class="rewards">${costHTML({ dm })}</div><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
+    if (Date.now() > this.saveAt) { this.saveAt = Date.now() + 10000; this.save(); }
+  }
+  private note(n: G.Note) {
+    if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
+    else if (n.kind === 'research') { this.audio.play('levelup'); this.ui.toast(`Research complete: <b>${esc(TECH[n.tech].name)}</b>`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'research') this.ui.renderOver(); }
+  }
+  changed() { this.R = rates(this.s); this.world.sync(this.s); this.ui.renderObj(); this.ui.renderPanel(); this.ui.updHud(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
+  enqueue(fn: () => void) { this.queue.push(fn); }
   // ---------------- taps ----------------
-  private tapped(h: { item?: string; plot?: string; tile?: [number, number]; bot?: string; drop?: boolean }) { this.audio.unlock(); const s = this.s;
-    if (h.drop) { const top = this.world.podTop(); this.ui.daily.act('drop', document.body); if (top) this.world.burst(top, '#7cf29a', 40); this.placeDrop(); return; }
-    if (h.bot) { this.ui.selectBot(h.bot); this.audio.play('tap'); return; }
-    if (h.item) { const it = G.item(s, h.item); if (!it) return;
-      if (it.t === 'bay' && (s.bay[it.id] || 0) >= 1 && !G.jobOf(s, it.id, 'build')) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
-      if (it.t === 'fab' && s.ready[it.id]) { this.harvest(it); this.ui.select(it.id); return; }
-      if (it.t === 'mine' && V.vault(s).ready[it.id]) { const r = V.collectMine(s, it); if (r) { this.audio.play('crystal'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, CRYSTALS[r.color].color, 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); } this.changed(); } if (this.ui.sel !== it.id) this.ui.select(it.id); else this.ui.renderPanel(); return; }
-      if (it.t === 'relicbay' && (s.bay[it.id] || 0) >= 1) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
-      this.ui.select(this.ui.sel === it.id ? null : it.id); this.audio.play('tap'); return; }
-    if (h.plot) { this.askPlot(h.plot); return; }
-    this.ui.select(null); }
-  collect(it: Item) { const n = G.collectBay(this.s, it); if (!n) return; this.audio.play('collect', n); const ir = it.t === 'relicbay', col = ir ? '#c49bff' : '#ffd36a'; const top = this.world.topOf(it.id); if (top) { this.world.burst(top, col, 18 + Math.min(30, Math.floor(Math.log10(n) * 6))); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${fmt(n)}${ir ? ' ✦' : ''}`, col); this.ui.flyTo(ir ? 'iridium' : 'credits', p.x, p.y, Math.min(9, 3 + Math.floor(Math.log10(n) * 2))); } this.changed(); this.ui.renderPanel(); }
-  harvest(it: Item) { const n = G.harvest(this.s, it); if (!n) return; this.audio.play('harvest'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, '#9dff5a', 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${fmt(n)} ⚡`, '#9dff5a'); this.ui.flyTo('cells', p.x, p.y, 6); } this.changed(); this.ui.renderPanel(); }
-  askPlot(key: string) { const s = this.s, c = G.canBuyPlot(s, key), cost = G.plotCost(s), need = G.plotLevel(s);
-    this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">EXPAND THE ISLAND</div><h1>New land</h1><p class="desc">Tow in another 6×6 slab of asteroid and bolt it to your island: room for more bays, fabricators and decorations.</p><div class="rewards"><span class="cost ${s.res.credits < cost ? 'short' : ''}"><span class="ic cr">C</span>${fmt(cost)}</span></div>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}<div class="row" style="justify-content:center"><button class="btn" data-a="closeModal">Not now</button><button class="btn gold" data-a="buyPlot" data-k="${key}" ${c.ok ? '' : 'disabled'}>Expand</button></div>${s.lvl < need ? `<p class="sub">Reach Commander level ${need} to expand.</p>` : ''}`); }
+  private tapped(h: { item?: string; cell?: [number, number] }) {
+    if (this.placing) return;
+    if (h.item) { const it = G.itemOf(this.s, this.s.at, h.item); if (it && this.R.item[it.id] && (it.held || 0) >= 1 && this.ui.sel !== it.id) { this.collect(it.id); } this.ui.select(h.item); this.audio.play('tap'); return; }
+    this.ui.select(null);
+  }
+  collect(id: string) {
+    const r = G.collect(this.s, this.s.at, id, this.R); if (!r) return; if (r.n <= 0) { this.ui.toast(`${RES[r.r].name} storage is full. Build or upgrade a Logistics Depot.`, 'bad'); this.audio.play('deny'); return; }
+    this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${RES[r.r].icon}`, RES[r.r].color); }
+    if (r.full) this.ui.toast(`${RES[r.r].name} storage is full: the rest stays in the building.`, 'bad'); this.changed();
+  }
   // ---------------- placement ----------------
-  startPlacing(g: Ghost) { const s = this.s; if (!g.move) { const [w, d] = G.dims({ t: g.t, r: g.r }); const cx = Math.round(this.world.cam.tx + 15 - w / 2), cz = Math.round(this.world.cam.tz + 15 - d / 2); let best: [number, number] | null = null, bd = 1e9;
-      for (let x = 0; x < 30; x++) for (let z = 0; z < 30; z++) if (G.areaFree(s, x, z, w, d)) { const dd = (x - cx) ** 2 + (z - cz) ** 2; if (dd < bd) { bd = dd; best = [x, z]; } }
-      if (!best) { this.ui.deny('No free space: expand the island or move things around'); return; } [g.x, g.z] = best; }
-    this.world.startGhost(g); this.world.sync(s); this.validatePlacing(); this.ui.select(null); this.audio.play('tap'); }
-  validatePlacing() { const g = this.world.ghost; if (!g) return; const [w, d] = G.dims({ t: g.t, r: g.r }); this.world.setGhostOk(G.areaFree(this.s, g.x, g.z, w, d, g.move)); this.ui.renderPlace(); }
-  confirmPlacing() { const g = this.world.ghost; if (!g || !g.ok) return; const s = this.s;
-    if (g.move) { const it = G.item(s, g.move); if (it && G.moveItem(s, it, g.x, g.z, g.r)) { this.audio.play('place'); this.endPlacing(); this.changed(); this.ui.select(it.id); } return; }
-    const r = G.build(s, g.t, g.x, g.z, g.r, g.el); if (!r.ok) { this.ui.deny(r.why); return; } this.audio.play(BUILDINGS[g.t].cat === 'decor' ? 'place' : 'build'); this.changed();
-    const at = r.item ? this.world.topOf(r.item.id) : null; if (at) this.world.burst(at, '#6ee7ff', 16);
-    // decorations keep placing (paths, trees...) while you can afford them
-    if (BUILDINGS[g.t].cat === 'decor' && G.canBuild(s, g.t).ok) { this.validatePlacing(); this.ui.renderPlace(); return; }
-    this.endPlacing(); if (r.item && BUILDINGS[g.t].cat !== 'decor') this.ui.select(r.item.id); }
-  endPlacing() { this.world.endGhost(); this.world.sync(this.s); this.ui.renderPlace(); }
-  // warp to another island: a flash, then the new ground, sky and crew
-  travel(key: string, fresh = false) { const s = this.s; if (!fresh && !G.travel(s, key)) return; this.ui.select(null); this.audio.play('whoosh'); const fl = document.createElement('div'); fl.className = 'warp'; document.body.appendChild(fl);
-    setTimeout(() => { this.world.sync(s); const hub = G.itemsHere(s, s.at === 'home' ? 'command' : 'hub')[0]; if (hub) { const c = this.world.centerOf(hub); this.world.cam.x = this.world.cam.tx = c.x - 1; this.world.cam.z = this.world.cam.tz = c.z + 1; } this.ui.renderHud(); this.placeDrop(); }, 250);
-    setTimeout(() => fl.remove(), 900); if (fresh) setTimeout(() => this.ui.modal(`<div class="ox sub" style="letter-spacing:.2em">NEW ISLAND</div><h1>${esc(ISLANDS[key].name)}</h1><p class="desc">${esc(ISLANDS[key].blurb)}</p><p class="desc" style="color:#7cf29a">★ ${esc(ISLANDS[key].perk || '')}</p><p class="sub">Build bays and fabricators here: bots of any element can live on any island. Use the island button at the top to travel.</p><button class="btn gold" data-a="closeModal">Let's build</button>`, true), 700); this.changed(); }
-  setSetting(k: string, v: any) { (this.s.settings as any)[k] = v; if (k === 'sfx') this.audio.setVolume(v); if (k === 'music') this.audio.setMusic(v); if (k === 'quality') { this.save(); this.ui.toast('Graphics change applies after a reload', 'gold'); } this.save(); }
-  reset() { this.platform.save(SAVE_KEY, ''); try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* noop */ } location.reload(); }
+  startPlacing(b: string, move?: string) {
+    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: raise Mission Control to expand the spaceport'); return; } [x, z] = sp; }
+    this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - 26, z + d / 2 - 26);
+    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}</span><button class="btn small" data-a="rotate">⟳ Rotate</button><button class="btn small red" data-a="unplace">✕</button><button class="btn small gold" data-a="place" id="placeOk">✓ ${move ? 'Move here' : 'Build here'}</button>`;
+    this.world.sync(s);
+  }
+  private ghostMoved() { const g = this.world.ghost; if (!g) return; g.ok = G.fits(this.s, this.s.at, g.b, g.x, g.z, g.r, g.move).ok; this.world.syncGhost(); const b = $('#placeOk') as HTMLButtonElement; if (b) b.disabled = !g.ok; }
+  confirmPlace() {
+    const g = this.world.ghost, P = this.placing; if (!g || !P) return; const s = this.s;
+    const r = P.move ? G.moveItem(s, s.at, P.move, g.x, g.z, g.r) : G.startBuild(s, s.at, g.b, g.x, g.z, g.r);
+    if (!r.ok) { this.ui.deny(r.why); return; } this.audio.play(P.move ? 'place' : 'build'); this.cancelPlace(); if (!P.move && r.item) { this.ui.select(r.item.id); } this.changed();
+  }
+  cancelPlace() { this.placing = null; this.world.endGhost(); $('#place').classList.add('hidden'); this.world.sync(this.s); }
+  // ---------------- settings & save ----------------
+  setSetting(k: string, v: any) { (this.s.settings as any)[k] = v; if (k === 'sfx') this.audio.setVolume(v); if (k === 'music') this.audio.setMusic(v); this.save(); }
+  save() { try { this.s.last = Math.max(this.s.last, Date.now()); this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } }
+  reset() { this.s = fresh(); this.save(); location.reload(); }
 }
-new App().boot().catch((e) => { console.error(e); const l = document.getElementById('load'); if (l) l.innerHTML = `<div style="text-align:center;padding:20px"><div class="logo">STARWARD</div><p>Your device could not start WebGL. Try another browser.</p></div>`; });
+new App().boot();

@@ -1,89 +1,200 @@
-// Buildings. Placed freely on the island grid; footprints are [width, depth] in tiles (swapped when rotated).
-// Command Center level caps every other building's level and how many bays and fabricators you may run.
-import { round2 } from '../core/util';
-export type Cat = 'core' | 'bay' | 'production' | 'decor';
+// Building definitions, ported from Starward. Each value is a geometric curve [base, growth] read at the level:
+//   cost  cost to reach level L (L = 1 is construction)   time  ladder curve (seconds)
+//   prod  output per hour                                cap   storage added      gen / draw  energy
+//   count how many may stand, indexed by command level   req   { tech, hq } needed to build
+// 3D additions: fp = footprint in grid cells [w, d]; collect = output waits in the building until tapped.
+import { TimeDef } from '../core/util';
+export type Curve = [number, number];
 export interface BuildingDef {
-  name: string; size: [number, number]; cat: Cat; max: number; unique?: boolean; unlock: number; desc: string; exclusive?: string; vault?: boolean;
-  /** credits to build (owned = how many of this kind you already have) */
-  buildCost: (owned: number) => number;
-  /** credits to upgrade from level L to L+1 */
-  upCost: (L: number) => number;
-  /** seconds to build (L=1) or reach level L */
-  time: (L: number) => number;
+  name: string; fp: [number, number]; bases: string[]; max: number; cat: string; desc: string;
+  unique?: boolean; command?: boolean; count?: number[]; req?: { tech?: string; hq?: number };
+  cost: Record<string, Curve>; time: TimeDef; prod?: Record<string, Curve>; cap?: Record<string, Curve>; gen?: Curve; draw?: Curve;
+  speed?: number; house?: Curve; jobs?: Curve; grow?: Curve; collect?: boolean; fuelCut?: number; liftCut?: number; terra?: number; claims?: number;
 }
-const T = [3, 20, 60, 180, 600, 1800, 3600, 2 * 3600, 4 * 3600, 8 * 3600, 12 * 3600, 16 * 3600, 24 * 3600, 36 * 3600, 48 * 3600];
-const tl = (L: number, off = 0) => T[Math.min(T.length - 1, Math.max(0, L - 1 + off))];
-const decor = (name: string, size: [number, number], cost: number, unlock: number, desc: string): BuildingDef =>
-  ({ name, size, cat: 'decor', max: 1, unlock, desc, buildCost: () => cost, upCost: () => 0, time: () => 0 });
+const COL = ['moon', 'mars', 'ceres', 'titan'];
 export const BUILDINGS: Record<string, BuildingDef> = {
-  command: { name: 'Command Center', size: [4, 4], cat: 'core', max: 15, unique: true, unlock: 1, desc: 'The heart of your colony. Its level sets how far every other building can grow, and how many Bays and Fabricators you can run.',
-    buildCost: () => 0, upCost: (L) => round2(400 * Math.pow(2.05, L - 1)), time: (L) => tl(L, 0) },
-  hub: { name: 'Colony Hub', size: [4, 4], cat: 'core', max: 13, unlock: 1, desc: 'The heart of an off-world island. Its level caps every building here, and it stays two levels below your Command Center.',
-    buildCost: () => 0, upCost: (L) => round2(900 * Math.pow(2.05, L - 1)), time: (L) => tl(L, 1) },
-  bay: { name: 'Bot Bay', size: [3, 3], cat: 'bay', max: 10, unlock: 1, desc: 'Home and charging dock for bots of its element. Bots earn credits here; the bay holds them until you collect.',
-    buildCost: (n) => round2(150 * Math.pow(1.6, n)), upCost: (L) => round2(250 * Math.pow(1.9, L - 1)), time: (L) => tl(L, -1) },
-  fab: { name: 'Fabricator', size: [3, 3], cat: 'production', max: 10, unlock: 1, desc: 'Prints Power Cells for your bots. Pick a recipe that matches when you will be back.',
-    buildCost: (n) => round2(300 * Math.pow(2.4, n)), upCost: (L) => round2(400 * Math.pow(1.95, L - 1)), time: (L) => tl(L, -1) },
-  assembly: { name: 'Assembly Bay', size: [3, 3], cat: 'production', max: 10, unique: true, unlock: 4, desc: 'Boots new bot cores: from the shop, from the Fusion Lab and from events. More levels boot more cores at once, faster.',
-    buildCost: () => 1500, upCost: (L) => round2(1800 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 0) },
-  fusion: { name: 'Fusion Lab', size: [4, 3], cat: 'production', max: 10, unique: true, unlock: 5, desc: 'Fuses two bots of level 4 or more into a new core. The child may take after either parent, or be a hybrid of both: sometimes a rarer one.',
-    buildCost: () => 3000, upCost: (L) => round2(3500 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
-  arena: { name: 'Arena', size: [4, 4], cat: 'production', max: 10, unique: true, unlock: 6, desc: 'Your gateway to the holo-arena in orbit: pick three bots and battle rival colonies for trophies, rewards and league glory.',
-    buildCost: () => 5000, upCost: (L) => round2(5000 * Math.pow(1.9, L - 1)), time: (L) => tl(L, 1) },
-  pad: { name: 'Launch Pad', size: [3, 3], cat: 'production', max: 10, unique: true, unlock: 10, desc: 'Rockets crewed by your bots fly expeditions across the Solar System. Higher levels unlock bigger rockets (further worlds) and more launch slots.',
-    buildCost: () => 12000, upCost: (L) => round2(12000 * Math.pow(1.85, L - 1)), time: (L) => tl(L, 1) },
-  // ---- the Precursor Vault (only on the Vault island) ----
-  mine: { vault: true, name: 'Crystal Mine', size: [2, 2], cat: 'production', max: 10, unlock: 27, desc: 'Digs relic crystals out of the Precursor bedrock. Pick a colour and a dig; deeper digs take longer and pay more.',
-    buildCost: (n) => round2(60000 * Math.pow(1.8, n)), upCost: (L) => round2(50000 * Math.pow(1.8, L - 1)), time: (L) => tl(L, 2) },
-  forge: { vault: true, name: 'Relic Forge', size: [3, 3], cat: 'production', max: 1, unique: true, unlock: 27, desc: 'Fuses four relic crystals and some Iridium into one of the next tier.',
-    buildCost: () => 120000, upCost: () => 0, time: (L) => tl(L, 4) },
-  relicbay: { vault: true, name: 'Relic Sanctum', size: [3, 3], cat: 'bay', max: 10, unlock: 27, desc: 'An ancient arch that wakes Relic AIs of its element. They earn Iridium here.',
-    buildCost: (n) => round2(90000 * Math.pow(1.7, n)), upCost: (L) => round2(80000 * Math.pow(1.85, L - 1)), time: (L) => tl(L, 2) },
-  monolith: { ...decor('Precursor Monolith', [1, 1], 20000, 27, 'A black monolith covered in moving glyphs.'), vault: true },
-  // decorations: the personal touch (no gameplay effect beyond XP on purchase)
-  tree:     decor('Holo Tree', [1, 1], 40, 1, 'A glowing tree grown from engineered moss and fibre optics.'),
-  rock:     decor('Moon Rock', [1, 1], 30, 1, 'A souvenir boulder. Every colony keeps one.'),
-  path:     decor('Walkway', [1, 1], 10, 1, 'A paved tile for paths and plazas.'),
-  lamp:     decor('Lumen Post', [1, 1], 60, 2, 'A tall lamp with a soft, warm glow.'),
-  flag:     decor('Colony Flag', [1, 1], 100, 3, 'Flies your colony colours.'),
-  crystal:  decor('Crystal Cluster', [1, 1], 250, 4, 'Grown in microgravity, sold by the kilo.'),
-  fountain: decor('Gravity Fountain', [2, 2], 600, 5, 'Water arcing in a gentle artificial gravity well.'),
-  dish:     decor('Dish Array', [2, 2], 900, 7, 'Listening to the stars, mostly for show.'),
-  statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A golden monument. Tap it to choose which of your bots stands on the plinth.'),
-  bench:    decor('Park Bench', [1, 1], 80, 2, 'Somewhere for the crew to sit and watch Earth turn.'),
-  topiary:  decor('Topiary Bot', [1, 1], 150, 3, 'A hedge clipped into the shape of a friendly robot.'),
-  sign:     decor('Neon Sign', [2, 1], 800, 6, 'Your colony name in flickering neon. Rename your colony in Style.'),
-  turbine:  decor('Wind Turbine', [1, 1], 700, 8, 'Orbital winds are mostly imaginary. The turbine does not mind.'),
-  beacon:   decor('Holo Beacon', [1, 1], 1100, 10, 'Projects your banner emblem as a slowly turning hologram.'),
-  pond:     decor('Koi Pond', [2, 2], 1400, 11, 'Three koi, one lily, endless circles.'),
-  arch:     { ...decor('Starlight Arch', [2, 1], 0, 1, 'A ring of light that only loyal commanders own. Earned on day 21 of the login calendar.'), exclusive: 'calendar' },
+  // ---------------- Earth ----------------
+  hq: {
+    name: 'Mission Control', fp: [5, 5], bases: ['earth'], unique: true, command: true, max: 20, cat: 'core',
+    cost: { credits: [400, 2.1], metal: [500, 2.1] }, time: [-6, 13, 'ln'],
+    prod: { credits: [500, 1.2], science: [30, 1.2] }, cap: { credits: [8000, 1.55], metal: [6000, 1.55], fuel: [3000, 1.55], science: [2500, 1.55] }, gen: [12, 1.2],
+    desc: 'The heart of the programme. Raising it expands the spaceport, allows higher building levels and adds construction drones at levels 5, 10 and 15.',
+  },
+  research: {
+    name: 'Research Center', fp: [4, 4], bases: ['earth'], unique: true, max: 25, cat: 'science',
+    cost: { credits: [250, 1.84], metal: [300, 1.84] }, time: [2, 2.0], prod: { science: [150, 1.24] }, cap: { science: [2000, 1.5] }, draw: [4, 1.14],
+    desc: 'Laboratories, wind tunnels and clean rooms. Produces science and runs research projects.',
+  },
+  university: {
+    name: 'University Campus', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'science', req: { hq: 3 },
+    cost: { credits: [1200, 1.84], metal: [1400, 1.84] }, time: [5, 2.0], prod: { science: [90, 1.24] }, draw: [3, 1.14], speed: 0.04,
+    desc: 'Trains the next generation of engineers. Each level speeds up all research by 4% and adds science.',
+  },
+  mine: {
+    name: 'Metal Mine', fp: [3, 3], bases: ['earth'], max: 25, cat: 'production', count: [1, 2, 3, 3, 4, 4, 5, 5, 6, 6], collect: true,
+    cost: { credits: [120, 1.74], metal: [80, 1.74] }, time: [1, 2.0], prod: { metal: [900, 1.24] }, draw: [2, 1.14],
+    desc: 'Open-pit mining and smelting. Metal piles up at the mine until you collect it.',
+  },
+  refinery: {
+    name: 'Fuel Refinery', fp: [3, 3], bases: ['earth'], max: 25, cat: 'production', count: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], req: { hq: 2 }, collect: true,
+    cost: { credits: [160, 1.74], metal: [220, 1.74] }, time: [1.5, 2.0], prod: { fuel: [450, 1.24] }, draw: [3, 1.14],
+    desc: 'Cracks hydrocarbons and liquefies hydrogen and oxygen into rocket propellant.',
+  },
+  office: {
+    name: 'Agency Office', fp: [3, 3], bases: ['earth'], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
+    cost: { credits: [80, 1.72], metal: [150, 1.72] }, time: [1, 2.0], prod: { credits: [1100, 1.24] }, draw: [2, 1.14],
+    desc: 'Public relations, contracts and grants: the money that keeps rockets flying.',
+  },
+  solar: {
+    name: 'Solar Farm', fp: [3, 3], bases: ['earth'], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    cost: { credits: [90, 1.72], metal: [140, 1.72] }, time: [0.5, 1.95], gen: [12, 1.24],
+    desc: 'Fields of photovoltaic panels. Clean, quiet power.',
+  },
+  fission: {
+    name: 'Fission Plant', fp: [4, 4], bases: ['earth'], max: 20, cat: 'power', count: [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], req: { tech: 'fission' },
+    cost: { credits: [2500, 1.82], metal: [3500, 1.82] }, time: [6, 1.95], gen: [70, 1.27],
+    desc: 'A pressurised-water reactor. Dense, reliable power for a growing programme.',
+  },
+  depot: {
+    name: 'Logistics Depot', fp: [3, 3], bases: ['earth'], max: 25, cat: 'storage', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
+    cost: { credits: [180, 1.78], metal: [280, 1.78] }, time: [1.5, 2.0], cap: { credits: [5000, 1.48], metal: [6000, 1.48], fuel: [3500, 1.48], science: [1500, 1.48], rare: [800, 1.48], he3: [300, 1.48] }, draw: [1, 1.1],
+    desc: 'Warehouses, tank farms and secure data vaults. Raises storage for every basic resource.',
+  },
+  launch: {
+    name: 'Launch Complex', fp: [6, 6], bases: ['earth'], unique: true, max: 20, cat: 'spaceflight', req: { tech: 'rocketry' },
+    cost: { credits: [1100, 1.97], metal: [1600, 1.97], fuel: [300, 1.97] }, time: [5, 2.1], draw: [5, 1.18],
+    desc: 'Pad, service tower and flame trench. Its level sets the largest rocket you can fly.',
+  },
+  vab: {
+    name: 'Vehicle Assembly', fp: [4, 5], bases: ['earth'], unique: true, max: 20, cat: 'spaceflight', req: { tech: 'multistage' },
+    cost: { credits: [1800, 1.92], metal: [3000, 1.92] }, time: [6, 2.1], draw: [6, 1.16],
+    desc: 'A cathedral of a hangar where rockets are stacked. Higher levels build bigger rockets faster.',
+  },
+  tracking: {
+    name: 'Tracking Station', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'spaceflight', req: { tech: 'guidance' },
+    cost: { credits: [900, 1.87], metal: [1100, 1.87] }, time: [5.5, 2.0], prod: { science: [60, 1.224] }, draw: [4, 1.15],
+    desc: 'Giant dish antennas that talk to spacecraft. Raises mission success and earns science from telemetry.',
+  },
+  academy: {
+    name: 'Astronaut Academy', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'spaceflight', req: { tech: 'lifeSupport' },
+    cost: { credits: [3000, 1.87], metal: [3500, 1.87] }, time: [6.5, 2.0], prod: { science: [40, 1.224] }, draw: [4, 1.15],
+    desc: 'Centrifuges, pools and simulators. Crewed missions need graduates; each level makes them 1% safer.',
+  },
+  // ---------------- colonies ----------------
+  hub: {
+    name: 'Colony Hub', fp: [5, 5], bases: COL, unique: true, command: true, max: 20, cat: 'core',
+    cost: { credits: [60000, 2.05], metal: [80000, 2.05], fuel: [20000, 2.05] }, time: [7.5, 9.3, 'ln'], prod: { science: [200, 1.2] }, cap: { he3: [600, 1.55], metal: [20000, 1.5], fuel: [15000, 1.5], rare: [500, 1.5] }, gen: [40, 1.2], house: [20, 1.22],
+    desc: 'Command, life support and the airlock everyone passes through. Raising it expands the colony and allows higher building levels.',
+  },
+  regolith: {
+    name: 'Regolith Mine', fp: [3, 3], bases: ['moon', 'mars', 'ceres'], jobs: [6, 1.08], max: 25, cat: 'production', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6], collect: true,
+    cost: { credits: [18000, 1.74], metal: [12000, 1.74] }, time: [8, 1.95], prod: { metal: [3200, 1.24] }, draw: [6, 1.14],
+    desc: 'Robotic excavators scrape the soil; furnaces pull out iron, aluminium and titanium.',
+  },
+  ice: {
+    name: 'Ice Mine', fp: [3, 3], bases: COL, jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
+    cost: { credits: [22000, 1.74], metal: [16000, 1.74] }, time: [8.5, 1.95], prod: { fuel: [2200, 1.24] }, draw: [7, 1.14],
+    desc: 'Buried ice, melted and split into hydrogen and oxygen. Water for the colonists, fuel made outside Earth\'s deep gravity well.',
+  },
+  he3x: {
+    name: 'He-3 Extractor', fp: [3, 3], bases: ['moon'], jobs: [8, 1.08], max: 25, cat: 'production', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'he3Mining' },
+    cost: { credits: [60000, 1.77], metal: [50000, 1.77], fuel: [10000, 1.72] }, time: [10, 1.95], prod: { he3: [24, 1.24] }, draw: [12, 1.15],
+    desc: 'Roasts regolith to release helium-3, a fusion fuel almost absent on Earth.',
+  },
+  lsolar: {
+    name: 'Solar Array', fp: [3, 3], bases: ['moon', 'mars', 'ceres'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    cost: { credits: [12000, 1.72], metal: [14000, 1.72] }, time: [7.5, 1.95], gen: [45, 1.24],
+    desc: 'Ridge-top photovoltaic arrays. Superb on the Moon; weaker on Mars (43% of Earth\'s sunlight) and Ceres (13%).',
+  },
+  dome: {
+    name: 'Habitat Dome', fp: [4, 4], bases: COL, house: [40, 1.22], max: 20, cat: 'core', count: [1, 1, 1, 2, 2, 2, 3, 3, 3, 4], req: { tech: 'lunarHabitats' },
+    cost: { credits: [40000, 1.77], metal: [45000, 1.77] }, time: [11, 1.95], prod: { credits: [2600, 1.24] }, cap: { he3: [300, 1.45] }, draw: [6, 1.14],
+    desc: 'Homes under glass for colonists, and a garden the tourists pay well to see. Houses colonists.',
+  },
+  llab: {
+    name: 'Colony Laboratory', fp: [4, 4], bases: COL, jobs: [10, 1.08], unique: true, max: 20, cat: 'science', req: { tech: 'lunarHabitats' },
+    cost: { credits: [50000, 1.82], metal: [40000, 1.82] }, time: [11.5, 1.95], prod: { science: [900, 1.24] }, draw: [8, 1.14], speed: 0.03,
+    desc: 'Field science where the samples are: vacuum labs, radio telescopes, geology. Science, plus 3% faster research per level.',
+  },
+  massDriver: {
+    name: 'Mass Driver', fp: [2, 7], bases: ['moon'], jobs: [8, 1.08], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'massDrivers' },
+    cost: { credits: [120000, 1.87], metal: [150000, 1.87] }, time: [13, 1.95], prod: { credits: [4000, 1.24] }, draw: [25, 1.16], fuelCut: 0.03,
+    desc: 'A kilometre of magnetic rail. Sells lunar metal to orbit and cuts mission fuel by 3% per level.',
+  },
+  greenhouse: {
+    name: 'Greenhouse', fp: [4, 3], bases: COL, max: 20, cat: 'core', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], req: { tech: 'spaceAgriculture' }, jobs: [4, 1.06],
+    cost: { credits: [90000, 1.77], metal: [70000, 1.77] }, time: [11, 1.95], grow: [1.5, 1.2], draw: [8, 1.14],
+    desc: 'Hydroponic racks under LED light. A colony that feeds itself grows: more colonists every hour.',
+  },
+  reactor: {
+    name: 'Colony Reactor', fp: [3, 3], bases: COL, max: 25, cat: 'power', count: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], req: { tech: 'marsDirect' }, jobs: [3, 1.05],
+    cost: { credits: [80000, 1.74], metal: [90000, 1.74] }, time: [10, 1.95], gen: [90, 1.24],
+    desc: 'A compact fission reactor buried in the regolith. Steady power through dust storms, long nights and Titan\'s gloom.',
+  },
+  terraformer: {
+    name: 'Atmosphere Processor', fp: [4, 4], bases: ['mars'], unique: true, max: 20, cat: 'science', req: { tech: 'planetaryEngineering' }, jobs: [12, 1.08],
+    cost: { credits: [400000, 1.8], metal: [350000, 1.8] }, time: [13, 1.95], prod: { science: [3000, 1.24] }, draw: [30, 1.16], terra: 0.04,
+    desc: 'Cracks carbonates and vents greenhouse gases into the sky. Terraforming stages run 4% faster per level.',
+  },
+  beltControl: {
+    name: 'Mining Control', fp: [4, 4], bases: ['ceres'], unique: true, max: 20, cat: 'production', req: { tech: 'beltSettlement' }, jobs: [10, 1.08],
+    cost: { credits: [500000, 1.8], metal: [300000, 1.8] }, time: [12, 1.95], prod: { rare: [10, 1.24] }, cap: { rare: [2000, 1.5] }, draw: [20, 1.15], claims: 0.05,
+    desc: 'Traffic control for a thousand mining tugs. Every asteroid claim produces 5% more per level; refines rare elements.',
+  },
+  methane: {
+    name: 'Hydrocarbon Refinery', fp: [3, 3], bases: ['titan'], max: 25, cat: 'production', count: [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], req: { tech: 'cryoHabitats' }, jobs: [8, 1.08], collect: true,
+    cost: { credits: [300000, 1.74], metal: [250000, 1.74] }, time: [11, 1.95], prod: { fuel: [6000, 1.24] }, draw: [18, 1.15],
+    desc: 'Pumps liquid methane straight out of Kraken Mare. Titan sits on more hydrocarbons than all of Earth\'s oil and gas.',
+  },
+  fusion: {
+    name: 'Fusion Plant', fp: [4, 4], bases: ['earth', ...COL], max: 25, cat: 'power', count: [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4], req: { tech: 'fusionPower' }, jobs: [6, 1.06],
+    cost: { credits: [600000, 1.74], metal: [500000, 1.74], he3: [150, 1.6] }, time: [12, 1.95], gen: [700, 1.24],
+    desc: 'A tokamak burning deuterium and helium-3. Enormous, clean power, if you can keep it fuelled with He-3.',
+  },
+  elevator: {
+    name: 'Space Elevator', fp: [4, 4], bases: ['earth'], unique: true, max: 15, cat: 'spaceflight', req: { tech: 'spaceElevator' },
+    cost: { credits: [5000000, 1.8], metal: [4000000, 1.8], rare: [3000, 1.6] }, time: [16, 1.95], prod: { credits: [20000, 1.24] }, draw: [60, 1.16], liftCut: 0.03,
+    desc: 'A ribbon from the equator to geostationary orbit. Climbers carry cargo up for the price of electricity: rockets and missions cost 3% less per level.',
+  },
+  casimir: {
+    name: 'Casimir Foundry', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'science', req: { tech: 'casimirEffect' },
+    cost: { credits: [3e7, 1.7], metal: [2e7, 1.7], rare: [5000, 1.6] }, time: [17, 1.8], prod: { exotic: [3, 1.24] }, cap: { exotic: [300, 1.5] }, draw: [80, 1.16],
+    desc: 'Stacks of nanometre-gap plates in a vacuum chamber, squeezing out exotic matter a microgram at a time.',
+  },
+  xenolab: {
+    name: 'Xenology Institute', fp: [4, 4], bases: ['earth'], unique: true, max: 20, cat: 'science', req: { tech: 'xenolinguistics' },
+    cost: { credits: [4e7, 1.7], metal: [2.5e7, 1.7] }, time: [17, 1.8], prod: { xeno: [25, 1.24], influence: [8, 1.22] }, cap: { xeno: [10000, 1.5], influence: [4000, 1.5] }, draw: [60, 1.15],
+    desc: 'Linguists, xenobiologists and diplomats under one roof. Makes xenodata and influence; each level deciphers languages 5% faster.',
+  },
+  antimatter: {
+    name: 'Antimatter Factory', fp: [4, 4], bases: ['earth', 'mars', 'ceres', 'titan'], max: 20, cat: 'production', count: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3], req: { tech: 'antimatterProduction' },
+    cost: { credits: [6e9, 1.6], metal: [5e9, 1.6], exotic: [2000, 1.5] }, time: [18, 1.7], prod: { antimatter: [6, 1.24] }, cap: { antimatter: [1500, 1.5] }, draw: [400, 1.15], jobs: [20, 1.06],
+    desc: 'A ring accelerator that smashes protons into antiprotons and traps them in magnetic bottles. Fuel for intergalactic drives.',
+  },
 };
-export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'arena', 'pad', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'bench', 'topiary', 'fountain', 'sign', 'turbine', 'dish', 'statue', 'beacon', 'pond'];
-// limits by Command Center level
-export const bayLimit = (cc: number) => 2 + cc;
-export const fabLimit = (cc: number) => 1 + Math.floor(cc / 3);
-// Command Center upgrade needs this Commander level (index = target level)
-export const CC_REQ = [0, 0, 2, 3, 5, 7, 9, 12, 15, 18, 21, 25, 29, 33, 38, 44];
-// Bays: bot capacity and credit storage by level
-export const bayCapacity = (L: number) => 2 + Math.floor((L - 1) / 3);
-export const bayStore = (L: number) => round2(400 * Math.pow(2, L - 1));
-// helpers: bots posted to a building boost it (and stop earning while they work)
-export const HELP_AFFINITY: Record<string, string[]> = { command: ['alloy', 'geo', 'kinetic'], fab: ['solar', 'volt', 'plasma'], fusion: ['neural', 'chrono', 'photon'], assembly: ['alloy', 'neural', 'volt'] };
-export const HELP_EFFECT: Record<string, string> = { command: 'construction speed', fab: 'Power Cells per recipe', fusion: 'fusion speed', assembly: 'boot speed' };
-export const helperSlots = (L: number) => 1 + (L >= 5 ? 1 : 0) + (L >= 9 ? 1 : 0);
-export const assemblySlots = (L: number) => 1 + Math.floor((Math.max(1, L) - 1) / 3);
-// Fabricator recipes: unlocked by Fabricator level; output grows 10% per level
-export interface Recipe { name: string; sec: number; cells: number; cost: number; xp: number; lvl: number; }
-export const RECIPES: Recipe[] = [
-  { name: 'Quick Charge', sec: 30, cells: 12, cost: 20, xp: 1, lvl: 1 },
-  { name: 'Standard Cells', sec: 300, cells: 60, cost: 80, xp: 3, lvl: 1 },
-  { name: 'Battery Pack', sec: 1800, cells: 240, cost: 300, xp: 8, lvl: 2 },
-  { name: 'Power Core', sec: 7200, cells: 700, cost: 900, xp: 20, lvl: 3 },
-  { name: 'Fusion Rod', sec: 8 * 3600, cells: 2200, cost: 2600, xp: 50, lvl: 5 },
-  { name: 'Star Battery', sec: 24 * 3600, cells: 6000, cost: 6500, xp: 120, lvl: 7 },
-];
-export const fabOutput = (r: Recipe, L: number) => Math.round(r.cells * (1 + 0.1 * (L - 1)));
-// Island land: 5x5 plots of 6x6 tiles; the centre 3x3 start unlocked
-export const PLOT = 6, PLOTS = 5;
-export const landCost = (bought: number) => round2(800 * Math.pow(2, bought));
-export const landLevel = (bought: number) => 3 + bought * 2;
+// how long a collector holds its output before it is full (hours)
+export const holdHours = (L: number) => 3 + 0.35 * (L - 1);
+export const allowedLevel = (d: BuildingDef, hq: number) => Math.min(d.max, d.command ? d.max : hq * 2);
+export const allowedCount = (d: BuildingDef, hq: number) => (d.unique ? 1 : d.count ? d.count[Math.min(d.count.length - 1, hq - 1)] : 1);
+const capAt = (d: BuildingDef, r: string, L: number) => (d.cap && d.cap[r] ? d.cap[r][0] * Math.pow(d.cap[r][1], Math.min(d.max, Math.max(1, L)) - 1) : 0);
+// storage guaranteed at Mission Control level h (its vaults + one depot at the level its prerequisites force);
+// costs are clamped under 85% of it, so nothing can ever cost more than the player is able to store
+export function capRef(h: number, r: string) { return capAt(BUILDINGS.hq, r, h) + capAt(BUILDINGS.depot, r, 2 * h - 4) + (r === 'science' ? capAt(BUILDINGS.research, r, 2 * h - 4) : 0); }
+export function capMax(r: string) { const D = BUILDINGS.depot, Rs = BUILDINGS.research; return capAt(BUILDINGS.hq, r, 20) + allowedCount(D, 20) * capAt(D, r, D.max) + (r === 'science' ? allowedCount(Rs, 20) * capAt(Rs, r, Rs.max) : 0); }
+export const fitMax = (cost: Record<string, number>) => { const o: Record<string, number> = {}; for (const r in cost) { const c = capMax(r); o[r] = c > 0 ? Math.min(cost[r], Math.floor((c * 0.85) / 1e4) * 1e4) : cost[r]; } return o; };
+export const capClamp = (n: number, h: number, r: string) => { const c = capRef(h, r); return c > 0 ? Math.min(n, Math.floor((c * 0.85) / 100) * 100) : n; };
+// the Mission Control level at which building b's level L first becomes possible
+export const unlockHq = (b: string, L: number) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; if (!d.bases.includes('earth') && !d.bases.includes('moon')) return Math.ceil(L / 2) + 10; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };
+// command-building prerequisites: grow the whole base before the next command level
+export function cmdReqs(b: string, L: number, base?: string): [string, number][] {
+  const r: [string, number][] = []; const n = 2 * L - 4;
+  if (b === 'hq') { if (L >= 3) r.push(['research', n], ['depot', n]); if (L >= 4) r.push(['mine', n], ['office', n]); if (L >= 5) r.push(['launch', n - 2], ['refinery', n - 2]); if (L >= 6) r.push(['vab', n - 4], ['solar', n]); if (L >= 7) r.push(['tracking', n - 4]); if (L >= 8) r.push(['academy', n - 6]); }
+  if (b === 'hub' && (!base || base === 'moon')) { if (L >= 2) r.push(['regolith', 2 * L - 2], ['lsolar', 2 * L - 2]); if (L >= 3) r.push(['ice', 2 * L - 3], ['he3x', 2 * L - 4]); if (L >= 4) r.push(['dome', 2 * L - 6], ['llab', 2 * L - 6]); }
+  else if (b === 'hub') { const main = ({ mars: 'regolith', ceres: 'ice', titan: 'ice' } as Record<string, string>)[base || 'mars'] || 'regolith'; if (L >= 2) r.push([main, 2 * L - 2], ['dome', 2 * L - 2]); if (L >= 3) r.push(['reactor', 2 * L - 3], ['greenhouse', 2 * L - 4]); if (L >= 4) r.push(['llab', 2 * L - 6]); }
+  return r.filter(([, lv]) => lv > 0).map(([rb, lv]) => [rb, Math.min(lv, BUILDINGS[rb].max)] as [string, number]);
+}
+export const crewsFromHq = (hq: number) => 2 + (hq >= 5 ? 1 : 0) + (hq >= 10 ? 1 : 0) + (hq >= 15 ? 1 : 0);
+export const CATS: Record<string, string> = { core: 'Command', production: 'Production', power: 'Power', storage: 'Storage', science: 'Science', spaceflight: 'Spaceflight', defense: 'Defence', robots: 'Robots', decor: 'Decor' };
+// buildable area (grid cells per side) for a command level; the landscape continues beyond it
+export const GRID = 52;
+export const areaSide = (base: string, hq: number) => (base === 'earth' ? Math.min(GRID, 24 + 2 * (hq - 1)) : Math.min(40, 18 + 2 * (hq - 1)));

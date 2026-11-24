@@ -22,7 +22,7 @@ export class Studio {
     for (let y = 0; y < this.size; y++) img.data.set(px.subarray((this.size - 1 - y) * this.size * 4, (this.size - y) * this.size * 4), y * this.size * 4); // flip
     g.putImageData(img, 0, 0); const url = cv.toDataURL('image/png'); this.cache.set(key, url); return url;
   }
-  building(t: string, lvl: number, el: string | undefined, look: Look) { const m = buildModel(t, lvl, el, look); const [w, d] = BUILDINGS[t].size; const s = Math.max(w, d);
-    return this.shoot(m.group, `b|${t}|${lvl}|${el}|${look.primary}${look.accent}${look.banner.bg}${look.banner.fg}${look.banner.emblem}`, s * 1.55 + 0.8, Math.max(0.6, m.height * 0.6)); }
+  building(t: string, lvl: number, look: Look) { const m = buildModel(t, lvl, look); const [w, d] = BUILDINGS[t].fp; const s = Math.max(w, d);
+    return this.shoot(m.group, `b|${t}|${lvl}|${look.primary}${look.accent}${look.banner.bg}${look.banner.fg}${look.banner.emblem}`, s * 1.45 + 1.2, Math.max(0.8, m.height * 0.55)); }
   bot(sp: string) { const m = buildBot(sp, 1); m.group.rotation.y = 0.5; const hg = m.group.getObjectByName('hoverGlow'); if (hg) hg.visible = false; return this.shoot(m.group, `bot|${sp}`, 1.75, 0.55); }
 }

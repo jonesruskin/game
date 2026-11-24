@@ -1,270 +1,170 @@
-// Procedural building models. Every building grows with its level and wears the player's paint scheme, so no
-// two colonies look the same. Animated parts (beacons, holograms, flags, arms) stay separate meshes.
+// Procedural building models for the spaceport. Every building grows with its level (a new tier every few levels)
+// and wears the player's paint scheme; parts are merged by Kit into 2-3 draw calls per building.
 import * as THREE from 'three';
-import { Kit, shade, mix, MATS } from './kit';
-import { ELEMENTS } from '../data/elements';
-import { SPECIES } from '../data/species';
-import { buildBot } from './botmodels';
-export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; noRocket?: boolean; name?: string; }
-export interface AnimState { working?: boolean; ready?: number; cores?: { color: string; ready: boolean }[]; }
+import { Kit, shade } from './kit';
+import { BUILDINGS } from '../data/buildings';
+export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; }
 export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: AnimState) => void; }
-const STEEL = '#c8d0da', DARK = '#3a4250', GLASSC = '#bfe9ff', WIN = '#ffe9a8';
-function glowMesh(geo: THREE.BufferGeometry, color: string) { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, toneMapped: false })); return m; }
-function flag(look: Look, w = 0.7, h = 0.45) {
-  const tex = bannerTexture(look.banner); const geo = new THREE.PlaneGeometry(w, h, 8, 1); geo.translate(w / 2, 0, 0);
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.8 })); m.castShadow = true;
-  const base = (geo.attributes.position.array as Float32Array).slice();
-  m.userData.wave = (t: number) => { const p = geo.attributes.position.array as Float32Array; for (let i = 0; i < p.length; i += 3) { const x = base[i]; p[i + 2] = Math.sin(x * 7 - t * 4) * 0.06 * (x / w); } geo.attributes.position.needsUpdate = true; };
-  return m;
+export interface AnimState { working: boolean; full?: boolean; }
+const CON = '#cfd3d8', DARK = '#3b4350', STEEL = '#aeb8c4', WIN = '#ffe7a8', GLASS = '#9fd3ff';
+const tierOf = (L: number) => Math.min(6, 1 + Math.floor((Math.max(1, L) - 1) / 4));
+// a concrete apron under every building, with painted kerbs
+function pad(k: Kit, w: number, d: number, c = CON) { k.box(w - 0.08, 0.1, d - 0.08, c); k.box(w - 0.08, 0.03, 0.06, '#f2d36b', 0, 0.1, d / 2 - 0.1); }
+// a window band: a glowing strip on each face of a block
+function windows(k: Kit, w: number, d: number, y: number, h: number, x = 0, z = 0) { k.box(w + 0.05, h, d + 0.05, WIN, x, y, z, { glow: true }); for (let i = -w / 2 + 0.35; i < w / 2 - 0.2; i += 0.42) { k.box(0.07, h + 0.02, d + 0.07, '#5b6676', x + i, y - 0.01, z); } }
+function hq(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 5, 5);
+  // main block with a glass facade and a roof garden of equipment
+  const bh = 0.95 + t * 0.12; k.box(3.3, bh, 2.3, P, 0.55, 0.1, 0.55); windows(k, 3.3, 2.3, 0.4, 0.3, 0.55, 0.55); k.box(3.36, 0.1, 2.36, A, 0.55, 0.1 + bh, 0.55);
+  k.box(3.0, bh - 0.15, 0.06, GLASS, 0.55, 0.15, -0.62, { glass: true }); for (let x = -0.8; x <= 1.9; x += 0.45) k.box(0.05, bh - 0.15, 0.08, shade(P, -0.3), x, 0.15, -0.62);
+  for (let i = 1; i < Math.min(t, 4); i++) { const w = 3.0 - i * 0.5, d = 2.0 - i * 0.3, y0 = 0.2 + bh + (i - 1) * 0.62; k.box(w, 0.55, d, i % 2 ? shade(P, -0.05) : P, 0.85, y0, 0.75); windows(k, w, d, y0 + 0.18, 0.2, 0.85, 0.75); k.box(w + 0.05, 0.06, d + 0.05, A, 0.85, y0 + 0.55, 0.75); }
+  k.box(0.5, 0.3, 0.4, '#9aa3ad', 1.6, 0.2 + bh, 1.2); k.box(0.4, 0.25, 0.4, '#9aa3ad', 1.1, 0.2 + bh, 1.4);
+  // the control tower: an octagonal shaft and a glowing glass cab
+  const th = 2.0 + t * 0.45, tx = -1.35, tz = -1.15; k.cyl(0.42, 0.5, th, 8, shade(P, -0.04), tx, 0.1, tz); for (let y = 0.6; y < th - 0.3; y += 0.55) k.cyl(0.43, 0.43, 0.05, 8, A, tx, 0.1 + y, tz);
+  k.cyl(0.8, 0.55, 0.22, 10, P, tx, 0.1 + th, tz); k.cyl(0.78, 0.78, 0.42, 10, GLASS, tx, 0.32 + th, tz, { glass: true }); k.cyl(0.7, 0.7, 0.36, 10, WIN, tx, 0.35 + th, tz, { glow: true });
+  k.cyl(0.86, 0.86, 0.1, 10, A, tx, 0.74 + th, tz); k.cyl(0.55, 0.8, 0.14, 10, P, tx, 0.84 + th, tz); k.cyl(0.03, 0.03, 0.9, 5, STEEL, tx, 0.98 + th, tz); k.sphere(0.06, '#ff4f4f', tx, 1.9 + th, tz, { glow: true });
+  const g = k.build('hq');
+  // a tracking dish on the roof
+  const dish = new THREE.Group(); { const dk = new Kit(); dk.add(new THREE.SphereGeometry(0.6 + t * 0.05, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3.2), '#eef2f6', 0, 0, 0, { rx: Math.PI }); dk.cyl(0.02, 0.02, 0.5, 4, STEEL, 0, -0.55, 0); dk.sphere(0.05, A, 0, -0.8, 0); const dg = dk.build(); dg.rotation.x = -0.9; dish.add(dg); }
+  const ped = new Kit(); ped.cyl(0.1, 0.16, 0.45, 8, STEEL, 0, 0, 0); const pg = ped.build(); pg.position.set(0.1, 0.2 + bh, 0.3); g.add(pg); dish.position.set(0.1, 0.75 + bh, 0.3); g.add(dish);
+  const fk = new Kit(); fk.cyl(0.03, 0.035, 2.4, 5, STEEL, 2.15, 0.1, -2.05); g.add(fk.build()); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.48), new THREE.MeshStandardMaterial({ map: bannerTexture(look.banner), side: THREE.DoubleSide, roughness: 0.8 })); f.position.set(2.53, 2.25, -2.05); g.add(f);
+  return { group: g, height: th + 1.4, anim: (tt) => { dish.rotation.y = tt * 0.25; f.rotation.y = Math.sin(tt * 2) * 0.15; } };
 }
+function research(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4);
+  const h = 0.9 + t * 0.18; k.box(2.6, h, 2.0, P, -0.5, 0.1, 0.5); windows(k, 2.6, 2.0, 0.4, 0.26, -0.5, 0.5); k.box(2.65, 0.08, 2.05, A, -0.5, 0.1 + h, 0.5);
+  for (let i = 0; i < Math.min(3, 1 + Math.floor(t / 2)); i++) { const x = 1.1, z = -1.0 + i * 1.0; k.cyl(0.42, 0.42, 0.45, 12, '#e9edf2', x, 0.1, z); k.sphere(0.42, '#f6f8fb', x, 0.55, z, { theta: Math.PI / 2, w: 14 }); k.box(0.12, 0.3, 0.5, DARK, x, 0.7, z, { ry: 0.6 }); }
+  k.cyl(0.32, 0.32, 3.0, 10, STEEL, -0.6, 0.45, -1.35, { rz: Math.PI / 2 }); k.cyl(0.36, 0.36, 0.2, 10, A, -2.0, 0.45, -1.35, { rz: Math.PI / 2 }); // wind tunnel
+  if (t >= 3) { k.box(1.2, 0.8, 1.0, shade(P, -0.08), -0.9, 0.1 + h, 0.6); windows(k, 1.2, 1.0, 0.25 + h, 0.2, -0.9, 0.6); }
+  return { group: k.build('research'), height: h + 1.2 };
+}
+function university(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = '#e8dcc6', A = look.accent; pad(k, 4, 4, '#7fae5a');
+  k.box(3.2, 0.9, 1.3, P, 0, 0.1, -1.1); k.box(3.3, 0.18, 1.4, '#a8452f', 0, 1.0, -1.1); for (let i = -3; i <= 3; i++) k.cyl(0.06, 0.06, 0.8, 6, '#f6f1e6', i * 0.45, 0.1, -0.4);
+  k.box(3.4, 0.08, 0.3, '#f6f1e6', 0, 0.9, -0.42); k.box(1.0, 0.9, 2.2, P, -1.2, 0.1, 0.7); k.box(1.1, 0.16, 2.3, '#a8452f', -1.2, 1.0, 0.7); windows(k, 1.0, 2.2, 0.45, 0.2, -1.2, 0.7); windows(k, 3.2, 1.3, 0.45, 0.2, 0, -1.1);
+  const th = 1.6 + t * 0.25; k.box(0.6, th, 0.6, P, 1.2, 0.1, 0.9); k.box(0.7, 0.1, 0.7, A, 1.2, 0.1 + th, 0.9); k.cyl(0.0, 0.42, 0.6, 4, '#a8452f', 1.2, 0.2 + th, 0.9, { ry: Math.PI / 4 }); k.cyl(0.18, 0.18, 0.05, 12, '#fff8dc', 1.2, th - 0.35, 1.21, { rx: Math.PI / 2, glow: true });
+  for (let i = 0; i < 3; i++) { k.cyl(0.05, 0.07, 0.35, 5, '#6b4a2e', 0.1 + i * 0.5, 0.1, 0.9); k.sphere(0.25, '#3f8a3a', 0.1 + i * 0.5, 0.6, 0.9); }
+  return { group: k.build('university'), height: th + 0.9 };
+}
+function mine(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#8e8170');
+  for (let i = 0; i < 3; i++) { const s = 2.0 - i * 0.55; k.box(s, 0.06, s, i % 2 ? '#6e6152' : '#7d6f5e', -0.25, 0.1 - i * 0.05, -0.25); } // stepped pit
+  k.box(0.7, 0.04, 0.7, '#4a4036', -0.25, -0.02, -0.25);
+  const hh = 1.4 + t * 0.2; for (const [x, z] of [[0.75, 0.55], [1.15, 0.55], [0.75, 0.95], [1.15, 0.95]]) k.box(0.07, hh, 0.07, '#c0392b', x, 0.1, z); // headframe
+  k.box(0.55, 0.08, 0.55, '#c0392b', 0.95, 0.1 + hh, 0.75); k.cyl(0.16, 0.16, 0.06, 10, DARK, 0.95, 0.15 + hh, 0.75, { rx: Math.PI / 2 });
+  k.box(0.18, 0.12, 1.5, DARK, 0.2, 0.45, 0.9, { rx: -0.35 }); // conveyor
+  k.add(new THREE.ConeGeometry(0.45, 0.5, 7), '#9aa3ad', -0.9, 0.35, 0.95); k.box(0.6, 0.35, 0.4, A, -0.95, 0.1, -1.0); k.box(0.3, 0.25, 0.4, '#f5c542', -0.55, 0.1, -1.0); // ore pile and a truck
+  if (t >= 3) { k.box(0.9, 0.7, 0.6, '#d8d2c6', 0.9, 0.1, -0.9); windows(k, 0.9, 0.6, 0.35, 0.16, 0.9, -0.9); }
+  return { group: k.build('mine'), height: hh + 0.5 };
+}
+function refinery(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3);
+  const n = Math.min(4, 1 + Math.floor(t / 2)); for (let i = 0; i < n; i++) { const h = 1.6 + t * 0.2 - i * 0.2, x = -0.9 + i * 0.55; k.cyl(0.18, 0.2, h, 10, '#e4e7eb', x, 0.1, -0.8); for (let j = 1; j < 4; j++) k.cyl(0.21, 0.21, 0.05, 10, A, x, 0.1 + (h * j) / 4, -0.8); }
+  k.sphere(0.45, '#f1f3f5', 0.6, 0.6, 0.6, { w: 14, h: 9 }); k.cyl(0.05, 0.05, 0.4, 5, STEEL, 0.6, 0.1, 0.6); if (t >= 2) k.sphere(0.36, '#f1f3f5', -0.5, 0.5, 0.75, { w: 12, h: 8 });
+  k.box(2.2, 0.08, 0.08, STEEL, 0, 0.45, 0.0); k.box(0.08, 0.08, 1.5, STEEL, 0.1, 0.35, 0);
+  const fh = 1.9 + t * 0.25; k.cyl(0.05, 0.07, fh, 6, DARK, 1.15, 0.1, -1.1); const g = k.build('refinery');
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', toneMapped: false })); flame.position.set(1.15, 0.1 + fh + 0.2, -1.1); g.add(flame);
+  return { group: g, height: fh + 0.6, anim: (tt, s) => { flame.visible = s.working; flame.scale.set(1, 0.8 + Math.sin(tt * 13) * 0.25 + Math.sin(tt * 7.3) * 0.15, 1); } };
+}
+function office(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 3, 3);
+  const h = 1.2 + t * 0.55; k.box(1.7, h, 1.5, GLASS, -0.2, 0.1, -0.2, { glass: true }); k.box(1.6, h - 0.05, 1.4, '#5d7da0', -0.2, 0.1, -0.2);
+  for (let y = 0.4; y < h; y += 0.42) k.box(1.72, 0.05, 1.52, A, -0.2, 0.1 + y, -0.2); k.box(1.8, 0.12, 1.6, P, -0.2, 0.1 + h, -0.2);
+  windows(k, 1.62, 1.42, 0.3, h - 0.5, -0.2, -0.2); k.box(1.0, 0.6, 0.9, P, 0.6, 0.1, 0.8); windows(k, 1.0, 0.9, 0.25, 0.18, 0.6, 0.8); k.box(0.5, 0.05, 0.25, '#ffd166', 0.6, 0.72, 1.26, { glow: true });
+  return { group: k.build('office'), height: h + 0.4 };
+}
+function solar(L: number): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, '#a5b07f');
+  const rows = Math.min(4, 2 + Math.floor(t / 2)), cols = t >= 4 ? 3 : 2; for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const x = -0.95 + c * (1.9 / Math.max(1, cols - 1)) * (cols > 1 ? 1 : 0), z = -1.0 + (r * 2.0) / Math.max(1, rows - 1);
+    k.box(0.05, 0.3, 0.05, STEEL, x, 0.1, z); k.box(cols > 2 ? 0.8 : 1.1, 0.04, 0.45, '#1d3c78', x, 0.42, z, { rx: -0.5 }); k.box(cols > 2 ? 0.82 : 1.12, 0.02, 0.47, '#4f7fd6', x, 0.445, z + 0.01, { rx: -0.5 }); }
+  k.box(0.35, 0.3, 0.3, '#e8eaee', 1.2, 0.1, 1.2);
+  return { group: k.build('solar'), height: 0.9 };
+}
+function fission(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4);
+  const pts: THREE.Vector2[] = []; for (let i = 0; i <= 12; i++) { const y = i / 12; pts.push(new THREE.Vector2(0.95 - Math.sin(y * Math.PI * 0.85) * 0.38 + y * 0.05, y * (2.2 + t * 0.2))); }
+  k.add(new THREE.LatheGeometry(pts, 18), '#d9dde2', -0.6, 0.1, -0.5); k.cyl(0.62, 0.62, 0.05, 18, A, -0.6, 1.5 + t * 0.15, -0.5);
+  k.cyl(0.6, 0.6, 0.9, 16, '#eef0f3', 1.0, 0.1, 0.8); k.sphere(0.6, '#eef0f3', 1.0, 1.0, 0.8, { theta: Math.PI / 2, w: 16 }); k.box(1.2, 0.6, 0.8, '#c9cdd3', 0.9, 0.1, -0.6); windows(k, 1.2, 0.8, 0.3, 0.14, 0.9, -0.6);
+  const g = k.build('fission'); const steam = new THREE.Group(); const sm = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false });
+  for (let i = 0; i < 5; i++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), sm); p.userData.o = i / 5; steam.add(p); } steam.position.set(-0.6, 2.3 + t * 0.2, -0.5); g.add(steam);
+  return { group: g, height: 3 + t * 0.2, anim: (tt, s) => { steam.visible = s.working; steam.children.forEach((p) => { const f = (tt * 0.25 + (p.userData.o as number)) % 1; p.position.set(Math.sin(f * 7) * 0.2, f * 2.2, f * 0.6); p.scale.setScalar(0.6 + f * 1.6); }); sm.opacity = 0.45; } };
+}
+function depot(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 3, 3);
+  const nW = Math.min(2, 1 + Math.floor(t / 3)); for (let i = 0; i < nW; i++) { const z = -0.7 + i * 0.95; k.box(1.7, 0.55, 0.8, P, -0.4, 0.1, z); k.add(new THREE.CylinderGeometry(0.4, 0.4, 1.7, 12, 1, false, 0, Math.PI), shade(P, -0.12), -0.4, 0.65, z, { rz: Math.PI / 2, sz: 1 }); k.box(0.5, 0.4, 0.04, A, -1.26, 0.1, z); }
+  const nT = Math.min(3, 1 + Math.floor(t / 2)); for (let i = 0; i < nT; i++) { const z = -0.9 + i * 0.8; k.cyl(0.32, 0.32, 0.8 + t * 0.1, 12, '#eceff2', 1.05, 0.1, z); k.cyl(0.33, 0.33, 0.05, 12, A, 1.05, 0.5, z); }
+  for (let i = 0; i < 3; i++) k.box(0.25, 0.25, 0.25, ['#c98b3a', '#5b8bd6', '#c94a4a'][i], -0.9 + i * 0.32, 0.1, 1.15);
+  return { group: k.build('depot'), height: 1.3 };
+}
+function launch(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 6, 6, '#bfc4ca');
+  k.box(2.4, 0.3, 2.4, '#9aa1a9', 0, 0.1, 0); k.box(0.9, 0.05, 2.6, '#2b2f36', 0, 0.38, 0); k.box(0.95, 0.12, 0.6, '#2b2f36', 0, 0.05, 2.6); // pad, flame trench
+  const th = 2.6 + t * 0.6; for (const [x, z] of [[-1.7, -0.55], [-1.7, 0.55], [-2.5, -0.55], [-2.5, 0.55]]) k.box(0.08, th, 0.08, '#c0392b', x, 0.1, z);
+  for (let y = 0.6; y < th; y += 0.55) { k.box(0.9, 0.05, 1.18, '#c0392b', -2.1, 0.1 + y, 0); } k.box(1.0, 0.12, 1.2, '#7d838c', -2.1, 0.1 + th, 0);
+  k.box(0.7, 0.06, 0.1, STEEL, -1.4, 0.1 + th * 0.75, 0); // crew access arm
+  for (const [x, z] of [[2.5, 2.5], [-2.5, 2.5], [2.5, -2.5]]) { k.cyl(0.04, 0.06, th + 1.2, 5, STEEL, x, 0.1, z); k.sphere(0.06, '#ff4f4f', x, th + 1.35, z, { glow: true }); } // lightning masts
+  k.cyl(0.35, 0.35, 0.5, 10, '#e9edf2', 2.3, 1.6, -2.2); k.box(0.06, 1.5, 0.06, STEEL, 2.1, 0.1, -2.0); k.box(0.06, 1.5, 0.06, STEEL, 2.5, 0.1, -2.4); // water tower
+  k.box(1.2, 0.5, 0.8, A, 2.0, 0.1, 0.4); windows(k, 1.2, 0.8, 0.25, 0.12, 2.0, 0.4);
+  return { group: k.build('launch'), height: th + 1.6 };
+}
+function vab(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = '#e6e9ed', A = look.accent; pad(k, 4, 5);
+  const h = 2.6 + t * 0.55; k.box(3.4, h, 4.2, P, 0, 0.1, 0); k.box(3.45, 0.14, 4.25, shade(P, -0.15), 0, 0.1 + h, 0);
+  k.box(1.3, h - 0.3, 0.04, '#9aa3ad', 0, 0.1, 2.11); for (let y = 0.5; y < h - 0.3; y += 0.45) k.box(1.32, 0.03, 0.05, '#7c858f', 0, 0.1 + y, 2.12); // the great door
+  k.box(0.05, h * 0.7, 1.4, look.banner.bg, 1.71, 0.1 + h * 0.2, -0.6); k.box(0.06, h * 0.12, 1.4, A, 1.72, 0.1 + h * 0.5, -0.6);
+  k.box(1.2, 0.7, 1.6, shade(P, -0.05), -2.25, 0.1, 1.2); windows(k, 1.2, 1.6, 0.3, 0.14, -2.25, 1.2);
+  return { group: k.build('vab'), height: h + 0.4 };
+}
+function tracking(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 4, 4); k.box(1.1, 0.6, 0.9, '#d9dde2', 1.2, 0.1, 1.3); windows(k, 1.1, 0.9, 0.3, 0.12, 1.2, 1.3);
+  const s = 1.1 + t * 0.15; k.cyl(0.25, 0.4, 1.0 + t * 0.1, 8, '#c9ced5', -0.3, 0.1, -0.3); const g = k.build('tracking');
+  const dish = new THREE.Group(); const dk = new Kit(); dk.add(new THREE.SphereGeometry(s, 20, 10, 0, Math.PI * 2, 0, Math.PI / 3.4), '#f3f5f8', 0, 0, 0, { rx: Math.PI }); dk.cyl(0.03, 0.03, s * 0.8, 4, STEEL, 0, -s * 0.85, 0); dk.sphere(0.08, look.accent, 0, -s * 1.25, 0);
+  const dg = dk.build(); dg.rotation.x = -0.75; dish.add(dg); dish.position.set(-0.3, 1.3 + t * 0.1 + s * 0.4, -0.3); g.add(dish);
+  for (let i = 0; i < Math.min(3, t - 1); i++) { const sk = new Kit(); sk.cyl(0.04, 0.06, 0.5, 6, STEEL, 0, 0, 0); sk.add(new THREE.SphereGeometry(0.35, 12, 6, 0, Math.PI * 2, 0, Math.PI / 3.2), '#eef2f6', 0, 0.85, 0, { rx: Math.PI - 0.7 }); const sg = sk.build(); sg.position.set(1.3 - i * 0.7, 0.1, -1.4); g.add(sg); }
+  return { group: g, height: 2.4 + t * 0.3, anim: (tt) => { dish.rotation.y = Math.sin(tt * 0.12) * 1.2; } };
+}
+function academy(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 4, 4);
+  k.box(2.4, 0.9 + t * 0.12, 1.4, P, -0.6, 0.1, -1.1); windows(k, 2.4, 1.4, 0.4, 0.2, -0.6, -1.1); k.box(2.45, 0.08, 1.45, A, -0.6, 1.0 + t * 0.12, -1.1);
+  k.box(1.4, 0.06, 1.0, '#4fb3e8', 1.0, 0.1, 1.0, { glass: true }); k.box(1.5, 0.1, 1.1, '#e9edf2', 1.0, 0.08, 1.0); // training pool
+  k.cyl(0.35, 0.45, 0.5, 10, '#d9dde2', -0.6, 0.1, 0.8); const g = k.build('academy');
+  const arm = new THREE.Group(); const ak = new Kit(); ak.box(2.2, 0.08, 0.12, STEEL, 0, 0, 0); ak.sphere(0.2, A, 1.1, 0, 0, { w: 10, h: 7 }); ak.box(0.25, 0.25, 0.25, '#eef0f3', -1.1, -0.1, 0); arm.add(ak.build()); arm.position.set(-0.6, 0.75, 0.8); g.add(arm);
+  return { group: g, height: 1.6 + t * 0.15, anim: (tt) => { arm.rotation.y = tt * 1.6; } };
+}
+// unknown types (later parts) get a placeholder block so the base never breaks
+function generic(b: string, look: Look): Model { const d = BUILDINGS[b]; const [w, dd] = d ? d.fp : [3, 3]; const k = new Kit(); pad(k, w, dd); k.box(w * 0.7, 1.2, dd * 0.7, look.primary, 0, 0.1, 0); windows(k, w * 0.7, dd * 0.7, 0.5, 0.2); k.box(w * 0.72, 0.1, dd * 0.72, look.accent, 0, 1.3, 0); return { group: k.build(b), height: 1.6 }; }
+export function buildModel(b: string, L: number, look: Look): Model {
+  switch (b) {
+    case 'hq': return hq(L, look); case 'research': return research(L, look); case 'university': return university(L, look); case 'mine': return mine(L, look);
+    case 'refinery': return refinery(L, look); case 'office': return office(L, look); case 'solar': return solar(L); case 'fission': return fission(L, look); case 'depot': return depot(L, look);
+    case 'launch': return launch(L, look); case 'vab': return vab(L, look); case 'tracking': return tracking(L, look); case 'academy': return academy(L, look);
+  }
+  return generic(b, look);
+}
+// construction scaffold over a building in progress
+export function scaffold(w: number, d: number, h: number) {
+  const k = new Kit(); const Y = '#f5c542'; for (const [x, z] of [[-w / 2 + 0.15, -d / 2 + 0.15], [w / 2 - 0.15, -d / 2 + 0.15], [-w / 2 + 0.15, d / 2 - 0.15], [w / 2 - 0.15, d / 2 - 0.15]]) k.box(0.06, h, 0.06, Y, x, 0, z);
+  for (let y = 0.5; y < h; y += 0.6) { k.box(w - 0.2, 0.05, 0.08, Y, 0, y, -d / 2 + 0.15); k.box(w - 0.2, 0.05, 0.08, Y, 0, y, d / 2 - 0.15); k.box(0.08, 0.05, d - 0.2, Y, -w / 2 + 0.15, y, 0); k.box(0.08, 0.05, d - 0.2, Y, w / 2 - 0.15, y, 0); }
+  k.box(0.08, h + 0.8, 0.08, '#e67e22', w / 2 - 0.4, 0, -d / 2 + 0.4); return k.build('scaffold');
+}
+// a construction drone: a small quadcopter with a welding light
+export function droneModel() {
+  const k = new Kit(); k.box(0.34, 0.1, 0.34, '#f2f4f7'); k.box(0.36, 0.03, 0.36, '#f5c542', 0, 0.1, 0); for (const [x, z] of [[0.24, 0.24], [-0.24, 0.24], [0.24, -0.24], [-0.24, -0.24]]) { k.box(0.2, 0.025, 0.04, '#3b4350', x * 0.6, 0.06, z * 0.6, { ry: Math.atan2(z, x) }); k.cyl(0.11, 0.11, 0.015, 10, '#9aa3ad', x, 0.09, z); }
+  k.sphere(0.05, '#7ff5ff', 0, -0.04, 0, { glow: true }); return k.build('drone');
+}
+// the banner texture (flag, emblems): drawn once per combination
 const texCache = new Map<string, THREE.Texture>();
-export function bannerTexture(b: { bg: string; fg: string; emblem: string }) {
-  const key = b.bg + b.fg + b.emblem; const hit = texCache.get(key); if (hit) return hit;
-  const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!;
-  g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); g.fillStyle = shade(b.bg, -0.25); g.fillRect(0, 64, 128, 16);
-  g.fillStyle = b.fg; g.translate(64, 36); emblemPath(g, b.emblem, 22); g.fill(emblemRule(b.emblem));
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t); return t;
-}
 export function emblemPath(g: CanvasRenderingContext2D, e: string, r: number) {
   g.beginPath();
   if (e === 'star') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } }
   else if (e === 'planet') { g.arc(0, 0, r * 0.6, 0, 7); g.moveTo(r, 0); g.ellipse(0, 0, r, r * 0.28, -0.3, 0, 7); }
-  else if (e === 'bolt') { g.moveTo(r * 0.2, -r); g.lineTo(-r * 0.5, r * 0.1); g.lineTo(0, r * 0.1); g.lineTo(-r * 0.2, r); g.lineTo(r * 0.5, -r * 0.1); g.lineTo(0, -r * 0.1); }
-  else if (e === 'gear') { for (let i = 0; i < 16; i++) { const a = (i * Math.PI) / 8, rr = i % 2 ? r * 0.7 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } }
   else if (e === 'rocket') { g.moveTo(0, -r); g.quadraticCurveTo(r * 0.45, -r * 0.3, r * 0.3, r * 0.5); g.lineTo(r * 0.6, r); g.lineTo(-r * 0.6, r); g.lineTo(-r * 0.3, r * 0.5); g.quadraticCurveTo(-r * 0.45, -r * 0.3, 0, -r); }
-  else if (e === 'crown') { g.moveTo(-r * 0.9, r * 0.7); g.lineTo(-r * 0.95, -r * 0.55); g.lineTo(-r * 0.45, -r * 0.05); g.lineTo(0, -r * 0.8); g.lineTo(r * 0.45, -r * 0.05); g.lineTo(r * 0.95, -r * 0.55); g.lineTo(r * 0.9, r * 0.7); }
-  else if (e === 'atom') { for (let i = 0; i < 3; i++) { const a = (i * Math.PI) / 3; g.moveTo(Math.cos(a) * r, Math.sin(a) * r); g.ellipse(0, 0, r, r * 0.3, a, 0, Math.PI * 2); g.moveTo(Math.cos(a) * r * 0.84, Math.sin(a) * r * 0.84); g.ellipse(0, 0, r * 0.84, r * 0.17, a, 0, Math.PI * 2, true); } g.moveTo(r * 0.22, 0); g.arc(0, 0, r * 0.22, 0, Math.PI * 2); }
-  else if (e === 'leaf') { g.moveTo(-r * 0.75, r * 0.75); g.quadraticCurveTo(-r * 0.9, -r * 0.6, r * 0.8, -r * 0.85); g.quadraticCurveTo(r * 0.7, r * 0.75, -r * 0.6, r * 0.6); g.lineTo(-r * 0.9, r * 0.95); g.lineTo(-r * 0.95, r * 0.88); }
-  else if (e === 'eye') { g.moveTo(-r, 0); g.quadraticCurveTo(0, -r * 0.95, r, 0); g.quadraticCurveTo(0, r * 0.95, -r, 0); g.moveTo(r * 0.42, 0); g.arc(0, 0, r * 0.42, 0, Math.PI * 2, true); g.moveTo(r * 0.2, 0); g.arc(0, 0, r * 0.2, 0, Math.PI * 2); }
-  else if (e === 'chip') { const b = r * 0.62; g.rect(-b, -b, b * 2, b * 2); g.moveTo(-b * 0.5, -b * 0.5); g.lineTo(-b * 0.5, b * 0.5); g.lineTo(b * 0.5, b * 0.5); g.lineTo(b * 0.5, -b * 0.5); g.closePath();
-    for (let i = -1; i <= 1; i++) { const o = i * b * 0.6 - r * 0.07; g.rect(o, -r, r * 0.14, r - b); g.rect(o, b, r * 0.14, r - b); g.rect(-r, o, r - b, r * 0.14); g.rect(b, o, r - b, r * 0.14); } }
-  else if (e === 'gem') { g.moveTo(-r * 0.85, -r * 0.3); g.lineTo(-r * 0.45, -r * 0.78); g.lineTo(r * 0.45, -r * 0.78); g.lineTo(r * 0.85, -r * 0.3); g.lineTo(0, r * 0.92); }
-  else { g.arc(0, 0, r * 0.8, 0, 7); }
+  else if (e === 'bolt') { g.moveTo(r * 0.2, -r); g.lineTo(-r * 0.5, r * 0.1); g.lineTo(0, r * 0.1); g.lineTo(-r * 0.2, r); g.lineTo(r * 0.5, -r * 0.1); g.lineTo(0, -r * 0.1); }
+  else g.arc(0, 0, r * 0.8, 0, 7);
   g.closePath();
 }
-export const emblemRule = (e: string): CanvasFillRule => (e === 'atom' || e === 'eye' || e === 'chip' ? 'evenodd' : 'nonzero');
-// ---------------- Command Center ----------------
-function command(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent; const tiers = Math.min(5, 1 + Math.floor((lvl - 1) / 3));
-  k.cyl(1.95, 1.95, 0.28, 8, shade(P, -0.18), 0, 0, 0, { ry: Math.PI / 8 }); k.cyl(1.88, 1.88, 0.05, 8, A, 0, 0.28, 0, { ry: Math.PI / 8, glow: true });
-  // corner modules with lit windows
-  const ext = 1.25; for (const [x, z] of [[ext, ext], [-ext, ext], [ext, -ext], [-ext, -ext]]) { const h = 0.55 + Math.min(0.5, lvl * 0.04);
-    k.box(0.85, h, 0.85, P, x, 0.33, z); k.box(0.87, 0.07, 0.87, A, x, 0.33 + h, z); k.box(0.6, 0.09, 0.02, WIN, x, 0.33 + h * 0.55, z + 0.43, { glow: true }); k.box(0.02, 0.09, 0.6, WIN, x + 0.43 * Math.sign(x), 0.33 + h * 0.55, z, { glow: true }); }
-  // the stacked hub
-  let y = 0.33, r = 1.15; for (let i = 0; i < tiers; i++) { const h = 0.62 - i * 0.04; k.cyl(r, r * 1.04, h, 12, i % 2 ? shade(P, -0.08) : P, 0, y, 0); k.cyl(r * 1.03, r * 1.03, 0.06, 12, A, 0, y + h - 0.12, 0, { glow: i === tiers - 1 });
-    for (let w = 0; w < 8; w++) { const a = (w / 8) * Math.PI * 2; k.box(0.18, 0.12, 0.02, WIN, Math.cos(a) * r * 1.02, y + h * 0.45, Math.sin(a) * r * 1.02, { ry: -a + Math.PI / 2, glow: true }); }
-    y += h; r *= 0.84; }
-  k.sphere(r * 1.05, GLASSC, 0, y, 0, { theta: Math.PI / 2, w: 14, h: 6, glass: true }); k.sphere(r * 0.45, A, 0, y + 0.05, 0, { glow: true, w: 8, h: 5 });
-  // landing pad from level 5, radar from level 8
-  if (lvl >= 5) { k.cyl(0.62, 0.62, 0.05, 10, DARK, 1.35, 0.3, -1.35); k.cyl(0.5, 0.5, 0.06, 10, '#ffcc33', 1.35, 0.3, -1.35); k.cyl(0.42, 0.42, 0.07, 10, DARK, 1.35, 0.3, -1.35); }
-  if (lvl >= 8) { k.cyl(0.05, 0.08, 0.6, 6, STEEL, -1.25, 0.95 + Math.min(0.5, lvl * 0.04), 1.25); k.sphere(0.32, STEEL, -1.25, 1.62 + Math.min(0.5, lvl * 0.04), 1.25, { theta: Math.PI / 2, rx: Math.PI * 0.75 }); }
-  const g = k.build('command'); const top = y + r * 1.05;
-  // antenna beacon
-  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.9, 5), MATS.body); ant.position.set(0, top + 0.45, 0); (ant.geometry as any).setAttribute('color', new THREE.BufferAttribute(new Float32Array(ant.geometry.attributes.position.count * 3).fill(0.8), 3)); g.add(ant);
-  const tip = glowMesh(new THREE.SphereGeometry(0.07, 8, 6), '#ff4a4a'); tip.position.set(0, top + 0.92, 0); g.add(tip);
-  // the colony flag
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(-1.7, 1.03, -1.7); mast.castShadow = true; g.add(mast);
-  const fl = flag(look); fl.position.set(-1.68, 1.55, -1.7); g.add(fl);
-  return { group: g, height: top + 1, anim: (t) => { (tip.material as THREE.MeshBasicMaterial).color.set(Math.sin(t * 3) > 0 ? '#ff4a4a' : '#3a0a0a'); fl.userData.wave(t); } };
-}
-// ---------------- Colony Hub (off-world islands) ----------------
-function hub(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent; const rings = Math.min(4, 1 + Math.floor((lvl - 1) / 3));
-  k.cyl(1.9, 1.95, 0.3, 6, shade(P, -0.2), 0, 0, 0, { ry: Math.PI / 6 }); k.cyl(1.82, 1.82, 0.05, 6, A, 0, 0.3, 0, { ry: Math.PI / 6, glow: true });
-  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; k.cyl(0.42, 0.42, 0.55 + Math.min(0.4, lvl * 0.03), 10, P, Math.cos(a) * 1.25, 0.3, Math.sin(a) * 1.25); k.sphere(0.42, GLASSC, Math.cos(a) * 1.25, 0.85 + Math.min(0.4, lvl * 0.03), Math.sin(a) * 1.25, { theta: Math.PI / 2, w: 10, h: 5, glass: true }); }
-  let y = 0.3; for (let i = 0; i < rings; i++) { k.cyl(0.95 - i * 0.12, 1.0 - i * 0.12, 0.5, 14, i % 2 ? shade(P, -0.1) : P, 0, y, 0); k.cyl(0.98 - i * 0.12, 0.98 - i * 0.12, 0.06, 14, A, 0, y + 0.42, 0, { glow: i === rings - 1 }); y += 0.5; }
-  k.sphere(0.62, GLASSC, 0, y, 0, { theta: Math.PI / 2, w: 14, h: 6, glass: true }); k.sphere(0.25, A, 0, y + 0.05, 0, { glow: true, w: 8, h: 5 });
-  const g = k.build('hub'); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.4, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(-1.6, 1.0, -1.2); g.add(mast);
-  const fl = flag(look); fl.position.set(-1.58, 1.5, -1.2); g.add(fl); return { group: g, height: y + 0.9, anim: (t) => fl.userData.wave(t) }; }
-// ---------------- Bot Bay ----------------
-function bay(lvl: number, el: string, look: Look): Model {
-  const k = new Kit(), P = look.primary, E = (ELEMENTS[el] || ELEMENTS.solar).color, EG = (ELEMENTS[el] || ELEMENTS.solar).glow;
-  k.cyl(1.42, 1.48, 0.22, 6, shade(P, -0.12), 0, 0, 0, { ry: Math.PI / 6 }); k.cyl(1.36, 1.36, 0.04, 6, mix(P, E, 0.35), 0, 0.22, 0, { ry: Math.PI / 6 });
-  k.cyl(0.62, 0.62, 0.03, 16, E, 0, 0.26, 0, { glow: true }); k.cyl(0.5, 0.5, 0.035, 16, shade(E, -0.5), 0, 0.26, 0);
-  // pylons, more and taller with level
-  const n = lvl >= 4 ? 6 : 3, ph = 0.7 + Math.min(0.8, lvl * 0.07);
-  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + Math.PI / 6, x = Math.cos(a) * 1.18, z = Math.sin(a) * 1.18;
-    k.box(0.16, ph, 0.16, P, x, 0.26, z, { ry: -a }); k.box(0.2, 0.08, 0.2, A2(look), x, 0.26 + ph, z, { ry: -a }); k.box(0.06, ph * 0.6, 0.02, E, x * 0.99, 0.26 + ph * 0.25, z * 0.99, { ry: -a + Math.PI / 2, glow: true }); }
-  if (lvl >= 4) k.add(new THREE.TorusGeometry(1.18, 0.05, 6, 24), A2(look), 0, 0.26 + ph + 0.06, 0, { rx: Math.PI / 2 });
-  if (lvl >= 7) k.sphere(1.25, mix(EG, '#ffffff', 0.4), 0, 0.26, 0, { theta: Math.PI / 2, w: 18, h: 8, glass: true });
-  // docking pads: one per bot slot
-  const cap = 2 + Math.floor((lvl - 1) / 3); for (let i = 0; i < cap; i++) { const a = (i / cap) * Math.PI * 2 + 0.4; k.cyl(0.17, 0.17, 0.03, 8, shade(E, 0.2), Math.cos(a) * 0.86, 0.26, Math.sin(a) * 0.86, { glow: true }); }
-  const g = k.build('bay');
-  const holo = glowMesh(new THREE.OctahedronGeometry(0.18, 0), EG); holo.position.y = 0.26 + ph + 0.45; (holo.material as THREE.MeshBasicMaterial).transparent = true; (holo.material as THREE.MeshBasicMaterial).opacity = 0.85; g.add(holo);
-  return { group: g, height: 0.26 + ph + 0.7, anim: (t) => { holo.rotation.y = t * 1.4; holo.position.y = 0.26 + ph + 0.45 + Math.sin(t * 2) * 0.06; } };
-}
-const A2 = (look: Look) => look.accent;
-// ---------------- Fabricator ----------------
-function fab(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent; const CELL = '#9dff5a';
-  k.box(2.7, 0.18, 2.7, shade(P, -0.2), 0, 0, 0); k.box(1.7, 1.0 + Math.min(0.4, lvl * 0.04), 1.5, P, -0.35, 0.18, -0.4); k.box(1.74, 0.1, 1.54, A, -0.35, 1.18 + Math.min(0.4, lvl * 0.04), -0.4);
-  k.box(1.0, 0.12, 0.02, WIN, -0.35, 0.75, 0.36, { glow: true }); k.box(0.4, 0.55, 0.03, DARK, 0.25, 0.18, 0.36);
-  const stacks = 1 + Math.min(3, Math.floor(lvl / 3)); for (let i = 0; i < stacks; i++) { k.cyl(0.13, 0.16, 0.7 + i * 0.1, 8, STEEL, -0.9 + i * 0.38, 1.28, -0.85); k.cyl(0.15, 0.15, 0.06, 8, A, -0.9 + i * 0.38, 1.9 + i * 0.1, -0.85); }
-  // conveyor with printed cells
-  k.box(2.2, 0.12, 0.4, DARK, 0, 0.18, 0.95); for (let i = 0; i < 5; i++) k.box(0.18, 0.18, 0.22, CELL, -0.8 + i * 0.4, 0.3, 0.95, { glow: true });
-  const g = k.build('fab');
-  // the cell tank fills as a recipe runs
-  const tankK = new Kit(); tankK.cyl(0.42, 0.42, 1.25, 14, GLASSC, 0, 0, 0, { glass: true }); tankK.cyl(0.46, 0.46, 0.08, 14, A, 0, 1.25, 0); tankK.cyl(0.46, 0.46, 0.1, 14, STEEL, 0, -0.02, 0);
-  const tank = tankK.build('tank'); tank.position.set(0.85, 0.18, -0.55); g.add(tank);
-  const liquid = glowMesh(new THREE.CylinderGeometry(0.36, 0.36, 1, 14), CELL); liquid.geometry.translate(0, 0.5, 0); liquid.position.set(0.85, 0.22, -0.55); g.add(liquid);
-  const arm = new THREE.Group(); const ak = new Kit(); ak.box(0.1, 0.6, 0.1, '#ffb23e', 0, 0, 0); ak.box(0.5, 0.08, 0.08, '#ffb23e', 0.22, 0.56, 0); ak.box(0.08, 0.18, 0.08, DARK, 0.45, 0.4, 0); arm.add(ak.build()); arm.position.set(0.95, 0.3, 0.6); g.add(arm);
-  return { group: g, height: 2.1, anim: (t, s) => { const f = s.ready ? 1 : s.working ? 0.15 + 0.7 * ((t * 0.08) % 1) : 0.08; liquid.scale.y = THREE.MathUtils.lerp(liquid.scale.y || 0.1, f * 1.2, 0.08);
-    arm.rotation.y = s.working ? Math.sin(t * 2.4) * 0.9 : 0; (liquid.material as THREE.MeshBasicMaterial).color.set(s.ready ? (Math.sin(t * 5) > 0 ? '#c8ff7a' : CELL) : CELL); } };
-}
-// ---------------- Assembly Bay ----------------
-function assembly(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent; const pods = Math.min(3, 1 + Math.floor((lvl - 1) / 3));
-  k.box(2.8, 0.2, 2.8, shade(P, -0.2), 0, 0, 0); k.box(2.6, 0.05, 0.4, '#ffcc33', 0, 0.2, 1.05); k.box(2.0, 0.6, 0.7, P, 0, 0.2, -0.95); k.box(2.04, 0.06, 0.74, A, 0, 0.8, -0.95); k.box(1.4, 0.1, 0.02, WIN, 0, 0.55, -0.59, { glow: true });
-  const xs = [-0.85, 0, 0.85]; for (let i = 0; i < 3; i++) { const on = i < pods; k.cyl(0.36, 0.4, 0.14, 12, on ? STEEL : DARK, xs[i], 0.2, 0.15); if (on) { k.cyl(0.32, 0.32, 0.9, 12, GLASSC, xs[i], 0.34, 0.15, { glass: true }); k.cyl(0.36, 0.36, 0.08, 12, A, xs[i], 1.24, 0.15); } }
-  const g = k.build('assembly');
-  // gantry arm sweeping across the pods
-  const arm = new THREE.Group(); const ak = new Kit(); ak.box(0.08, 1.5, 0.08, '#ffb23e', -1.3, 0, -0.3); ak.box(2.7, 0.08, 0.08, '#ffb23e', 0, 1.5, -0.3); ak.box(0.12, 0.3, 0.12, DARK, 0, 1.22, -0.3); arm.add(ak.build()); arm.position.y = 0.2; g.add(arm);
-  const coreM: THREE.Mesh[] = []; for (let i = 0; i < 3; i++) { const m = glowMesh(new THREE.IcosahedronGeometry(0.17, 1), '#ffffff'); m.position.set(xs[i], 0.8, 0.15); m.visible = false; g.add(m); coreM.push(m); }
-  return { group: g, height: 1.8, anim: (t, s) => { const cs = s.cores || []; coreM.forEach((m, i) => { const c = cs[i]; m.visible = !!c && i < pods; if (!c) return; (m.material as THREE.MeshBasicMaterial).color.set(c.color);
-      m.rotation.y = t * (c.ready ? 3 : 1.2); m.rotation.x = t * 0.7; const pulse = c.ready ? 1 + Math.sin(t * 6) * 0.15 : 0.85 + Math.sin(t * 2 + i) * 0.08; m.scale.setScalar(pulse); m.position.y = 0.8 + Math.sin(t * 1.5 + i) * 0.05; });
-    arm.position.x = cs.some((c) => !c.ready) ? Math.sin(t * 0.9) * 0.8 : arm.position.x * 0.95; } };
-}
-// ---------------- Fusion Lab ----------------
-function fusionLab(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent;
-  k.box(3.8, 0.22, 2.8, shade(P, -0.2), 0, 0, 0); k.box(3.6, 0.04, 0.3, A, 0, 0.22, 1.15, { glow: true });
-  for (const x of [-1.25, 1.25]) { k.cyl(0.62, 0.7, 0.35, 12, P, x, 0.22, 0); k.cyl(0.66, 0.66, 0.06, 12, A, x, 0.57, 0); k.sphere(0.58, GLASSC, x, 0.62, 0, { theta: Math.PI / 2, w: 16, h: 7, glass: true }); k.cyl(0.4, 0.4, 0.03, 14, '#b06dff', x, 0.6, 0, { glow: true }); }
-  k.cyl(0.22, 0.3, 1.0 + Math.min(0.4, lvl * 0.04), 10, STEEL, 0, 0.22, 0); k.box(2.0, 0.12, 0.18, DARK, 0, 0.62, 0); k.box(0.7, 0.5, 0.6, P, 0, 0.22, -0.95); k.box(0.5, 0.08, 0.02, WIN, 0, 0.5, -0.64, { glow: true });
-  const g = k.build('fusion'); const top = 1.25 + Math.min(0.4, lvl * 0.04);
-  const ring = new THREE.Group(); const rk = new Kit(); rk.add(new THREE.TorusGeometry(0.55, 0.07, 8, 32), A); rk.add(new THREE.TorusGeometry(0.42, 0.03, 6, 28), '#b06dff', 0, 0, 0, { glow: true }); ring.add(rk.build()); ring.position.y = top; g.add(ring);
-  const orb = glowMesh(new THREE.IcosahedronGeometry(0.16, 1), '#e2c8ff'); orb.position.y = top; g.add(orb);
-  const beam = glowMesh(new THREE.CylinderGeometry(0.035, 0.035, 2.5, 6), '#d6b8ff'); beam.rotation.z = Math.PI / 2; beam.position.y = 0.95; beam.visible = false; g.add(beam);
-  return { group: g, height: top + 0.6, anim: (t, s) => { ring.rotation.x = Math.PI / 2 + Math.sin(t * 0.5) * 0.2; ring.rotation.z = t * (s.working ? 4 : 0.4); orb.scale.setScalar(s.working ? 1 + Math.sin(t * 9) * 0.25 : 0.7);
-    beam.visible = !!s.working; beam.scale.x = 1 + Math.sin(t * 20) * 0.3; (orb.material as THREE.MeshBasicMaterial).color.set(s.ready ? '#fff2a8' : '#e2c8ff'); } };
-}
-// ---------------- Arena (the island gateway) ----------------
-function arenaGate(lvl: number, look: Look): Model {
-  const k = new Kit(), P = look.primary, A = look.accent;
-  k.cyl(1.9, 2.0, 0.25, 24, shade(P, -0.2), 0, 0, 0); k.cyl(1.7, 1.7, 0.04, 32, '#2a3446', 0, 0.25, 0); k.add(new THREE.TorusGeometry(1.7, 0.05, 6, 48), A, 0, 0.29, 0, { rx: Math.PI / 2, glow: true });
-  for (const [x, c] of [[-0.8, '#4aa8ff'], [0.8, '#ff5a6a']] as [number, string][]) k.cyl(0.42, 0.42, 0.03, 18, c, x, 0.29, 0, { glow: true });
-  const n = 6 + Math.min(6, lvl); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; k.box(0.14, 0.9 + (i % 2) * 0.3, 0.14, P, Math.cos(a) * 1.75, 0.25, Math.sin(a) * 1.75); k.box(0.17, 0.08, 0.17, A, Math.cos(a) * 1.75, 1.15 + (i % 2) * 0.3, Math.sin(a) * 1.75, { glow: true }); }
-  const g = k.build('arena'); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.04, 6, 48), new THREE.MeshBasicMaterial({ color: '#7af7ff', toneMapped: false, transparent: true, opacity: 0.85 })); ring.position.y = 1.5; ring.rotation.x = Math.PI / 2; g.add(ring);
-  const fl = flag(look, 0.55, 0.34); fl.position.set(0.02, 2.0, 0); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.set(0, 1.7, 0); g.add(mast, fl);
-  return { group: g, height: 2.3, anim: (t) => { ring.rotation.z = t * 0.8; ring.position.y = 1.4 + Math.sin(t * 1.5) * 0.1; fl.userData.wave(t); } };
-}
-// ---------------- Launch Pad ----------------
-export function rocketModel(tier: number) { const k = new Kit(); const h = 1.3 + tier * 0.35, r = 0.2 + tier * 0.03;
-  k.cyl(r, r, h, 12, '#f2f4f7', 0, 0.2); k.add(new THREE.ConeGeometry(r, 0.5 + tier * 0.08, 12), '#ff7a3c', 0, 0.2 + h + 0.25 + tier * 0.04, 0); k.cyl(r * 1.02, r * 1.02, 0.08, 12, '#2c3340', 0, 0.2 + h * 0.6);
-  if (tier >= 3) for (const x of [-1, 1]) { k.cyl(r * 0.45, r * 0.45, h * 0.6, 10, '#e6e9ee', x * r * 1.5, 0.2); k.add(new THREE.ConeGeometry(r * 0.45, 0.25, 10), '#ff7a3c', x * r * 1.5, 0.2 + h * 0.6 + 0.12, 0); }
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; k.box(0.04, 0.35, 0.22, '#ff7a3c', Math.cos(a) * r, 0.2, Math.sin(a) * r, { ry: -a }); } k.cyl(r * 0.7, r * 0.9, 0.2, 10, '#3a4250', 0, 0); return { group: k.build('rocket'), height: 0.2 + h + 0.7 }; }
-function launchPad(lvl: number, look: Look, rocket: boolean): Model {
-  const k = new Kit(), P = look.primary, A = look.accent; const tier = lvl >= 9 ? 4 : lvl >= 6 ? 3 : lvl >= 3 ? 2 : 1;
-  k.box(2.8, 0.25, 2.8, shade(P, -0.25), 0, 0, 0); k.cyl(0.95, 0.95, 0.06, 20, '#2c3340', 0, 0.25, 0); k.cyl(0.8, 0.8, 0.065, 20, '#ffcc33', 0, 0.25, 0); k.cyl(0.66, 0.66, 0.07, 20, '#2c3340', 0, 0.25, 0);
-  const th = 2.2 + tier * 0.4; k.box(0.3, th, 0.3, P, -1.05, 0.25, -1.0); for (let y = 0.6; y < th; y += 0.5) k.box(0.62, 0.05, 0.05, A, -0.78, 0.25 + y, -1.0); k.box(0.36, 0.1, 0.36, A, -1.05, 0.25 + th, -1.0, { glow: true });
-  k.box(0.7, 0.4, 0.5, P, 1.0, 0.25, 1.0); k.box(0.5, 0.08, 0.02, WIN, 1.0, 0.45, 1.26, { glow: true });
-  const g = k.build('pad'); let rk: THREE.Group | null = null; if (rocket) { const r = rocketModel(tier); rk = r.group; rk.position.y = 0.3; g.add(rk); }
-  return { group: g, height: 0.3 + (rocket ? 2.2 + tier * 0.5 : 1.5) }; }
-// ---------------- the Precursor Vault ----------------
-function mine(lvl: number, look: Look): Model { const k = new Kit(); k.cyl(0.95, 1.0, 0.18, 10, '#3a2f4a'); k.cyl(0.7, 0.7, 0.05, 12, '#120a1c', 0, 0.18); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; k.add(new THREE.OctahedronGeometry(0.12, 0), '#c48bff', Math.cos(a) * 0.45, 0.25, Math.sin(a) * 0.45, { sy: 2, glass: true }); }
-  for (const [x, z] of [[-0.7, -0.7], [0.7, -0.7], [0, 0.75]]) k.box(0.08, 1.3, 0.08, '#c8d0da', x, 0.18, z); k.box(1.5, 0.08, 0.08, look.accent, 0, 1.45, -0.7); k.box(0.3, 0.3, 0.3, look.primary, 0, 1.2, 0);
-  const g = k.build('mine'); const bit = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.6, 8), new THREE.MeshStandardMaterial({ color: '#e6b84a', metalness: 0.6, roughness: 0.3 })); bit.rotation.x = Math.PI; bit.position.y = 0.75; g.add(bit);
-  const glow = glowMesh(new THREE.CircleGeometry(0.55, 20), '#b06dff'); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.24; (glow.material as THREE.MeshBasicMaterial).transparent = true; (glow.material as THREE.MeshBasicMaterial).opacity = 0.6; g.add(glow);
-  return { group: g, height: 1.7, anim: (t, s) => { bit.rotation.y = s.working ? t * 12 : 0; bit.position.y = s.working ? 0.55 + Math.sin(t * 3) * 0.15 : 0.75; (glow.material as THREE.MeshBasicMaterial).opacity = s.ready ? 0.6 + Math.sin(t * 5) * 0.3 : 0.35; } }; }
-function forge(look: Look): Model { const k = new Kit(); k.cyl(1.3, 1.45, 0.3, 8, '#2a2236', 0, 0, 0, { ry: Math.PI / 8 }); k.cyl(0.9, 1.0, 0.5, 8, '#3a2f4a', 0, 0.3, 0, { ry: Math.PI / 8 }); k.cyl(0.6, 0.6, 0.05, 16, '#b06dff', 0, 0.8, 0, { glow: true });
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; k.box(0.22, 1.4, 0.22, '#4a3d5e', Math.cos(a) * 1.15, 0.3, Math.sin(a) * 1.15); k.add(new THREE.OctahedronGeometry(0.1, 0), '#e6c8ff', Math.cos(a) * 1.15, 1.85, Math.sin(a) * 1.15, { glow: true }); }
-  const g = k.build('forge'); const cr = glowMesh(new THREE.OctahedronGeometry(0.28, 0), '#d6b8ff'); cr.position.y = 1.5; g.add(cr); const rings = new THREE.Group(); for (let i = 0; i < 3; i++) { const r = glowMesh(new THREE.TorusGeometry(0.45 + i * 0.12, 0.012, 4, 32), '#b06dff'); r.rotation.x = i * 1.1; rings.add(r); } rings.position.y = 1.5; g.add(rings);
-  return { group: g, height: 2.2, anim: (t) => { cr.rotation.y = t * 1.5; cr.position.y = 1.5 + Math.sin(t * 1.4) * 0.08; rings.children.forEach((r, i) => { r.rotation.y = t * (0.6 + i * 0.4); r.rotation.z = t * 0.3 * (i + 1); }); } }; }
-function relicBay(lvl: number, el: string): Model { const E = (ELEMENTS[el] || ELEMENTS.aurora); const k = new Kit(); k.cyl(1.45, 1.5, 0.22, 12, '#2a2236'); k.cyl(1.2, 1.2, 0.04, 24, '#3a2f4a', 0, 0.22, 0);
-  const n = 6 + Math.min(4, Math.floor(lvl / 3)); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; const h = 0.9 + (i % 2) * 0.35; k.box(0.22, h, 0.22, '#4a3d5e', Math.cos(a) * 1.2, 0.22, Math.sin(a) * 1.2, { ry: -a }); k.box(0.05, h * 0.6, 0.02, E.color, Math.cos(a) * 1.08, 0.22 + h * 0.2, Math.sin(a) * 1.08, { ry: -a + Math.PI / 2, glow: true }); }
-  k.cyl(0.7, 0.7, 0.04, 24, E.color, 0, 0.26, 0, { glow: true }); const g = k.build('relicbay'); const glyph = glowMesh(new THREE.TorusGeometry(0.4, 0.03, 4, 6), E.glow); glyph.position.y = 1.4; g.add(glyph);
-  return { group: g, height: 1.9, anim: (t) => { glyph.rotation.y = t; glyph.rotation.x = Math.sin(t * 0.7) * 0.6; } }; }
-// ---------------- decorations ----------------
-// the colony's name in neon, and a banner emblem as a hologram (both cached)
-function nameTexture(name: string, color: string) { const key = 'n' + name + color; const hit = texCache.get(key); if (hit) return hit;
-  const c = document.createElement('canvas'); c.width = 512; c.height = 144; const g = c.getContext('2d')!; let fs = 76; g.textAlign = 'center'; g.textBaseline = 'middle';
-  do { g.font = `700 ${fs}px Oxanium, Barlow, sans-serif`; fs -= 4; } while (g.measureText(name.toUpperCase()).width > 470 && fs > 20);
-  g.shadowColor = color; g.shadowBlur = 22; g.fillStyle = color; g.fillText(name.toUpperCase(), 256, 76); g.shadowBlur = 8; g.fillStyle = mix(color, '#ffffff', 0.65); g.fillText(name.toUpperCase(), 256, 76);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t); return t; }
-function emblemTexture(e: string, color: string) { const key = 'e' + e + color; const hit = texCache.get(key); if (hit) return hit;
-  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d')!; g.translate(64, 64); g.shadowColor = color; g.shadowBlur = 14; g.fillStyle = color; emblemPath(g, e, 46); g.fill(emblemRule(e));
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t); return t; }
-const GOLD = new THREE.MeshStandardMaterial({ color: '#e8b64c', metalness: 0.55, roughness: 0.3, emissive: '#3a2a08' }), GOLD_GLOW = new THREE.MeshBasicMaterial({ color: '#fff1b8', toneMapped: false });
-function gild(o: THREE.Object3D) { o.traverse((c) => { const m = c as THREE.Mesh; if (!m.isMesh) return; const mat = m.material as THREE.Material; m.material = (mat as THREE.MeshBasicMaterial).isMeshBasicMaterial ? GOLD_GLOW : GOLD; m.castShadow = true; }); }
-function decor(t: string, look: Look, el?: string): Model {
-  const k = new Kit();
-  switch (t) {
-    case 'tree': { k.cyl(0.05, 0.08, 0.45, 6, '#7a5232'); k.add(new THREE.IcosahedronGeometry(0.32, 0), '#47c95a', 0, 0.68, 0); k.add(new THREE.IcosahedronGeometry(0.22, 0), '#6ee36f', 0.12, 0.88, 0.05);
-      for (const [x, y, z] of [[0.2, 0.62, 0.15], [-0.18, 0.75, 0.12], [0.05, 0.6, -0.25]]) k.sphere(0.045, '#aaffee', x, y, z, { glow: true, w: 6, h: 4 }); return { group: k.build('tree'), height: 1.1 }; }
-    case 'rock': { const g = new THREE.DodecahedronGeometry(0.32, 0); const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) * 0.7); k.add(g, '#8a8f99', 0, 0.18, 0, { ry: 0.7 }); k.add(new THREE.DodecahedronGeometry(0.14, 0), '#6c717b', 0.28, 0.08, 0.12); return { group: k.build('rock'), height: 0.5 }; }
-    case 'path': { k.box(0.98, 0.04, 0.98, '#cfd6df'); k.box(0.86, 0.045, 0.86, '#e7ecf2'); return { group: k.build('path'), height: 0.1 }; }
-    case 'lamp': { k.cyl(0.08, 0.1, 0.1, 6, DARK); k.cyl(0.03, 0.03, 0.95, 6, STEEL, 0, 0.1); k.box(0.24, 0.04, 0.06, STEEL, 0.1, 1.02, 0); const g = k.build('lamp'); const bulb = glowMesh(new THREE.SphereGeometry(0.07, 8, 6), '#ffe7a0'); bulb.position.set(0.2, 0.98, 0); g.add(bulb);
-      const pl = new THREE.PointLight('#ffd890', 1.2, 3.2, 2); pl.position.set(0.2, 0.92, 0); g.add(pl); return { group: g, height: 1.2 }; }
-    case 'flag': { k.cyl(0.07, 0.09, 0.08, 6, DARK); const g = k.build('flag'); const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 5), new THREE.MeshStandardMaterial({ color: STEEL })); mast.position.y = 0.75; g.add(mast);
-      const f = flag(look, 0.6, 0.38); f.position.set(0.02, 1.25, 0); g.add(f); return { group: g, height: 1.5, anim: (tt) => f.userData.wave(tt) }; }
-    case 'crystal': { for (const [x, z, h, r] of [[0, 0, 0.7, 0.13], [0.16, 0.08, 0.45, 0.09], [-0.14, 0.1, 0.5, 0.1], [0.05, -0.16, 0.38, 0.08]]) k.add(new THREE.OctahedronGeometry(r, 0), '#c48bff', x, h / 2, z, { sy: h / r / 2, glass: true });
-      k.cyl(0.25, 0.3, 0.06, 7, '#5d5468'); const g = k.build('crystal'); const core = glowMesh(new THREE.OctahedronGeometry(0.06, 0), '#f0d8ff'); core.position.y = 0.3; g.add(core); return { group: g, height: 0.8 }; }
-    case 'fountain': { k.cyl(0.85, 0.9, 0.22, 16, '#d9dee5'); k.cyl(0.72, 0.72, 0.03, 16, '#2f8cff', 0, 0.2, 0, { glass: true }); k.cyl(0.12, 0.16, 0.55, 8, '#c8d0da', 0, 0.2); k.cyl(0.3, 0.3, 0.05, 12, '#c8d0da', 0, 0.75);
-      const g = k.build('fountain'); const arcs = new THREE.Group(); for (let i = 0; i < 6; i++) { const m = glowMesh(new THREE.TorusGeometry(0.28, 0.02, 4, 12, Math.PI), '#9fd8ff'); m.rotation.y = (i / 6) * Math.PI * 2; m.position.y = 0.78; m.rotation.z = 0; arcs.add(m); }
-      arcs.children.forEach((m) => { (m as THREE.Mesh).geometry.translate(0.28, 0, 0); }); g.add(arcs); return { group: g, height: 1.2, anim: (tt) => { arcs.rotation.y = tt * 0.6; arcs.scale.y = 1 + Math.sin(tt * 3) * 0.08; } }; }
-    case 'sign': { k.box(0.08, 0.95, 0.08, DARK, -0.86, 0, 0); k.box(0.08, 0.95, 0.08, DARK, 0.86, 0, 0); k.box(1.92, 0.62, 0.1, '#121a28', 0, 0.62, 0); k.box(1.96, 0.04, 0.12, look.accent, 0, 1.24, 0, { glow: true }); k.box(1.96, 0.04, 0.12, look.accent, 0, 0.6, 0, { glow: true });
-      const g = k.build('sign'); const mat = new THREE.MeshBasicMaterial({ map: nameTexture(look.name || 'New Haven', look.accent), transparent: true, toneMapped: false, depthWrite: false }); const front = new THREE.Mesh(new THREE.PlaneGeometry(1.84, 0.52), mat); front.position.set(0, 0.93, 0.056); g.add(front);
-      const back = front.clone(); back.rotation.y = Math.PI; back.position.z = -0.056; g.add(back); return { group: g, height: 1.4, anim: (tt) => { mat.opacity = Math.sin(tt * 31) > 0.985 ? 0.55 : 0.92 + Math.sin(tt * 4) * 0.06; } }; }
-    case 'beacon': { k.cyl(0.3, 0.36, 0.14, 8, DARK); k.cyl(0.14, 0.2, 0.42, 8, STEEL, 0, 0.14); k.cyl(0.22, 0.22, 0.04, 12, look.accent, 0, 0.56, 0, { glow: true });
-      const g = k.build('beacon'); const holo = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: emblemTexture(look.banner.emblem, look.banner.fg === '#14202e' ? look.accent : look.banner.fg), transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-      holo.position.y = 1.08; g.add(holo); const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.2, 0.5, 14, 1, true), new THREE.MeshBasicMaterial({ color: look.accent, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); beam.position.y = 0.83; g.add(beam);
-      return { group: g, height: 1.6, anim: (tt) => { holo.rotation.y = tt * 1.1; holo.position.y = 1.08 + Math.sin(tt * 2) * 0.05; } }; }
-    case 'turbine': { k.cyl(0.05, 0.1, 1.5, 8, '#e9eef5'); k.box(0.13, 0.13, 0.28, '#e9eef5', 0, 1.44, 0); k.box(0.14, 0.03, 0.22, look.accent, 0, 1.55, 0); k.cyl(0.16, 0.2, 0.08, 8, DARK);
-      const g = k.build('turbine'); const rotor = new THREE.Group(); rotor.position.set(0, 1.5, 0.16); const bm = new THREE.MeshStandardMaterial({ color: '#f4f7fb', flatShading: true });
-      for (let i = 0; i < 3; i++) { const geo = new THREE.BoxGeometry(0.07, 0.66, 0.015); geo.translate(0, 0.33, 0); const b = new THREE.Mesh(geo, bm); b.rotation.z = (i * Math.PI * 2) / 3; b.castShadow = true; rotor.add(b); }
-      rotor.add(new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), bm)); g.add(rotor); return { group: g, height: 2.2, anim: (tt) => { rotor.rotation.z = -tt * 2.2; } }; }
-    case 'pond': { k.cyl(0.92, 0.96, 0.12, 16, '#9aa4b1'); k.cyl(0.8, 0.8, 0.02, 16, '#1d78c8', 0, 0.1, 0, { glass: true }); k.add(new THREE.DodecahedronGeometry(0.15, 0), '#8a8f99', 0.74, 0.1, 0.42); k.add(new THREE.DodecahedronGeometry(0.11, 0), '#6c717b', -0.62, 0.08, -0.55);
-      for (const [x, z] of [[0.32, -0.22], [-0.3, 0.3], [0.05, 0.5]]) k.cyl(0.11, 0.11, 0.012, 8, '#4fcf5a', x, 0.115, z); k.sphere(0.035, '#ff9ac8', 0.32, 0.14, -0.22, { w: 6, h: 4 });
-      const g = k.build('pond'); const fish: THREE.Group[] = []; const cols = ['#ff7a3c', '#ffffff', '#ffb23e'];
-      for (let i = 0; i < 3; i++) { const pv = new THREE.Group(); pv.position.y = 0.075; const f = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.15, 5), new THREE.MeshStandardMaterial({ color: cols[i], roughness: 0.4 })); f.position.x = 0.3 + i * 0.13; f.rotation.x = -Math.PI / 2; pv.add(f); g.add(pv); fish.push(pv); }
-      return { group: g, height: 0.5, anim: (tt) => fish.forEach((p, i) => { p.rotation.y = tt * (0.55 + i * 0.18) + i * 2.1; }) }; }
-    case 'topiary': { k.box(0.44, 0.12, 0.44, '#7a5232'); k.box(0.36, 0.4, 0.3, '#3fae4a', 0, 0.12); k.box(0.3, 0.24, 0.26, '#4fc45a', 0, 0.54); k.box(0.1, 0.28, 0.1, '#3fae4a', -0.25, 0.2); k.box(0.1, 0.28, 0.1, '#3fae4a', 0.25, 0.2);
-      k.cyl(0.015, 0.015, 0.14, 4, '#3fae4a', 0, 0.78); k.sphere(0.045, '#ff7ab8', 0, 0.94, 0, { w: 6, h: 4 }); k.sphere(0.035, '#fff4c2', -0.07, 0.67, 0.135, { glow: true, w: 6, h: 4 }); k.sphere(0.035, '#fff4c2', 0.07, 0.67, 0.135, { glow: true, w: 6, h: 4 });
-      return { group: k.build('topiary'), height: 1.1 }; }
-    case 'bench': { k.box(0.82, 0.05, 0.3, '#b07a4a', 0, 0.3, 0.02); k.box(0.82, 0.2, 0.05, '#b07a4a', 0, 0.4, -0.13); k.box(0.06, 0.3, 0.28, DARK, -0.34, 0, 0); k.box(0.06, 0.3, 0.28, DARK, 0.34, 0, 0); k.box(0.84, 0.03, 0.06, look.accent, 0, 0.6, -0.13);
-      return { group: k.build('bench'), height: 0.7 }; }
-    case 'dish': { k.box(0.9, 0.2, 0.9, '#9aa4b1'); k.cyl(0.1, 0.14, 0.6, 8, STEEL, 0, 0.2); k.sphere(0.65, '#e9eef5', 0, 1.05, 0, { theta: Math.PI / 2.6, rx: Math.PI * 0.8, w: 16, h: 6 }); k.cyl(0.02, 0.02, 0.5, 4, DARK, 0.12, 0.95, 0.1, { rx: -0.6 });
-      const g = k.build('dish'); const tip = glowMesh(new THREE.SphereGeometry(0.05, 6, 4), '#7af7ff'); tip.position.set(0.22, 1.32, 0.3); g.add(tip); return { group: g, height: 1.6 }; }
-    case 'monolith': { k.box(0.5, 1.8, 0.2, '#0c0a12'); for (let i = 0; i < 5; i++) k.box(0.36, 0.03, 0.01, '#b06dff', 0, 0.3 + i * 0.3, 0.105, { glow: true }); return { group: k.build('monolith'), height: 2 }; }
-    case 'arch': { for (const x of [-0.75, 0.75]) { k.cyl(0.12, 0.16, 0.12, 8, '#c8d0da', x, 0); k.cyl(0.07, 0.07, 0.6, 8, '#e9eef5', x, 0.12); }
-      k.add(new THREE.TorusGeometry(0.75, 0.07, 8, 28, Math.PI), '#e6b84a', 0, 0.72, 0); k.add(new THREE.TorusGeometry(0.62, 0.025, 6, 28, Math.PI), '#fff4c2', 0, 0.72, 0, { glow: true });
-      const g = k.build('arch'); const sparks = new THREE.Group(); for (let i = 0; i < 7; i++) { const m = glowMesh(new THREE.OctahedronGeometry(0.04, 0), '#fff4c2'); const a = (i / 6) * Math.PI; m.position.set(Math.cos(a) * 0.75, 0.72 + Math.sin(a) * 0.75, 0); sparks.add(m); } g.add(sparks);
-      return { group: g, height: 1.6, anim: (tt) => sparks.children.forEach((m, i) => { m.scale.setScalar(0.6 + 0.6 * Math.abs(Math.sin(tt * 2 + i))); m.rotation.y = tt * 3; }) }; }
-    case 'statue': if (el && SPECIES[el]) { k.box(1.3, 0.25, 1.3, '#d9dee5'); k.box(1.04, 0.45, 1.04, '#c3cad4', 0, 0.25); k.box(1.12, 0.06, 1.12, '#e6b84a', 0, 0.7); k.box(0.5, 0.14, 0.02, '#e6b84a', 0, 0.38, 0.52);
-      const g = k.build('statue'); const b = buildBot(el, 20); gild(b.group); b.group.scale.setScalar(1.45); b.group.position.y = 0.76 + b.hover * 0.3; b.group.rotation.y = 0.35; g.add(b.group); return { group: g, height: 2.3 }; }
-    // falls through to the classic statue when nobody has been chosen yet
-    // eslint-disable-next-line no-fallthrough
-    case 'statueGeneric': { k.box(1.2, 0.3, 1.2, '#d9dee5'); k.box(1.0, 0.5, 1.0, '#c3cad4', 0, 0.3); k.sphere(0.38, '#e6b84a', 0, 1.22, 0, { w: 14, h: 10 }); k.add(new THREE.TorusGeometry(0.52, 0.05, 6, 24), '#e6b84a', 0, 1.22, 0, { rx: 1.2 });
-      k.sphere(0.1, '#fff4c2', 0, 1.26, 0.33, { glow: true }); return { group: k.build('statue'), height: 1.8 }; }
-  }
-  k.box(0.8, 0.4, 0.8, '#ff00ff'); return { group: k.build('?'), height: 0.5 };
-}
-export function buildModel(t: string, lvl: number, el: string | undefined, look: Look): Model {
-  const L = Math.max(1, lvl);
-  if (t === 'command') return command(L, look);
-  if (t === 'hub') return hub(L, look);
-  if (t === 'bay') return bay(L, el || 'solar', look);
-  if (t === 'fab') return fab(L, look);
-  if (t === 'assembly') return assembly(L, look);
-  if (t === 'fusion') return fusionLab(L, look);
-  if (t === 'arena') return arenaGate(L, look);
-  if (t === 'mine') return mine(L, look);
-  if (t === 'forge') return forge(look);
-  if (t === 'relicbay') return relicBay(L, el || 'aurora');
-  if (t === 'pad') return launchPad(L, look, !look.noRocket);
-  return decor(t, look, el);
-}
-// the supply drop pod: falls from orbit on thrusters, lands, blinks until opened
-export function dropPod() { const k = new Kit(); k.cyl(0.32, 0.42, 0.7, 8, '#e9eef5', 0, 0.1); k.cyl(0.43, 0.43, 0.08, 8, '#ff7a3c', 0, 0.3); k.add(new THREE.ConeGeometry(0.32, 0.4, 8), '#e9eef5', 0, 1.0, 0); k.box(0.3, 0.2, 0.02, '#2c3340', 0, 0.42, 0.37);
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; k.box(0.05, 0.35, 0.22, '#ff7a3c', Math.cos(a) * 0.38, 0, Math.sin(a) * 0.38, { ry: -a }); }
-  const g = k.build('pod'); const flame = glowMesh(new THREE.ConeGeometry(0.2, 0.7, 8), '#ffd27a'); flame.rotation.x = Math.PI; flame.position.y = -0.3; g.add(flame);
-  const beacon = glowMesh(new THREE.SphereGeometry(0.06, 8, 6), '#7cf29a'); beacon.position.y = 1.22; g.add(beacon); g.userData.flame = flame; g.userData.beacon = beacon; return g; }
-// construction scaffold drawn over a building in progress
-export function scaffold(w: number, d: number, h: number) {
-  const g = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: '#f2b233', roughness: 0.6, metalness: 0.3 });
-  const pole = new THREE.CylinderGeometry(0.035, 0.035, h, 5); const bar = new THREE.CylinderGeometry(0.025, 0.025, 1, 4);
-  const xs = [-w / 2 + 0.1, w / 2 - 0.1], zs = [-d / 2 + 0.1, d / 2 - 0.1];
-  for (const x of xs) for (const z of zs) { const m = new THREE.Mesh(pole, mat); m.position.set(x, h / 2, z); m.castShadow = true; g.add(m); }
-  for (let y = 0.4; y < h; y += 0.6) { for (const z of zs) { const m = new THREE.Mesh(bar, mat); m.scale.y = w - 0.2; m.rotation.z = Math.PI / 2; m.position.set(0, y, z); g.add(m); } for (const x of xs) { const m = new THREE.Mesh(bar, mat); m.scale.y = d - 0.2; m.rotation.x = Math.PI / 2; m.position.set(x, y, 0); g.add(m); } }
-  const crane = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, Math.max(w, d) * 0.9), mat); crane.position.set(0, h + 0.1, 0); crane.name = 'crane'; g.add(crane);
-  return g;
+export function bannerTexture(b: { bg: string; fg: string; emblem: string }) {
+  const key = b.bg + b.fg + b.emblem; const hit = texCache.get(key); if (hit) return hit;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); g.fillStyle = b.fg; g.translate(64, 40); emblemPath(g, b.emblem, 24); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t); return t;
 }
