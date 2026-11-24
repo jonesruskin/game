@@ -17,6 +17,7 @@ import { RES } from './data/resources';
 import * as SP from './core/space';
 import * as RB from './core/robots';
 import * as SO from './core/solar';
+import * as DY from './core/daily';
 import { SPECIES } from './data/species';
 import { RARITIES } from './data/rarities';
 import type { Design } from './data/rockets';
@@ -58,6 +59,8 @@ export class App {
     const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
+    // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
+    DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
     // Kardashev milestones pay out dark matter as the civilisation's power grows
     const k = kardashev(this.s, this.R); const m = K_MILESTONES.find((x) => x > (this.s.kMax || 0) && k >= x);
     if (m) { this.s.kMax = m; const dm = kReward(m); this.s.res.dm = (this.s.res.dm || 0) + dm; this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV MILESTONE</div><div class="big">${m.toFixed(2)}</div><p class="desc">Your civilisation now commands more power than ever. Reward:</p><div class="rewards">${costHTML({ dm })}</div><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
@@ -89,19 +92,22 @@ export class App {
   closeOrbit() { this.world.closeOrbit(); document.body.classList.remove('orbiting'); this.ui.renderNav(); }
   enqueue(fn: () => void) { this.queue.push(fn); }
   // ---------------- taps ----------------
-  private tapped(h: { item?: string; cell?: [number, number] }) {
-    if (this.placing) return;
+  private tapped(h: { item?: string; cell?: [number, number]; drop?: boolean }) {
+    if (this.placing) return; if (h.drop) { this.openDropNow(); return; }
     if (h.item) { const it = G.itemOf(this.s, this.s.at, h.item); if (it && this.R.item[it.id] && (it.held || 0) >= 1 && this.ui.sel !== it.id) { this.collect(it.id); } this.ui.select(h.item); this.audio.play('tap'); return; }
     this.ui.select(null);
   }
+  openDropNow() { const at = this.world.capsulePos(); const r = DY.openDrop(this.s); if (!r) return; this.audio.play('levelup'); if (at) { at.y += 1; this.world.burst(at, '#ffd36a', 36); } this.world.setCapsule(this.s, false); this.ui.daily.reveal('SUPPLY CAPSULE', '📦', r.res, r.gift); this.changed(); this.ui.daily.renderRail(); }
+  focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
   collect(id: string) {
     const r = G.collect(this.s, this.s.at, id, this.R); if (!r) return; if (r.n <= 0) { this.ui.toast(`${RES[r.r].name} storage is full. Build or upgrade a Logistics Depot.`, 'bad'); this.audio.play('deny'); return; }
     this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${RES[r.r].icon}`, RES[r.r].color); }
     if (r.full) this.ui.toast(`${RES[r.r].name} storage is full: the rest stays in the building.`, 'bad'); this.changed();
   }
   // ---------------- placement ----------------
-  startPlacing(b: string, move?: string) {
-    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: raise Mission Control to expand the spaceport'); return; } [x, z] = sp; }
+  private wallDir: [number, number] = [1, 0];
+  startPlacing(b: string, move?: string, at?: [number, number]) {
+    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = at || G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: raise Mission Control to expand the spaceport'); return; } [x, z] = sp; }
     this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - 26, z + d / 2 - 26);
     const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}</span><button class="btn small" data-a="rotate">⟳ Rotate</button><button class="btn small red" data-a="unplace">✕</button><button class="btn small gold" data-a="place" id="placeOk">✓ ${move ? 'Move here' : 'Build here'}</button>`;
     this.world.sync(s);
@@ -110,7 +116,11 @@ export class App {
   confirmPlace() {
     const g = this.world.ghost, P = this.placing; if (!g || !P) return; const s = this.s;
     const r = P.move ? G.moveItem(s, s.at, P.move, g.x, g.z, g.r) : G.startBuild(s, s.at, g.b, g.x, g.z, g.r);
-    if (!r.ok) { this.ui.deny(r.why); return; } this.audio.play(P.move ? 'place' : 'build'); this.cancelPlace(); if (!P.move && r.item) { this.ui.select(r.item.id); } this.changed();
+    if (!r.ok) { this.ui.deny(r.why); return; } this.audio.play(P.move ? 'place' : 'build'); this.cancelPlace();
+    // walls: keep placing, one block further along the line, until the limit or the money runs out
+    if (!P.move && BUILDINGS[g.b].instant && G.canBuild(s, s.at, g.b).ok) { const dx = this.wallDir[0], dz = this.wallDir[1]; const tries: [number, number][] = [[dx, dz], [dz, dx], [-dz, -dx], [-dx, -dz]]; const next = tries.map(([a, b]) => [g.x + a, g.z + b] as [number, number]).find(([x, z]) => G.fits(s, s.at, g.b, x, z, 0).ok);
+      if (next) { this.wallDir = [next[0] - g.x, next[1] - g.z]; this.changed(); this.startPlacing(g.b, undefined, next); return; } }
+    if (!P.move && r.item && !BUILDINGS[g.b].instant) { this.ui.select(r.item.id); } this.changed();
   }
   cancelPlace() { this.placing = null; this.world.endGhost(); $('#place').classList.add('hidden'); this.world.sync(this.s); }
   // ---------------- settings & save ----------------

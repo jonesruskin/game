@@ -12,16 +12,17 @@ import type { App } from '../main';
 import { LaunchUI } from './launch';
 import { RobotsUI } from './robots';
 import { SolarUI, worldIcon } from './solar';
+import { DailyUI } from './daily';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
 const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${RES[r]?.icon || ''}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 export class UI {
-  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI;
+  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
-    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this);
+    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.id === 'aname') { const v = t.value.trim().slice(0, 24); if (v) { this.s.name = v; this.s.bases.earth.name = v; this.app.changed(); this.renderHud(); } } if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); });
   }
@@ -92,9 +93,11 @@ export class UI {
     h += this.statsHTML(it.b, Math.max(1, it.lvl), m, !job && it.lvl < d.max); h += this.robots.panelHTML(s.at, it.id);
     if (!job && it.lvl > 0) { const c = G.canUpgrade(s, s.at, it.id);
       if (c.max) h += '<p class="good ox">Maximum level reached.</p>';
-      else { const cost = G.costOf(it.b, it.lvl + 1, m); h += `<div class="box"><div class="row"><b class="grow ox">Upgrade to level ${it.lvl + 1}</b><span class="muted">⏱ ${fmtTime(G.timeOf(it.b, it.lvl + 1, m))}</span></div><div style="margin:6px 0">${this.costLive(cost)}</div>`;
+      else { const cost = G.costOf(it.b, it.lvl + 1, m); h += `<div class="box"><div class="row"><b class="grow ox">Upgrade to level ${it.lvl + 1}</b><span class="muted">${BUILDINGS[it.b].instant ? '⚡ instant' : '⏱ ' + fmtTime(G.timeOf(it.b, it.lvl + 1, m))}</span></div><div style="margin:6px 0">${this.costLive(cost)}</div>`;
         if (c.reqs && c.reqs.length) h += `<ul class="reqs">${c.reqs.map(([b, n]: [string, number]) => `<li>${esc(BUILDINGS[b].name)} level ${n}</li>`).join('')}</ul>`;
-        h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}</div>`; } }
+        h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}`;
+        if (BUILDINGS[it.b].instant) { const same = s.bases[s.at].items.filter((i) => i.b === it.b && i.lvl === it.lvl).length; if (same > 1) h += `<button class="btn" style="width:100%;margin-top:6px" data-a="upgradeAll" data-b="${it.b}" data-l="${it.lvl}">⬆ Upgrade all ${same} level-${it.lvl} ${esc(BUILDINGS[it.b].name.toLowerCase())}s (${fmt(cost.credits * same)} ¢)</button>`; }
+        h += '</div>'; } }
     if (it.b === 'research') h += '<button class="btn" style="width:100%" data-a="research">🔬 Open research</button>';
     if ((it.b === 'launch' || it.b === 'vab') && it.lvl > 0) h += `<button class="btn" style="width:100%" data-a="ltab" data-t="${it.b === 'vab' ? 'rockets' : 'missions'}">🚀 Launch Control</button>`;
     h += `<div class="row" style="margin-top:10px"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button>${G.canDemolish(s, s.at, it.id) ? `<button class="btn small red" data-a="demolish" data-id="${it.id}">Demolish</button>` : ''}</div>`;
@@ -115,7 +118,7 @@ export class UI {
   closeOver() { this.over = ''; $('#over').classList.add('hidden'); this.app.platform.gameplayStart(); }
   renderOver() {
     const el = $('#over'); if (!this.over) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const s = this.s;
-    if (this.over === 'shop') { const base = s.at; const cats = ['core', 'production', 'power', 'storage', 'science', 'spaceflight'].filter((c) => Object.values(BUILDINGS).some((d) => d.cat === c && d.bases.includes(base)));
+    if (this.over === 'shop') { const base = s.at; const cats = ['core', 'production', 'power', 'storage', 'science', 'spaceflight', 'defense'].filter((c) => Object.values(BUILDINGS).some((d) => d.cat === c && d.bases.includes(base)));
       if (!cats.includes(this.tab)) this.tab = cats[0];
       const near = (tech?: string) => !tech || !!s.tech[tech] || (TECH[tech] && TECH[tech].req.every((r) => s.tech[r])); // hide buildings more than one discovery away
       const list = Object.entries(BUILDINGS).filter(([, d]) => d.cat === this.tab && d.bases.includes(base) && !d.command && near(d.req && d.req.tech));
@@ -125,6 +128,7 @@ export class UI {
     if (this.over === 'launch') { el.innerHTML = this.launch.html(); return; }
     if (this.over === 'designer') { el.innerHTML = this.launch.designerHTML(); return; }
     if (this.over === 'robots') { el.innerHTML = this.robots.html(); return; }
+    if (this.over === 'daily') { el.innerHTML = this.daily.html(); return; }
     if (this.over === 'goals') { el.innerHTML = this.goalsHTML(); return; }
   }
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
@@ -172,7 +176,7 @@ export class UI {
       <p class="muted" style="font-size:12px">Graphics changes apply after a reload. Camera: drag to pan, scroll or pinch to zoom, right-drag, two-finger twist or Q/E to rotate.</p><div class="row" style="justify-content:center"><button class="btn red small" data-a="reset">Start over</button><button class="btn" data-a="closeModal">Close</button></div>`; }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement) {
-    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
+    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
     switch (a) {
       case 'orbit': A.openOrbit('earth'); A.audio.play('whoosh'); break;
       case 'base': A.toBase(); A.audio.play('whoosh'); break;
@@ -192,6 +196,7 @@ export class UI {
       case 'deselect': this.select(null); break;
       case 'collect': if (it) A.collect(it.id); break;
       case 'upgrade': if (it) { const r = G.startUpgrade(s, s.at, it.id); if (r.ok) { A.audio.play('build'); A.changed(); this.renderPanel(); } else this.deny(r.why); } break;
+      case 'upgradeAll': { const n = G.upgradeAllOf(s, s.at, t.dataset.b!, +t.dataset.l!); if (n) { A.audio.play('build'); this.toast(`${n} ${esc(BUILDINGS[t.dataset.b!].name.toLowerCase())}${n > 1 ? 's' : ''} upgraded`, 'good'); A.changed(); this.renderPanel(); } else this.deny('Not enough resources'); break; }
       case 'finish': { const r = G.speedup(s, t.dataset.job!); if (r.ok) { A.audio.play('done'); A.tickNow(); this.renderOver(); } else this.deny((r as any).why); break; }
       case 'cancel': if (G.cancel(s, t.dataset.job!)) { A.audio.play('tap'); this.toast('Cancelled: half the cost refunded'); A.changed(); if (this.sel && !G.itemOf(s, s.at, this.sel)) this.select(null); } break;
       case 'buy': { const b = t.dataset.b!; const c = G.canBuild(s, s.at, b); if (!c.ok) { this.deny(c.why); break; } this.closeOver(); A.startPlacing(b); break; }

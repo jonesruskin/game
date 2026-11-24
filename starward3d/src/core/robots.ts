@@ -46,7 +46,7 @@ export function canCraft(s: State, ri: number): Check {
 }
 export function craft(s: State, ri: number, focus?: string, t = Date.now()) { const c = canCraft(s, ri); if (!c.ok) return c; pay(s, c.cost!); const R = rng(hash(s.created + ':' + (rb(s).made++)));
   const list = pool(CORE_RECIPES[ri].rarity, focus); const sp = list[Math.floor(R() * list.length)]; const time = coreTime(s, sp);
-  s.jobs.push({ id: uid(s), kind: 'core', sp, src: 'workshop', start: t, end: t + time * 1000 }); return { ...c, sp, time }; }
+  s.jobs.push({ id: uid(s), kind: 'core', sp, src: 'workshop', start: t, end: t + time * 1000 }); s.stats.crafts = (s.stats.crafts || 0) + 1; return { ...c, sp, time }; }
 // a ready core boots into a robot when a dock has room; first of its kind fills a Botdex page
 export function canActivate(s: State, coreId: string): Check { if (!rb(s).cores.some((c) => c.id === coreId)) return { ok: false }; if (rb(s).list.length >= capacity(s)) return { ok: false, why: capacity(s) ? 'Every dock is full: build or upgrade a Robot Dock' : 'Build a Robot Dock first', full: true }; return { ok: true }; }
 export function activate(s: State, coreId: string, t = Date.now()) {

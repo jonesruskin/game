@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 in development, Parts 1-5 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
+> **Status: v2 in development, Parts 1-5 of 10 done; Part 6 phase 1 (daily loop, defences) done, phase 2 (War Games) next.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
 
 ## Run it
 ```bash
@@ -71,13 +71,23 @@ Worlds change in front of you, and every world looks and plays like itself.
 - **Comms relays around every world** you settle or build on (Deep Space Navigation): each level adds 4% to everything produced there, colonies and outposts alike; the satellites circle the world on the map and cross the colony's sky (Cape Horizon's sky shows your Earth satellites).
 - The map shows each terraformed world's current climate; Venus moved from an outpost to a colony; new chapter steps for Cytherea and relays.
 
+## Part 6, phase 1: the daily loop and defences (done)
+- **A side rail** (Daily, Spin, Event, Supply capsule) with red dots for anything waiting, so the bottom bar stays short on phones.
+- **The 28-day calendar:** rewards grow every day (credits, metal and fuel, Power Cells; Dark Matter and Advanced, Elite and Epic cores on special days). A missed day pauses it; it never resets. Every reward is measured in hours of your real income, so it stays worth claiming all game long.
+- **Daily missions:** three a day drawn from what you can actually do (collect, upgrade, research, launch, level robots, assemble cores, fuse, voyage, War Games), each with a reward, plus a **bonus chest** (Dark Matter, cells, a 40% chance of an Advanced or Elite core).
+- **Supply capsules:** one every 4 hours (two can wait). It drops under a parachute onto a free spot of Cape Horizon with a blinking beacon; tap it to open.
+- **The daily core spin:** a wheel of eight prizes; the prize is decided first and the wheel lands on it, with the real odds printed underneath. A second spin for a rewarded ad where ads exist.
+- **The weekly event:** six themes in rotation (Solar Solstice, War Games Cup, Deep Space Week, Fusion Frenzy, Garden Gala, Forge Fest), each with its own action. Missions, the bonus chest and the theme action earn points toward three milestones; the last is that week's **exclusive legendary robot**.
+- **Achievements:** fifteen, four tiers each, paying Dark Matter (Mission Control level, resources collected, technologies, launches, robots, Botdex, fusions, colonies, terraforming stages, voyages, login days, streaks, capsules, War Games stars, defences held).
+- **Defences on Earth (from Mission Control 3):** the **War Room** (your seat on the Defence Council), **Point-Defence Turrets**, **Laser Batteries**, **Missile Silos**, **Shield Generators**, **EMP Towers** and **Walls**, each with its own 3D model. Walls go up instantly, can be laid in a continuous line (the ghost hops to the next cell after each one) and upgraded all at once per level. Robots can operate defences (Kinetic and Alloy for turrets, Photon and Plasma for lasers...).
+
 ## Code map
 ```
 src/main.ts            app shell: boot, loop, taps, placement, feedback, save
 src/platform/          one adapter per build target (types.ts is the contract)
-src/core/              state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), robots.ts (cores, docks, operators, fusion, Botdex), solar.ts (orbits, launch windows, colonies, life support, ships, voyages, outposts, terraforming, relays), util.ts
+src/core/              daily.ts (calendar, missions, capsules, spin, achievements, weekly event), state.ts (save v2), econ.ts (rates, collectors, Kardashev, hooks), game.ts (rules, grid, objectives, offline time), space.ts (designs, assembly, missions, satellites, station), robots.ts (cores, docks, operators, fusion, Botdex), solar.ts (orbits, launch windows, colonies, life support, ships, voyages, outposts, terraforming, relays), util.ts
 src/data/              resources, buildings (+ footprints, collectors), research (102 techs), objectives (14 chapters), rockets (parts, presets), space (orbits, satellites, modules, missions), robots (affinities, boosts, recipes), solar (bodies, outposts, ships, terraforming), species, elements, rarities
 src/render/            world.ts (renderer, camera, picking, ghosts, drones, launches), env.ts (terrain per world, Venus deck and cloud sea, terraforming looks, sea, ponds, sky, clouds, flora, satellites, close-up ground detail), models.ts (Earth and colony buildings), system.ts (the Solar System map), rocket.ts (rockets from designs), orbit.ts (the orbit view), planet.ts (baked planet shaders, terraforming globes), walkers.ts (people and robots), botmodels.ts (robot models), kit.ts, studio.ts
-src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), launch.ts (Launch Control, designer), robots.ts (crew, Workshop, Fusion, Botdex, operators), solar.ts (map panels, fleet, colony panel, terraforming, relays, worlds), style.css, fonts
+src/ui/                ui.ts (HUD, panels, shop, research, goals, Kardashev, settings), daily.ts (rail, calendar, missions, wheel, event, achievements, reveals), launch.ts (Launch Control, designer), robots.ts (crew, Workshop, Fusion, Botdex, operators), solar.ts (map panels, fleet, colony panel, terraforming, relays, worlds), style.css, fonts
 tools/build.mjs        type-check, build each target, zip the portal builds
 ```

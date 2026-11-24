@@ -81,7 +81,7 @@ export function canVoyage(s: State, P: Voyage, t = Date.now()): Check & { ms: Re
   if (!canPay(s, ms.cost)) return { ok: false, why: 'Not enough resources', cost: ms.cost, ms };
   return { ok: true, ms, ship, time: travelTime(s, P.body, ship, t) };
 }
-export function startVoyage(s: State, P: Voyage, t = Date.now()) { const c = canVoyage(s, P, t); if (!c.ok) return c; pay(s, c.ms.cost); s.jobs.push({ id: uid(s), kind: 'voyage', payload: P, ship: c.ship, name: c.ms.name, start: t, end: t + c.time! * 1000 }); sol(s).voyages++; return c; }
+export function startVoyage(s: State, P: Voyage, t = Date.now()) { const c = canVoyage(s, P, t); if (!c.ok) return c; pay(s, c.ms.cost); s.jobs.push({ id: uid(s), kind: 'voyage', payload: P, ship: c.ship, name: c.ms.name, start: t, end: t + c.time! * 1000 }); sol(s).voyages++; s.stats.voyages = (s.stats.voyages || 0) + 1; return c; }
 // ---------------- terraforming (stages run in Part 5's visuals) ----------------
 export const terraStage = (s: State, body: string) => sol(s).terra[body] || 0;
 // a sky you can breathe: colonists leave the domes, and air stops being a limit

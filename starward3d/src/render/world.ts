@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { Env } from './env';
 import { buildModel, scaffold, droneModel, Look, Model } from './models';
-import { MATS } from './kit';
+import { MATS, Kit } from './kit';
 import { State } from '../core/state';
 import * as G from '../core/game';
 import { GRID } from '../data/buildings';
@@ -30,7 +30,7 @@ export class World {
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
-  onTap: (hit: { item?: string; cell?: [number, number] }) => void = () => {}; onGhostMove: () => void = () => {};
+  onTap: (hit: { item?: string; cell?: [number, number]; drop?: boolean }) => void = () => {}; onGhostMove: () => void = () => {};
   private shF = 0; private shX = 1e9; private shZ = 1e9;
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ((navigator as any).maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820);
@@ -55,7 +55,7 @@ export class World {
   private worldKey = '';
   setWorld(s: State, base: string) {
     const body = s.bases[base].body, T = terraState(s, body); const key = `${base}:${T ? T.n : 0}`; if (this.worldKey === key) return; this.worldKey = key;
-    this.baseId = base; if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer, T); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkers.suits(body !== 'earth' && !breathable(T)); this.walkKey = '';
+    this.baseId = base; this.setCapsule(s, false); if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer, T); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkers.suits(body !== 'earth' && !breathable(T)); this.walkKey = '';
     for (const v of this.views.values()) this.scene.remove(v.root); this.views.clear(); for (const d of this.drones.values()) this.scene.remove(d.g); this.drones.clear();
     const L = this.env.look; this.scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar); this.sun.color.set(L.sun); this.sun.intensity = L.sunI; this.hemi.color.set(L.amb[0]); this.hemi.groundColor.set(L.amb[1]); this.hemi.intensity = L.amb[2]; this.area = { lo: -1, hi: -1 };
   }
@@ -91,6 +91,7 @@ export class World {
   private tap(cx: number, cy: number) {
     if (this.mode === 'system' && this.system) { const r = this.canvas.getBoundingClientRect(); this.onPick(this.system.pick(cx - r.left, cy - r.top, r.width, r.height)); return; }
     if (this.mode === 'orbit') return; if (this.ghost) { this.ghostTo(cx, cy); return; }
+    if (this.capsule) { const r = this.canvas.getBoundingClientRect(); this.ray.setFromCamera(new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), this.camera); if (this.ray.intersectObject(this.capsule.pick, false).length) { this.onTap({ drop: true }); return; } }
     const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
     const hit = this.ray.intersectObjects([...this.views.values()].map((v) => v.pick), false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
     const g = this.groundAt(cx, cy); this.onTap(g ? { cell: [Math.floor(g.x + C), Math.floor(g.z + C)] } : {});
@@ -107,6 +108,23 @@ export class World {
     const foot = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MATS.ghostOk); foot.rotation.x = -Math.PI / 2; foot.position.y = 0.06; foot.name = 'foot'; root.add(foot); this.ghostObj = root; this.scene.add(root); this.syncGhost();
   }
   syncGhost() { const g = this.ghost; if (!g || !this.ghostObj) return; const [w, d] = G.dims(g.b, g.r); this.ghostObj.position.set(g.x + w / 2 - C, 0.05, g.z + d / 2 - C); (this.ghostObj.getObjectByName('foot') as THREE.Mesh).material = g.ok ? MATS.ghostOk : MATS.ghostBad; }
+  // ---------------- the supply capsule: it drops under a parachute onto a free spot of the Earth base; tap to open ----------------
+  capsule: { g: THREE.Group; chute: THREE.Group; pick: THREE.Mesh; beacon: THREE.Mesh; t: number } | null = null;
+  setCapsule(s: State, on: boolean) {
+    if (!on || this.baseId !== 'earth') { if (this.capsule) { this.scene.remove(this.capsule.g); this.capsule = null; } return; } if (this.capsule) return;
+    const sp = G.freeSpot(s, 'earth', 'turret'); if (!sp) return; const g = new THREE.Group(); const k = new Kit();
+    k.cyl(0.42, 0.55, 0.75, 12, '#eef0f3', 0, 0.06, 0); k.cyl(0.56, 0.56, 0.08, 12, '#3b4350', 0, 0, 0); k.add(new THREE.ConeGeometry(0.42, 0.45, 12), '#ff8a3c', 0, 1.03, 0); k.box(0.9, 0.12, 0.12, '#f5c542', 0, 0.38, 0); k.box(0.12, 0.12, 0.9, '#f5c542', 0, 0.38, 0); k.box(0.26, 0.2, 0.04, '#2b3340', 0, 0.3, 0.5);
+    g.add(k.build('capsule')); const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: '#7cf29a', toneMapped: false })); beacon.position.y = 1.3; g.add(beacon);
+    const chute = new THREE.Group(); const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2.4), new THREE.MeshStandardMaterial({ color: '#ff8a3c', side: THREE.DoubleSide, roughness: 0.8, flatShading: true })); canopy.position.y = 3.2; chute.add(canopy);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(1.52, 12, 2, 0, Math.PI * 2, 0, Math.PI / 7), new THREE.MeshStandardMaterial({ color: '#ffffff', side: THREE.DoubleSide, roughness: 0.8 })); cap.position.y = 3.2; chute.add(cap);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const p0 = new THREE.Vector3(0, 1.25, 0), p1 = new THREE.Vector3(Math.cos(a) * 1.15, 3.85, Math.sin(a) * 1.15); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([p0, p1]), new THREE.LineBasicMaterial({ color: '#dddddd' })); chute.add(l); }
+    g.add(chute); const pick = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.2, 1.8), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.8; g.add(pick);
+    g.position.set(sp[0] + 1 - C, 28, sp[1] + 1 - C); this.scene.add(g); this.capsule = { g, chute, pick, beacon, t: 0 };
+  }
+  capsulePos() { return this.capsule ? this.capsule.g.position.clone() : null; }
+  private capsuleFrame(t: number, dt: number) { const c = this.capsule; if (!c) return; c.t += dt; const y = Math.max(0, 28 - c.t * 7); c.g.position.y = y; c.g.rotation.y = Math.sin(c.t * 0.8) * 0.2;
+    if (y <= 0) { const k = Math.min(1, (c.t - 4) * 1.2); c.chute.scale.set(1 + k * 0.3, Math.max(0.05, 1 - k), 1 + k * 0.3); c.chute.position.set(k * 1.6, -k * 0.2, k * 0.4); c.chute.visible = k < 0.98; c.g.rotation.y = 0; } else c.chute.rotation.z = Math.sin(t * 1.3) * 0.08;
+    (c.beacon.material as THREE.MeshBasicMaterial).color.set(Math.sin(t * 6) > 0 ? '#7cf29a' : '#1c5a2a'); }
   // ---------------- sync with the save ----------------
   sync(s: State) {
     const B = s.bases[this.baseId]; if (!B) return; const A = G.area(s, this.baseId); if (A.lo !== this.area.lo || A.hi !== this.area.hi) { this.area = { lo: A.lo, hi: A.hi }; this.env.setArea(A.lo, A.hi); }
@@ -160,7 +178,7 @@ export class World {
     this.t += dt; const t = this.t;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
     if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
-    this.placeCamera(); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
+    this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;
       d.spark.position.set(0, -0.25 - Math.random() * 0.1, 0); d.spark.visible = Math.sin(t * 23 + d.ph) > 0.2; }

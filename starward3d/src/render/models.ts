@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Kit, shade } from './kit';
 import { BUILDINGS } from '../data/buildings';
 export interface Look { primary: string; accent: string; banner: { bg: string; fg: string; emblem: string }; }
-export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: AnimState) => void; }
+export interface Model { group: THREE.Group; height: number; anim?: (t: number, k: AnimState) => void; head?: THREE.Object3D; }
 export interface AnimState { working: boolean; full?: boolean; }
 const CON = '#cfd3d8', DARK = '#3b4350', STEEL = '#aeb8c4', WIN = '#ffe7a8', GLASS = '#9fd3ff';
 const tierOf = (L: number) => Math.min(6, 1 + Math.floor((Math.max(1, L) - 1) / 4));
@@ -230,6 +230,56 @@ function reactor(L: number, look: Look): Model {
   k.box(0.06, 0.4, 0.06, '#f5c542', 1.2, 0.1, 1.2); k.box(0.3, 0.3, 0.02, '#f5c542', 1.2, 0.5, 1.2);
   return { group: k.build('reactor'), height: 1.4 };
 }
+// ---- the Defence Council ----
+const ARMOR = (t: number) => ['#9aa3ad', '#8f99a6', '#7d8a99', '#5f6f82', '#4a5a70', '#3a4a66'][t - 1];
+// the War Room: a low bunker, a glowing holotable seen through the roof light, an aerial and the Council's flag
+function warroom(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), P = look.primary, A = look.accent; pad(k, 3, 3);
+  k.box(2.5, 0.75 + t * 0.06, 2.3, shade(P, -0.08), 0, 0.1, 0); k.box(2.56, 0.08, 2.36, A, 0, 0.85 + t * 0.06, 0); k.box(1.1, 0.06, 1.0, '#7fe4ff', -0.3, 0.9 + t * 0.06, 0.1, { glow: true });
+  k.box(0.6, 0.5, 0.06, '#2b3340', 0, 0.1, 1.16); k.box(0.66, 0.08, 0.1, '#ff5a6a', 0, 0.62, 1.18, { glow: true }); for (const x of [-0.95, 0.95]) k.box(0.3, 0.2, 2.4, ARMOR(t), x, 0.1, 0);
+  k.cyl(0.03, 0.04, 1.6 + t * 0.15, 5, STEEL, 0.9, 0.9, -0.8); k.sphere(0.06, '#ff5a6a', 0.9, 2.55 + t * 0.15, -0.8, { glow: true });
+  const g = k.build('warroom'); const holo = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 1), new THREE.MeshBasicMaterial({ color: '#7fe4ff', wireframe: true, transparent: true, opacity: 0.8, toneMapped: false })); holo.position.set(-0.3, 1.35 + t * 0.06, 0.1); g.add(holo);
+  return { group: g, height: 1.8 + t * 0.15, anim: (tt) => { holo.rotation.y = tt * 0.8; holo.rotation.x = tt * 0.3; holo.position.y = 1.35 + t * 0.06 + Math.sin(tt * 1.6) * 0.06; } };
+}
+// twin cannons on a fast-swinging turret
+function turret(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 2, 2, '#8a929c'); k.cyl(0.7, 0.8, 0.35, 8, ARMOR(t), 0, 0.1, 0); k.cyl(0.72, 0.72, 0.05, 8, A, 0, 0.45, 0);
+  const g = k.build('turret'); const head = new THREE.Group(); const hk = new Kit(); hk.cyl(0.42, 0.48, 0.32, 8, shade(ARMOR(t), 0.12), 0, 0, 0); hk.box(0.5, 0.26, 0.5, shade(ARMOR(t), 0.05), 0, 0.05, -0.05);
+  for (const x of [-0.13, 0.13]) { hk.cyl(0.05, 0.06, 0.75 + t * 0.04, 6, '#3b4350', x, 0.18, 0.45, { rx: Math.PI / 2 }); hk.cyl(0.065, 0.065, 0.06, 6, A, x, 0.18, 0.82 + t * 0.04, { rx: Math.PI / 2 }); }
+  hk.box(0.12, 0.08, 0.04, '#ff5a6a', 0, 0.3, 0.2, { glow: true }); head.add(hk.build()); head.position.y = 0.5; g.add(head);
+  return { group: g, height: 1.2, head, anim: (tt) => { head.rotation.y = Math.sin(tt * 0.5) * 1.2; } };
+}
+// a beam projector: a lens on a gimbal, glowing when charged
+function laserBattery(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 2, 2, '#8a929c'); k.box(1.3, 0.4, 1.3, ARMOR(t), 0, 0.1, 0); k.box(1.34, 0.05, 1.34, A, 0, 0.5, 0); for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) k.box(0.18, 0.12, 0.18, '#7fe4ff', x, 0.5, z, { glow: true });
+  const g = k.build('laser'); const head = new THREE.Group(); const hk = new Kit(); hk.cyl(0.26, 0.32, 0.4, 10, '#d9dde2', 0, 0, 0); hk.cyl(0.2, 0.28, 0.9 + t * 0.05, 10, shade(ARMOR(t), 0.15), 0, 0.3, 0.2, { rx: Math.PI / 2.6 }); hk.cyl(0.17, 0.17, 0.05, 12, '#9ff3ff', 0, 0.55, 0.62 + t * 0.03, { rx: Math.PI / 2.6, glow: true });
+  head.add(hk.build()); head.position.y = 0.55; g.add(head); return { group: g, height: 1.5, head, anim: (tt) => { head.rotation.y = tt * 0.3; } };
+}
+// a squat silo with sliding hatches and missile noses peeking out
+function missileSilo(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#8a929c'); k.box(2.3, 0.55, 2.3, ARMOR(t), 0, 0.1, 0); k.box(2.36, 0.06, 2.36, A, 0, 0.65, 0);
+  const n = Math.min(4, 2 + Math.floor(t / 2)); for (let i = 0; i < 4; i++) { const x = i % 2 ? 0.5 : -0.5, z = i < 2 ? -0.5 : 0.5; k.box(0.75, 0.04, 0.75, '#2b3340', x, 0.66, z); if (i < n) { k.cyl(0.13, 0.13, 0.35, 8, '#eef0f3', x, 0.6, z); k.add(new THREE.ConeGeometry(0.13, 0.25, 8), '#ff5a6a', x, 1.08, z); } }
+  k.box(0.08, 0.5, 0.08, STEEL, 1.05, 0.7, -1.05); k.box(0.3, 0.2, 0.05, '#f5c542', 1.05, 1.15, -1.05);
+  const g = k.build('missile'); const head = new THREE.Group(); g.add(head); return { group: g, height: 1.4, head };
+}
+// a pylon wrapped in coils with a faint dome that pulses
+function shieldGen(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 3, 3, '#8a929c'); k.cyl(0.9, 1.05, 0.35, 10, ARMOR(t), 0, 0.1, 0); k.cyl(0.25, 0.4, 1.6 + t * 0.1, 8, '#d9dde2', 0, 0.45, 0);
+  for (let y = 0.7; y < 1.9 + t * 0.1; y += 0.35) k.add(new THREE.TorusGeometry(0.42, 0.06, 6, 16), '#9ff3ff', 0, y, 0, { rx: Math.PI / 2, glow: true }); k.sphere(0.22, A, 0, 2.15 + t * 0.1, 0);
+  const g = k.build('shield'); const dome = new THREE.Mesh(new THREE.SphereGeometry(1.45, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7fe4ff', transparent: true, opacity: 0.12, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); dome.position.y = 0.1; g.add(dome);
+  return { group: g, height: 2.5, anim: (tt) => { (dome.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(tt * 2) * 0.04; dome.scale.setScalar(1 + Math.sin(tt * 2) * 0.02); } };
+}
+// a Tesla-style tower: a coil column under a crackling crown
+function empTower(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 2, 2, '#8a929c'); k.cyl(0.55, 0.7, 0.3, 8, ARMOR(t), 0, 0.1, 0); const h = 1.7 + t * 0.12; k.cyl(0.14, 0.22, h, 8, '#c9cdd3', 0, 0.4, 0);
+  for (let y = 0.6; y < h; y += 0.22) k.cyl(0.26 - y * 0.03, 0.26 - y * 0.03, 0.05, 10, '#b87333', 0, 0.4 + y, 0); k.add(new THREE.TorusGeometry(0.42, 0.1, 8, 18), '#d9dde2', 0, 0.45 + h, 0, { rx: Math.PI / 2 }); k.box(0.1, 0.06, 0.1, A, 0.55, 0.1, 0.55);
+  const g = k.build('emp'); const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), new THREE.MeshBasicMaterial({ color: '#c9b6ff', toneMapped: false })); orb.position.y = 0.45 + h; g.add(orb);
+  return { group: g, height: h + 0.8, anim: (tt) => { orb.scale.setScalar(0.8 + Math.abs(Math.sin(tt * 5)) * 0.5); } };
+}
+// a wall block: concrete, then steel, then energy-lined as it levels up
+function wall(L: number): Model { const k = new Kit(), t = tierOf(L); const col = ['#c9c4b8', '#b0b6be', '#8f99a6', '#6f7f94', '#5a6b84', '#3e4c66'][t - 1];
+  k.box(0.98, 0.62 + t * 0.04, 0.98, col, 0, 0, 0); k.box(1.0, 0.07, 1.0, shade(col, 0.12), 0, 0.62 + t * 0.04, 0); if (t >= 4) k.box(1.0, 0.05, 1.0, '#7fe4ff', 0, 0.3, 0, { glow: true });
+  return { group: k.build('wall'), height: 0.8 }; }
 // rising puffs (steam, vented gas): a few soft spheres that loop upward and fade
 function plume(color: string, n: number, h: number, size: number) { const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false });
   for (let i = 0; i < n; i++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), m.clone()); p.userData.o = i / n; g.add(p); }
@@ -303,6 +353,7 @@ export function buildModel(b: string, L: number, look: Look): Model {
     case 'launch': return launch(L, look); case 'vab': return vab(L, look); case 'tracking': return tracking(L, look); case 'academy': return academy(L, look);
     case 'workshop': return workshop(L, look); case 'dock': return dock(L, look); case 'cellplant': return cellplant(L, look); case 'fusionlab': return fusionlab(L, look);
     case 'hub': return hub(L, look); case 'regolith': return regolith(L, look); case 'ice': return ice(L, look); case 'he3x': return he3x(L, look); case 'lsolar': return lsolar(L); case 'dome': return dome(L, look); case 'burrow': return burrow(L, look);
+    case 'warroom': return warroom(L, look); case 'turret': return turret(L, look); case 'laser': return laserBattery(L, look); case 'missile': return missileSilo(L, look); case 'shield': return shieldGen(L, look); case 'emp': return empTower(L, look); case 'wall': return wall(L);
     case 'skimmer': return skimmer(L, look); case 'resort': return resort(L, look); case 'terraformer': return terraformer(L, look); case 'beltControl': return beltControl(L, look); case 'methane': return methane(L, look);
     case 'llab': return llab(L, look); case 'greenhouse': return greenhouse(L, look); case 'reactor': return reactor(L, look); case 'massDriver': return massDriver(L, look); case 'fusion': return fusionPlant(L, look);
   }

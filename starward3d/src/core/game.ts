@@ -49,13 +49,14 @@ export function canBuild(s: State, base: string, b: string): Check {
   if (d.req && d.req.hq && hq < d.req.hq) return { ok: false, why: `Mission Control level ${d.req.hq}`, hq: true };
   for (const f of buildChecks) { const c = f(s, base, b); if (c) return c; }
   const lim = allowedCount(d, hq); if (countOf(s, base, b) >= lim) return { ok: false, why: lim ? 'Limit reached for this command level' : `Command level ${(d.count || []).findIndex((c) => c > 0) + 1}`, hq: true };
-  if (crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All construction drones are busy', crews: true };
+  if (!d.instant && crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All construction drones are busy', crews: true };
   const cost = costOf(b, 1, m); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost };
   return { ok: true, cost, time: timeOf(b, 1, m) };
 }
 export function startBuild(s: State, base: string, b: string, x: number, z: number, r: number, t = Date.now()): Check {
   const c = canBuild(s, base, b); if (!c.ok) return c; const f = fits(s, base, b, x, z, r); if (!f.ok) return f; pay(s, c.cost!);
   const it: Item = { id: uid(s, 'i'), b, x, z, r, lvl: 0, held: 0 }; s.bases[base].items.push(it);
+  if (BUILDINGS[b].instant) { it.lvl = 1; s.stats.built++; for (const h of builtHooks) h(s, b); return { ...c, item: it }; } // walls go up at once
   s.jobs.push({ id: uid(s), kind: 'build', base, item: it.id, b, from: 0, to: 1, start: t, end: t + c.time! * 1000 }); return { ...c, item: it };
 }
 export const reqsMissing = (s: State, base: string, b: string, L: number) => cmdReqs(b, L, base).filter(([rb, n]) => !s.bases[base].items.some((i) => i.b === rb && i.lvl >= n));
@@ -67,12 +68,15 @@ export function canUpgrade(s: State, base: string, id: string): Check {
   if (d.command && base !== 'earth' && it.lvl >= levelCap(s, base, it.b)) return { ok: false, why: `Mission Control level ${it.lvl + 8} on Earth`, hq: true };
   const miss = reqsMissing(s, base, it.b, it.lvl + 1); if (miss.length) return { ok: false, why: `First upgrade ${miss.map(([b, n]) => BUILDINGS[b].name + ' to level ' + n).join(', ')}`, reqs: miss, hq: true };
   if (it.lvl >= allowedLevel(d, hq)) return { ok: false, why: `Upgrade ${base === 'earth' ? 'Mission Control' : 'the Colony Hub'} first`, hq: true };
-  if (crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All construction drones are busy', crews: true };
+  if (!d.instant && crewsBusy(s) >= crewsTotal(s, m)) return { ok: false, why: 'All construction drones are busy', crews: true };
   const cost = costOf(it.b, it.lvl + 1, m); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost };
   return { ok: true, cost, time: timeOf(it.b, it.lvl + 1, m) };
 }
+// every wall of one level, in one go (as many as you can afford)
+export function upgradeAllOf(s: State, base: string, b: string, lvl: number) { let n = 0; for (const it of s.bases[base].items.filter((i) => i.b === b && i.lvl === lvl)) { if (!startUpgrade(s, base, it.id).ok) break; n++; } return n; }
 export function startUpgrade(s: State, base: string, id: string, t = Date.now()): Check {
   const c = canUpgrade(s, base, id); if (!c.ok) return c; pay(s, c.cost!); const it = itemOf(s, base, id)!;
+  if (BUILDINGS[it.b].instant) { it.lvl++; s.stats.upgrades++; s.stats.upgradesStarted = (s.stats.upgradesStarted || 0) + 1; return c; }
   s.jobs.push({ id: uid(s), kind: 'build', base, item: id, b: it.b, from: it.lvl, to: it.lvl + 1, start: t, end: t + c.time! * 1000 }); s.stats.upgradesStarted = (s.stats.upgradesStarted || 0) + 1; return c;
 }
 export function moveItem(s: State, base: string, id: string, x: number, z: number, r: number): Check { const it = itemOf(s, base, id); if (!it) return { ok: false }; const f = fits(s, base, it.b, x, z, r, id); if (!f.ok) return f; it.x = x; it.z = z; it.r = r; return { ok: true }; }
