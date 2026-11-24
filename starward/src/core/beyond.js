@@ -18,7 +18,7 @@ export const bey = (s) => s.beyond || (s.beyond = { relay: 0, visited: {} });
 export const ascOf = (s) => s.asc || (s.asc = { points: 0, spent: {}, count: 0 });
 // ---------------- the relay network ----------------
 // what each funded project costs right now (for the funding UI and the bot)
-export function projectCost(s, key) { if (key === 'relay') return bey(s).relay < RELAY.stages ? relayCost(bey(s).relay) : null; if (key.startsWith('exp:')) { const id = key.slice(4); return bey(s).visited[id] ? null : EXPEDITIONS[id].cost; }
+export function projectCost(s, key) { if (key === 'relay') return bey(s).relay < RELAY.stages ? relayCost(bey(s).relay) : null; if (key.startsWith('exp:')) { const id = key.slice(4); return bey(s).visited[id] || s.jobs.some((j) => j.kind === 'expedition' && j.gal === id) ? null : EXPEDITIONS[id].cost; }
   if (key.startsWith('mega:')) { const id = key.slice(5), d = MEGA[id], n = ist(s).mega[id] || 0; return n < d.stages ? Object.fromEntries(Object.entries(d.cost).map(([r, v]) => [r, round2(v * Math.pow(d.growth, n))])) : null; } return null; }
 export const relayCost = (n) => Object.fromEntries(Object.entries(RELAY.cost).map(([r, v]) => [r, round2(v * Math.pow(RELAY.growth, n))]));
 export function canRelay(s) { const n = bey(s).relay; if (n >= RELAY.stages) return { ok: false, why: 'Complete', done: true }; if (!s.tech[RELAY.req]) return { ok: false, why: 'Research Relay Network', locked: true };
@@ -69,7 +69,7 @@ export function checkAchievements(s) { s.ach = s.ach || {}; const out = []; for 
 // ---------------- completing jobs ----------------
 export function completeBeyond(s, j) {
   if (j.kind === 'relay') { bey(s).relay = Math.max(bey(s).relay, j.stage + 1); return { kind: 'relay', stage: j.stage + 1 }; }
-  if (j.kind === 'expedition') { const E = EXPEDITIONS[j.gal]; bey(s).visited[j.gal] = j.end; give(s, E.reward); if (E.perk && E.perk.flag) s.flags[E.perk.flag] = 1; return { kind: 'expedition', gal: j.gal }; }
+  if (j.kind === 'expedition') { const E = EXPEDITIONS[j.gal]; bey(s).visited[j.gal] = j.end; give(s, E.reward); const left = s.fund && s.fund.pools['exp:' + j.gal]; if (left) { give(s, left); delete s.fund.pools['exp:' + j.gal]; } if (E.perk && E.perk.flag) s.flags[E.perk.flag] = 1; return { kind: 'expedition', gal: j.gal }; }
   return null;
 }
 export { GALAXIES, GALAXY_ORDER, EXPEDITIONS, RELAY, PERKS };

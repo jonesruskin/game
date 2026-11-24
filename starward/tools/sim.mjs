@@ -175,7 +175,7 @@ const yardOK = (k) => SO.yardLevel(s) >= WR.WARSHIPS[k].yard; const warLog = [];
 // the funded megaprojects: route surplus into the next one on the road to the Far Shore (or the one the objective
 // asks for), and invest whatever sits above half of storage, like a player topping it up at each check-in
 function nextProject() { const st0 = G.currentStep(s); if (st0 && st0.kind === 'mega' && ST.MEGA[st0.mega] && ST.MEGA[st0.mega].fund && s.tech[ST.MEGA[st0.mega].req]) return 'mega:' + st0.mega;
-  const B = BY.bey(s); if (!s.tech.relayNetwork) return null; const gal = BY.GALAXY_ORDER.find((id) => !B.visited[id]);
+  const B = BY.bey(s); if (!s.tech.relayNetwork) return null; const gal = BY.GALAXY_ORDER.find((id) => !B.visited[id] && !s.jobs.some((j) => j.kind === 'expedition' && j.gal === id));
   if (gal && s.tech.intergalacticDrive && BY.expOpen(s, gal) && B.relay >= BY.EXPEDITIONS[gal].relay) return 'exp:' + gal; if (B.relay < BY.RELAY.stages) return 'relay';
   for (const id of ['matrioshka', 'ringworld']) if (s.tech[ST.MEGA[id].req] && ST.megaStage(s, id) < ST.MEGA[id].stages) return 'mega:' + id; return null; }
 function beyond() { const st1 = G.currentStep(s); const late = s.flags.queenDead || !st1 || ['ch13', 'ch14'].includes(st1.ch); const key = late ? nextProject() : null; if (key) { const c = BY.projectCost(s, key); if (c) { if (!FU.routed(s, key)) FU.setRoute(s, key, c); const R0 = G.rates(s); const max = {}; for (const r in c) max[r] = Math.max(0, (s.res[r] || 0) - 0.5 * (R0.cap[r] || 0)); FU.invest(s, key, c, max); } }
