@@ -54,10 +54,10 @@ export class VaultUI {
       case 'crystals': ui.modal(`<h1 style="font-size:20px">Relic crystals</h1>${this.crystalsHTML()}<p class="sub">${IC.iridium} ${fmt(s.res.iridium || 0)} Iridium</p><button class="btn" data-a="closeModal">Close</button>`); return true;
       case 'digColor': this.digColor = t.dataset.c || 'aurora'; ui.renderPanel(); A.audio.play('tap'); return true;
       case 'dig': if (it) { const r = V.dig(s, it, +(t.dataset.i || 0), this.digColor); if (r.ok) { A.audio.play('build'); A.changed(); ui.renderPanel(); } else ui.deny(r.why); } return true;
-      case 'collectMine': if (it) { const r = V.collectMine(s, it); if (r) { A.audio.play('harvest'); const rc = t.getBoundingClientRect(); ui.popText(rc.left + rc.width / 2, rc.top, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); A.changed(); ui.renderPanel(); } } return true;
+      case 'collectMine': if (it) { const r = V.collectMine(s, it); if (r) { A.audio.play('crystal'); const rc = t.getBoundingClientRect(); ui.popText(rc.left + rc.width / 2, rc.top, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); A.changed(); ui.renderPanel(); } } return true;
       case 'forge': { const r = V.forge(s, t.dataset.c || 'aurora', +(t.dataset.t || 0)); if (r.ok) { A.audio.play('done'); A.changed(); ui.renderPanel(); } else ui.deny(r.why); return true; }
       case 'summon': { const r = V.summon(s, t.dataset.sp || '') as any; if (r.ok && r.bot) { A.audio.play('levelup'); A.changed(); ui.renderPanel(); ui.newBot(r.bot); } else ui.deny(r.why); return true; }
-      case 'evolve': { const b = s.bots.find((x) => x.id === t.dataset.bot); if (!b) return true; const r = V.evolve(s, b); if (r.ok) { A.audio.play('levelup'); A.changed(); ui.renderPanel(); ui.toast(`${SPECIES[b.sp].name} evolved to ${b.lvl} stars!`, 'gold'); } else ui.deny(r.why); return true; }
+      case 'evolve': { const b = s.bots.find((x) => x.id === t.dataset.bot); if (!b) return true; const r = V.evolve(s, b); if (r.ok) { A.audio.play('evolve'); A.changed(); ui.renderPanel(); ui.toast(`${SPECIES[b.sp].name} evolved to ${b.lvl} stars!`, 'gold'); } else ui.deny(r.why); return true; }
     }
     return false; }
 }

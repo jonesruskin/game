@@ -9,7 +9,7 @@ import { ELEMENTS } from '../data/elements';
 import { RARITIES } from '../data/rarities';
 import { xpNeed, STEPS } from '../data/progress';
 import { N } from '../render/island';
-import { emblemPath } from '../render/models';
+import { emblemPath, emblemRule } from '../render/models';
 import type { App } from '../main';
 import { CrewUI } from './crew';
 import { DailyUI } from './daily';
@@ -24,13 +24,13 @@ import * as AR from '../core/arena';
 import * as C from '../core/crew';
 import { CORE_ELEMENTS } from '../data/elements';
 import { RARITY_ORDER } from '../data/rarities';
+import { PAINTS, BANNER_BG, BANNER_FG, EMBLEMS, TURFS } from '../data/cosmetics';
+import * as ST from '../core/style';
+import { turfColors } from '../render/island';
 const IC = { credits: '<span class="ic cr">C</span>', cells: '<span class="ic ce">⚡</span>', dm: '<span class="ic dm">◆</span>', iridium: '<span class="ic ir">✦</span>' } as Record<string, string>;
 const cost = (c: Record<string, number>, s?: State) => Object.entries(c).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${s && (s.res as any)[r] < n ? 'short' : ''}">${IC[r] || ''}${fmt(n)}</span>`).join(' ');
 const elPills = (els: string[]) => `<span class="els">${els.map((e) => `<span class="el" style="background:${ELEMENTS[e].color}" title="${ELEMENTS[e].name}">${ELEMENTS[e].glyph}</span>`).join('')}</span>`;
 const STARTER_BAYS = CORE_ELEMENTS;
-const PAINTS = [['#e9eef5', '#22c7e8'], ['#f4efe6', '#ff7a3c'], ['#dfe7d8', '#4fcf5a'], ['#2e3644', '#ffd23a'], ['#f2e8f7', '#b06dff'], ['#e6f1ff', '#2f6bff'], ['#3b2f2f', '#ff4f6a'], ['#fff6dc', '#c9902a']];
-const BANNER_BG = ['#1b6fd8', '#d83a3a', '#1f9c5a', '#7a3fd6', '#e08a1a', '#14202e', '#e6e6ea', '#0fb3c9'];
-const EMBLEMS = ['star', 'planet', 'bolt', 'gear', 'rocket', 'circle'];
 export class UI {
   sel: string | null = null; selBot: string | null = null; crew: CrewUI; daily: DailyUI; arena: ArenaUI; space: SpaceUI; vault: VaultUI; tab = 'bays'; over: '' | 'shop' | 'bots' | 'custom' | 'settings' | 'dex' | 'daily' | 'arena' | 'event' = ''; private bubbles = new Map<string, HTMLElement>(); private lastRes = { credits: 0, cells: 0, dm: 0 }; private panelKey = ''; private tick = 0;
   constructor(public app: App) { this.crew = new CrewUI(this); this.daily = new DailyUI(this); this.arena = new ArenaUI(this); this.space = new SpaceUI(this); this.vault = new VaultUI(this);
@@ -47,12 +47,14 @@ export class UI {
       <div class="sp"></div><span id="dailyHud" class="row" style="gap:6px;flex-wrap:nowrap">${this.vault.eventChip()}${this.daily.hudHTML()}</span><button class="ibtn" data-a="zoomout" title="Overview">🛰</button><button class="ibtn" data-a="settings" title="Settings">⚙</button>`; }
   private updHud() { const s = this.s; for (const r of ['credits', 'cells', 'dm', 'iridium'] as const) { const v = Math.floor(s.res[r] || 0); if (v !== Math.floor((this.lastRes as any)[r] || 0)) { const el = $(`#r-${r}`); if (el) { el.querySelector('.v')!.textContent = fmt(v); if (v > ((this.lastRes as any)[r] || 0)) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } (this.lastRes as any)[r] = v; } }
     const b = $('.lvl .badge') as HTMLElement; if (b) { b.style.setProperty('--p', (s.xp / G.xpNeedOf(s)) * 100 + '%'); b.querySelector('b')!.textContent = String(s.lvl); const i = $('.lvl .nm i'); if (i) i.textContent = `${fmt(s.xp)} / ${fmt(G.xpNeedOf(s))} XP`; } }
-  renderNav() { $('#nav').innerHTML = `<button data-a="shop" id="n-shop"><span class="g">🛒</span>Shop</button><button data-a="bots"><span class="g">🤖</span>Crew</button><button data-a="dex"><span class="g">📖</span>Botdex</button><button data-a="arena"><span class="g">⚔</span>Arena</button><button data-a="space"><span class="g">🚀</span>Space</button><button data-a="custom"><span class="g">🎨</span>Style</button>`; }
+  renderNav() { $('#nav').innerHTML = `<button data-a="shop" id="n-shop"><span class="g">🛒</span>Shop</button><button data-a="bots"><span class="g">🤖</span>Crew</button><button data-a="dex"><span class="g">📖</span>Botdex</button><button data-a="arena"><span class="g">⚔</span>Arena</button><button data-a="space"><span class="g">🚀</span>Space</button><button data-a="custom" id="n-style"><span class="g">🎨</span>Style</button>`; ST.baseline(this.s); this.updStyleDot(); }
+  updStyleDot() { const b = $('#n-style'); if (!b) return; const n = ST.newCount(this.s); let d = b.querySelector('.dot'); if (n && !d) { d = document.createElement('span'); d.className = 'dot'; b.appendChild(d); } else if (!n && d) d.remove(); }
+  checkStyles() { const fresh = ST.freshUnlocks(this.s); if (!fresh.length) return; this.app.audio.play('sparkle'); for (const x of fresh.slice(0, 3)) this.toast(`🎨 New ${x.kind} unlocked: ${x.name}. Try it in Style.`, 'gold'); if (fresh.length > 3) this.toast(`🎨 ${fresh.length - 3} more styles unlocked`, 'gold'); this.updStyleDot(); this.app.changed(); }
   // ---------------- objectives ----------------
   renderObj() { const s = this.s, st = G.currentStep(s); const el = $('#obj'); if (!st) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const done = G.stepDone(s, st);
     el.classList.toggle('done', done); el.innerHTML = `<div class="t">Mission ${s.obj.i + 1} of ${STEPS.length}</div><p>${esc(st.text)}</p><div class="rw">Reward: ${cost(st.reward)}</div>${done ? '<button class="btn gold claim" data-a="claim">✓ Claim reward</button>' : ''}`; }
   // ---------------- per-frame ----------------
-  private dailyKey = ''; frame() { this.tick++; this.updHud(); this.placeBubbles(); this.space.frame(); if (this.tick % 20 === 0) { const h = this.vault.eventChip() + this.daily.hudHTML(); if (h !== this.dailyKey) { this.dailyKey = h; const el = $('#dailyHud'); if (el) el.innerHTML = h; } }
+  private dailyKey = ''; frame() { this.tick++; this.updHud(); this.placeBubbles(); this.space.frame(); if (this.tick % 20 === 0) { if (this.tick % 120 === 0) this.checkStyles(); const h = this.vault.eventChip() + this.daily.hudHTML(); if (h !== this.dailyKey) { this.dailyKey = h; const el = $('#dailyHud'); if (el) el.innerHTML = h; } }
     if (this.tick % 15 === 0) { this.refreshPanel(); this.renderObjIfChanged(); if (this.over === 'shop' || this.over === 'bots') this.refreshOverCosts(); } }
   private objKey = ''; renderObjIfChanged() { const st = G.currentStep(this.s); const k = (st ? st.id : '-') + (st && G.stepDone(this.s, st) ? 1 : 0); if (k !== this.objKey) { this.objKey = k; this.renderObj(); } }
   // bubbles over buildings: credits waiting, cells ready, timers, idle fabricators, land for sale
@@ -115,6 +117,9 @@ export class UI {
       else if (cj) { const rec = RECIPES[cj.recipe || 0]; const c = G.dmCost((cj.end - Date.now()) / 1000); h += `<p class="desc">Printing <b>${esc(rec.name)}</b></p><div class="bar cell"><i data-bar="${cj.id}"></i></div><div class="row" style="margin-top:8px"><b class="grow" data-left="${cj.id}"></b><button class="btn gold small" data-a="finish" data-job="${cj.id}" data-dm="${cj.id}">${c ? `${IC.dm}${c} Finish now` : 'Finish (free)'}</button></div>`; }
       else h += `<p class="desc">Pick a recipe. Longer recipes make more cells per credit: choose one that finishes when you'll be back.</p><div class="recipes">${G.recipesFor(it).map((rc) => `<div class="rec ${rc.open ? '' : 'locked'}"><b>${esc(rc.name)}</b><span class="out">⚡${fmt(rc.out)}</span><span class="sub">${fmtTime(rc.sec)}</span>${rc.open ? `<button class="btn small" data-a="craft" data-id="${it.id}" data-r="${rc.i}"><span class="cost" data-cost="credits:${rc.cost}">${IC.credits}${fmt(rc.cost)}</span></button>` : `<span class="why">Level ${rc.lvl}</span>`}</div>`).join('')}</div>`;
       h += this.upgradeRow(it, it.lvl < d.max ? `Level ${it.lvl + 1}: +10% cells${RECIPES.some((rc) => rc.lvl === it.lvl + 1) ? ', a new recipe' : ''}` : '') + this.crew.helpersHTML(it) + this.moveRow(it); }
+    else if (it.t === 'statue') { const sps = [...new Set(s.bots.map((b) => b.sp))].sort((a, b) => RARITY_ORDER.indexOf(SPECIES[b].rarity) - RARITY_ORDER.indexOf(SPECIES[a].rarity));
+      h += `<p class="desc">${it.el && SPECIES[it.el] ? `${esc(SPECIES[it.el].name)} stands on the plinth, cast in gold.` : 'Choose who stands on the plinth:'}</p><div class="pick">${sps.map((sp) => `<button class="pk ${it.el === sp ? 'on' : ''}" data-a="statueSp" data-id="${it.id}" data-sp="${sp}" title="${esc(SPECIES[sp].name)}"><img src="${this.app.studio.bot(sp)}" alt=""></button>`).join('')}</div>
+        <div class="row" style="margin-top:8px"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button><button class="btn small" data-a="sell" data-id="${it.id}">Sell (${IC.credits}${fmt(Math.floor(d.buildCost(0) * 0.5))})</button></div>`; }
     else { h += `<p class="desc">${esc(d.desc)}</p><div class="row"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button><button class="btn small" data-a="sell" data-id="${it.id}">Sell (${IC.credits}${fmt(Math.floor(d.buildCost(0) * 0.5))})</button></div>`; }
     el.innerHTML = h; }
   private moveRow(it: Item) { return `<div class="row" style="margin-top:8px"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button></div>`; }
@@ -155,15 +160,39 @@ export class UI {
     return `<div class="card ${locked ? 'locked' : ''}"><div class="thumb"><img src="${img}" alt=""></div><b>${esc(name)}</b>${meta ? `<div class="sub" style="margin:0">${meta}</div>` : ''}<p class="desc">${esc(desc)}</p>
       <button class="btn ${c.ok ? 'gold' : ''} small" ${act} ${c.ok ? '' : 'disabled'}>${locked ? '🔒 ' : ''}${c.cost !== undefined ? `<span class="cost" data-cost="credits:${c.cost}">${IC.credits}${fmt(c.cost)}</span>` : 'Free'}</button>${c.ok ? '' : `<span class="why">${esc(c.why || '')}</span>`}</div>`; }
   private refreshOverCosts() { $$('#over [data-cost]').forEach((e) => { const [r, n] = e.dataset.cost!.split(':'); e.classList.toggle('short', (this.s.res as any)[r] < +n); }); }
-  customHTML() { const s = this.s; const ban = this.bannerSVG(s.banner);
-    return `<div class="head"><h1>Colony style</h1><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="card" style="max-width:520px;margin:0 auto;gap:12px">
-      <label class="ox">Colony name<input id="cname" value="${esc(s.name)}" maxlength="24" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0d1a2e;color:#fff;font:600 16px Barlow"></label>
-      <div><div class="ox">Paint scheme</div><div class="row" style="margin-top:6px">${PAINTS.map(([p, a], i) => `<button data-a="paint" data-i="${i}" style="width:46px;height:46px;border-radius:12px;border:2px solid ${s.paint.primary === p && s.paint.accent === a ? '#fff' : 'transparent'};background:linear-gradient(135deg, ${p} 55%, ${a} 55%)"></button>`).join('')}</div></div>
-      <div><div class="ox">Banner</div><div class="row" style="margin-top:6px;align-items:flex-start"><div style="width:120px">${ban}</div><div class="grow"><div class="row">${BANNER_BG.map((c) => `<button data-a="bannerBg" data-c="${c}" style="width:30px;height:30px;border-radius:8px;background:${c};border:2px solid ${s.banner.bg === c ? '#fff' : 'transparent'}"></button>`).join('')}</div>
-        <div class="row" style="margin-top:6px">${['#ffd23a', '#ffffff', '#14202e', '#ff4f6a', '#6ee7ff', '#7cf29a'].map((c) => `<button data-a="bannerFg" data-c="${c}" style="width:30px;height:30px;border-radius:50%;background:${c};border:2px solid ${s.banner.fg === c ? '#6ee7ff' : 'rgba(255,255,255,0.2)'}"></button>`).join('')}</div>
-        <div class="row" style="margin-top:6px">${EMBLEMS.map((e) => `<button class="btn small ${s.banner.emblem === e ? 'gold' : ''}" data-a="emblem" data-e="${e}">${this.bannerSVG({ bg: 'transparent', fg: '#ffffff', emblem: e }, 22)}</button>`).join('')}</div></div></div></div>
-      <p class="sub">Your paint scheme recolours every building's trim; your banner flies over the Command Center and on every Colony Flag. More decorations, paints and banner parts unlock as you level up.</p></div></div>`; }
-  bannerSVG(b: { bg: string; fg: string; emblem: string }, size = 120) { const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!; if (b.bg !== 'transparent') { g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); } g.fillStyle = b.fg; g.translate(64, 40); emblemPath(g, b.emblem, 26); g.fill();
+  customHTML() { const s = this.s; const ban = this.bannerSVG(s.banner); const isl = G.here(s); const def = ISLANDS[s.at] ? ISLANDS[s.at].theme : 'haven'; const cur = isl.turf || def;
+    const sw = (on: boolean, need: any, inner: string, attrs: string, title: string, cls = '') => { const ok = ST.met(s, need); return `<button class="sw ${cls} ${on ? 'on' : ''} ${ok ? '' : 'lk'}" ${ok ? attrs : `data-a="lockedStyle" data-why="${esc(title + ': ' + ST.needText(need))}"`} title="${esc(title + (ok ? '' : ' · ' + ST.needText(need)))}">${inner}${ok ? '' : '<i>🔒</i>'}</button>`; };
+    const paint = PAINTS.find((p) => p.primary === s.paint.primary && p.accent === s.paint.accent);
+    return `<div class="head"><h1>Colony style</h1><span class="chip">🎨 ${ST.owned(s).length} / ${ST.ALL.length} styles</span><button class="ibtn" data-a="close">✕</button></div><div class="body"><div class="stylegrid">
+      <div class="card"><label class="ox">Colony name<input id="cname" value="${esc(s.name)}" maxlength="24" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0d1a2e;color:#fff;font:600 16px Barlow"></label>
+        <p class="sub" style="margin:8px 0">Your name flies on every Neon Sign; your banner on the Command Center, every Colony Flag and Holo Beacon, and in the Arena.</p><button class="btn gold" data-a="shareCard">📸 Make a colony card</button></div>
+      <div class="card"><div class="row"><b class="ox grow">Paint scheme</b><span class="sub">${esc(paint ? paint.name : '')}</span></div><div class="sws">${PAINTS.map((p, i) => sw(paint === p, p.need, `<span style="background:linear-gradient(135deg, ${p.primary} 55%, ${p.accent} 55%)"></span>`, `data-a="paint" data-i="${i}"`, p.name)).join('')}</div></div>
+      <div class="card"><b class="ox">Banner</b><div class="row" style="margin-top:6px;align-items:flex-start;gap:12px"><div style="width:120px;flex:none">${ban}</div><div class="grow">
+        <div class="sws sm">${BANNER_BG.map((b) => sw(s.banner.bg === b.color, b.need, `<span style="background:${b.color}"></span>`, `data-a="bannerBg" data-c="${b.color}"`, b.name)).join('')}</div>
+        <div class="sws sm round">${BANNER_FG.map((c) => sw(s.banner.fg === c, undefined, `<span style="background:${c}"></span>`, `data-a="bannerFg" data-c="${c}"`, 'Emblem colour')).join('')}</div></div></div>
+        <div class="sws em">${EMBLEMS.map((e) => sw(s.banner.emblem === e.id, e.need, this.bannerSVG({ bg: 'transparent', fg: '#ffffff', emblem: e.id }, 30), `data-a="emblem" data-e="${e.id}"`, e.name)).join('')}</div></div>
+      <div class="card wide"><div class="row"><b class="ox grow">Island turf</b><span class="sub">${esc(ISLANDS[s.at] ? ISLANDS[s.at].name : 'New Haven')}</span></div><div class="turfs">${TURFS.map((tf) => { const [a, b, g] = turfColors(tf.id); const ok = ST.met(s, tf.need);
+          return `<button class="turf ${cur === tf.id ? 'on' : ''} ${ok ? '' : 'lk'}" ${ok ? `data-a="turf" data-k="${tf.id}"` : `data-a="lockedStyle" data-why="${esc(tf.name + ': ' + ST.needText(tf.need))}"`}><span class="tp" style="background:linear-gradient(160deg, ${a} 0 62%, ${b} 62% 74%, ${g} 74%)"></span><b>${esc(tf.name)}</b><small>${ok ? esc(tf.desc) : '🔒 ' + esc(ST.needText(tf.need))}</small></button>`; }).join('')}</div></div>
+      </div><p class="sub" style="text-align:center">Locked styles show how to earn them: level up, win in the Arena, found islands, meet aliens, repel the Swarm and finish events. Every island can wear its own turf.</p></div>`; }
+  // a shareable 1200x630 card: the island as it looks right now, your banner, name and best bots
+  private cardUrl = '';
+  async shareCard() { const s = this.s, w = this.world; w.renderer.render(w.scene, w.camera); const shot = w.renderer.domElement; const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const g = c.getContext('2d')!;
+    g.fillStyle = '#081221'; g.fillRect(0, 0, 1200, 630); const tw = 780, th = 630, sa = shot.width / shot.height, ta = tw / th; let sw = shot.width, sh = shot.height, sx = 0, sy = 0; if (sa > ta) { sw = sh * ta; sx = (shot.width - sw) / 2; } else { sh = sw / ta; sy = (shot.height - sh) / 2; } g.drawImage(shot, sx, sy, sw, sh, 420, 0, tw, th);
+    const fade = g.createLinearGradient(380, 0, 700, 0); fade.addColorStop(0, '#081221'); fade.addColorStop(1, 'rgba(8,18,33,0)'); g.fillStyle = fade; g.fillRect(380, 0, 320, 630);
+    const bc = document.createElement('canvas'); bc.width = 128; bc.height = 80; const bg = bc.getContext('2d')!; bg.fillStyle = s.banner.bg; bg.fillRect(0, 0, 128, 80); bg.fillStyle = s.banner.fg; bg.translate(64, 40); emblemPath(bg, s.banner.emblem, 26); bg.fill(emblemRule(s.banner.emblem));
+    g.save(); g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 16; g.drawImage(bc, 56, 56, 144, 90); g.restore(); g.fillStyle = s.paint.accent; g.fillRect(56, 150, 144, 6);
+    g.fillStyle = '#ffffff'; g.font = '700 54px Oxanium, sans-serif'; let fs = 54; while (g.measureText(s.name).width > 420 && fs > 28) { fs -= 2; g.font = `700 ${fs}px Oxanium, sans-serif`; } g.fillText(s.name, 56, 222);
+    g.fillStyle = '#7fe3ff'; g.font = '600 24px Barlow, sans-serif'; g.fillText(`Commander level ${s.lvl}`, 58, 258);
+    const A = AR.arena(s), rows: [string, string][] = [['Bots', String(s.bots.length)], ['Botdex', `${Object.keys(s.dex).length} / ${SPECIES_ORDER.length}`], ['Trophies', String(A.trophies)], ['Islands', String(Object.keys(s.islands).length)]];
+    rows.forEach(([k, v], i) => { const x = 58 + (i % 2) * 190, y = 310 + Math.floor(i / 2) * 64; g.fillStyle = 'rgba(255,255,255,0.55)'; g.font = '600 18px Barlow, sans-serif'; g.fillText(k.toUpperCase(), x, y); g.fillStyle = '#ffd36a'; g.font = '700 30px Oxanium, sans-serif'; g.fillText(v, x, y + 32); });
+    const best = [...new Set([...s.bots].sort((a, b) => RARITY_ORDER.indexOf(SPECIES[b.sp].rarity) - RARITY_ORDER.indexOf(SPECIES[a.sp].rarity) || b.lvl - a.lvl).map((b) => b.sp))].slice(0, 3);
+    for (let i = 0; i < best.length; i++) { const im = new Image(); im.src = this.app.studio.bot(best[i]); try { await im.decode(); } catch { continue; } const x = 50 + i * 118; g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.roundRect(x, 442, 104, 104, 16); g.fill(); g.strokeStyle = RARITIES[SPECIES[best[i]].rarity].color; g.lineWidth = 3; g.stroke(); g.drawImage(im, x + 4, 446, 96, 96); }
+    g.fillStyle = 'rgba(8,18,33,0.75)'; g.fillRect(420, 560, 780, 70); g.fillStyle = '#ffffff'; g.font = '800 30px Oxanium, sans-serif'; g.fillText('STARWARD 3D', 446, 606); g.fillStyle = 'rgba(255,255,255,0.7)'; g.font = '600 20px Barlow, sans-serif'; g.fillText('Build your own colony in orbit', 680, 604);
+    this.cardUrl = c.toDataURL('image/png'); const canShare = typeof navigator.share === 'function';
+    this.modal(`<h1 style="font-size:22px">Your colony card</h1><img src="${this.cardUrl}" alt="Colony card" style="width:100%;border-radius:12px;display:block;margin:8px 0"><div class="row" style="justify-content:center;gap:8px"><a class="btn gold" download="${esc(s.name.replace(/[^\w -]/g, '') || 'colony')}.png" href="${this.cardUrl}">⬇ Save image</a>${canShare ? '<button class="btn" data-a="shareNative">Share</button>' : ''}<button class="btn" data-a="closeModal">Close</button></div>`); }
+  private async shareNative() { try { const blob = await (await fetch(this.cardUrl)).blob(); const file = new File([blob], 'starward-colony.png', { type: 'image/png' }); const data: ShareData = { files: [file], title: this.s.name, text: `My colony ${this.s.name} in Starward 3D` };
+      if (navigator.canShare && !navigator.canShare(data)) delete data.files; await navigator.share(data); } catch { /* cancelled or not allowed here */ } }
+  bannerSVG(b: { bg: string; fg: string; emblem: string }, size = 120) { const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!; if (b.bg !== 'transparent') { g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); } g.fillStyle = b.fg; g.translate(64, 40); emblemPath(g, b.emblem, 26); g.fill(emblemRule(b.emblem));
     return `<img src="${c.toDataURL()}" style="width:${size}px;height:${(size * 80) / 128}px;border-radius:6px;display:block">`; }
   // ---------------- placement bar ----------------
   renderPlace() { const el = $('#place'); const g = this.world.ghost; if (!g) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const d = BUILDINGS[g.t]; const c = g.move ? null : G.canBuild(this.s, g.t, g.el);
@@ -187,7 +216,12 @@ export class UI {
       case 'shop': this.openOver('shop', t.dataset.tab || this.tab); A.audio.play('tap'); break;
       case 'bots': this.openOver('bots'); A.audio.play('tap'); break;
       case 'dex': this.openOver('dex'); A.audio.play('tap'); break;
-      case 'custom': this.openOver('custom'); A.audio.play('tap'); break;
+      case 'custom': ST.clearNew(s); this.updStyleDot(); this.openOver('custom'); A.audio.play('tap'); break;
+      case 'lockedStyle': this.toast(`🔒 ${t.dataset.why}`, ''); A.audio.play('deny'); break;
+      case 'turf': { const isl = G.here(s), k = t.dataset.k!; const def = ISLANDS[s.at] ? ISLANDS[s.at].theme : 'haven'; if (k === def) delete isl.turf; else isl.turf = k; A.changed(); this.renderOver(); A.audio.play('place'); break; }
+      case 'statueSp': if (it) { it.el = t.dataset.sp; A.changed(); this.renderPanel(); A.audio.play('place'); const at = this.world.topOf(it.id); if (at) this.world.burst(at, '#ffd36a', 26); } break;
+      case 'shareCard': this.shareCard(); A.audio.play('tap'); break;
+      case 'shareNative': this.shareNative(); break;
       case 'settings': this.openOver('settings'); A.audio.play('tap'); break;
       case 'close': this.closeOver(); A.audio.play('tap'); break;
       case 'tab': this.tab = t.dataset.tab!; this.renderOver(); A.audio.play('tap'); break;
@@ -218,7 +252,7 @@ export class UI {
       case 'buyPlot': { const r = G.buyPlot(s, t.dataset.k!); this.closeModal(); if (r.ok) { A.audio.play('levelup'); A.changed(); this.toast('The island grows!', 'gold'); } else this.deny(r.why); break; }
       case 'claim': { const st = G.claimStep(s); if (st) { A.audio.play('claim'); const rc = t.getBoundingClientRect(); for (const r of Object.keys(st.reward)) this.flyTo(r as any, rc.left + rc.width / 2, rc.top); A.changed(); this.renderObj(); } break; }
       case 'closeModal': this.closeModal(); A.audio.play('tap'); break;
-      case 'paint': { const [p, ac] = PAINTS[+t.dataset.i!]; s.paint = { primary: p, accent: ac }; A.changed(); this.renderOver(); A.audio.play('tap'); break; }
+      case 'paint': { const p = PAINTS[+t.dataset.i!]; s.paint = { primary: p.primary, accent: p.accent }; A.changed(); this.renderOver(); A.audio.play('tap'); break; }
       case 'bannerBg': s.banner = { ...s.banner, bg: t.dataset.c! }; A.changed(); this.renderOver(); A.audio.play('tap'); break;
       case 'bannerFg': s.banner = { ...s.banner, fg: t.dataset.c! }; A.changed(); this.renderOver(); A.audio.play('tap'); break;
       case 'emblem': s.banner = { ...s.banner, emblem: t.dataset.e! }; A.changed(); this.renderOver(); A.audio.play('tap'); break;

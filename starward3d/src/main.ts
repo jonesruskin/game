@@ -55,11 +55,11 @@ export class App {
       else if (e.kind === 'fused') { this.audio.play('done'); this.changed(); this.ui.toast(`Fusion complete: a ${RARITIES[SPECIES[e.sp].rarity].name} core is in the Assembly Bay`, 'gold'); }
       else if (e.kind === 'booted') { this.audio.play('claim'); this.changed(); this.ui.toast(`A ${RARITIES[SPECIES[e.sp].rarity].name} core has booted: activate it in the Assembly Bay`, 'good'); }
       else if (e.kind === 'core') { this.changed(); }
-      else if (e.kind === 'launch') { const p = SP.pad(this.s); this.changed(); if (p) { this.world.launchFx(p.id, SP.rocketTier(p.lvl)); this.audio.play('whoosh'); } }
+      else if (e.kind === 'launch') { const p = SP.pad(this.s); this.changed(); if (p) { this.world.launchFx(p.id, SP.rocketTier(p.lvl)); this.audio.play('launch'); } }
       else if (e.kind === 'expBack') { this.audio.play('levelup'); this.changed(); }
       else if (e.kind === 'land') this.changed();
       else if (e.kind === 'dug') { this.audio.play('done'); this.changed(); const at = this.world.topOf(e.item); if (at) this.world.burst(at, '#c49bff', 24); this.ui.toast('Crystals dug up: tap the mine to collect', 'good'); }
-      else if (e.kind === 'evolved') { this.audio.play('levelup'); this.platform.happytime(); this.changed(); const b = this.s.bots.find((x) => x.id === e.bot); if (b) this.ui.toast(`${esc(SPECIES[b.sp].name)} evolved to ${'★'.repeat(e.stars)}`, 'gold'); } }
+      else if (e.kind === 'evolved') { this.platform.happytime(); this.changed(); } }
     if (this.queue.length && $('#modal').classList.contains('hidden')) this.queue.shift()!(); }
   private enqueue(fn: () => void) { this.queue.push(fn); }
   // the drop pod lands on a free tile near the Command Center
@@ -82,7 +82,7 @@ export class App {
     if (h.item) { const it = G.item(s, h.item); if (!it) return;
       if (it.t === 'bay' && (s.bay[it.id] || 0) >= 1 && !G.jobOf(s, it.id, 'build')) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
       if (it.t === 'fab' && s.ready[it.id]) { this.harvest(it); this.ui.select(it.id); return; }
-      if (it.t === 'mine' && V.vault(s).ready[it.id]) { const r = V.collectMine(s, it); if (r) { this.audio.play('harvest'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, CRYSTALS[r.color].color, 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); } this.changed(); } if (this.ui.sel !== it.id) this.ui.select(it.id); else this.ui.renderPanel(); return; }
+      if (it.t === 'mine' && V.vault(s).ready[it.id]) { const r = V.collectMine(s, it); if (r) { this.audio.play('crystal'); const top = this.world.topOf(it.id); if (top) { this.world.burst(top, CRYSTALS[r.color].color, 26); const p = this.world.project(top); this.ui.popText(p.x, p.y - 10, `+${r.n} ${CRYSTALS[r.color].name}`, CRYSTALS[r.color].color); } this.changed(); } if (this.ui.sel !== it.id) this.ui.select(it.id); else this.ui.renderPanel(); return; }
       if (it.t === 'relicbay' && (s.bay[it.id] || 0) >= 1) { this.collect(it); if (this.ui.sel !== it.id) this.ui.select(it.id); return; }
       this.ui.select(this.ui.sel === it.id ? null : it.id); this.audio.play('tap'); return; }
     if (h.plot) { this.askPlot(h.plot); return; }

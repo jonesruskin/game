@@ -6,7 +6,7 @@ import * as G from '../core/game';
 import { SPECIES } from '../data/species';
 import { ELEMENTS } from '../data/elements';
 import { RARITIES } from '../data/rarities';
-import { emblemPath } from '../render/models';
+import { emblemPath, emblemRule } from '../render/models';
 import type { UI } from './ui';
 import { Vector3 } from 'three';
 const IC: Record<string, string> = { credits: '<span class="ic cr">C</span>', cells: '<span class="ic ce">⚡</span>', dm: '<span class="ic dm">◆</span>' };
@@ -18,7 +18,7 @@ export class ArenaUI {
     this.ui.closeOver(); this.ui.select(null); const w = this.app.world; w.enterArena(); w.arena!.setup(r.bt); w.arena!.onImpact = (h, at) => this.impact(h, at); this.app.audio.play('whoosh'); this.app.changed(); this.renderHUD(); document.body.classList.add('fighting'); }
   constructor(private ui: UI) {}
   get s() { return this.ui.app.s; } get app() { return this.ui.app; }
-  private banner(b: { bg: string; fg: string; emblem: string }, w = 48) { const c = document.createElement('canvas'); c.width = 96; c.height = 60; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 96, 60); g.fillStyle = b.fg; g.translate(48, 30); emblemPath(g, b.emblem, 20); g.fill(); return `<img src="${c.toDataURL()}" style="width:${w}px;height:${(w * 60) / 96}px;border-radius:5px">`; }
+  private banner(b: { bg: string; fg: string; emblem: string }, w = 48) { const c = document.createElement('canvas'); c.width = 96; c.height = 60; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 96, 60); g.fillStyle = b.fg; g.translate(48, 30); emblemPath(g, b.emblem, 20); g.fill(emblemRule(b.emblem)); return `<img src="${c.toDataURL()}" style="width:${w}px;height:${(w * 60) / 96}px;border-radius:5px">`; }
   overHTML() { const s = this.s, A = AR.arena(s); AR.tickArena(s); const lg = AR.leagueOf(A.trophies), next = AR.LEAGUES[lg + 1]; if (!A.rivals.length) AR.makeRivals(s);
     const team = AR.myTeam(s); const tp = AR.teamPower(team.map((b) => ({ sp: b.sp, lvl: b.lvl })));
     const lo = AR.LEAGUES[lg][1], hi = next ? next[1] : lo + 1; const pct = next ? ((A.trophies - lo) / (hi - lo)) * 100 : 100;
@@ -36,7 +36,7 @@ export class ArenaUI {
     if (h.miss) { this.ui.popText(p.x, p.y, h.status === 'frozen' ? 'Frozen!' : 'Miss!', '#9fd0ff'); this.app.audio.play('deny'); return; }
     this.ui.popText(p.x, p.y - 10, `-${fmt(h.dmg)}${h.crit ? '!' : ''}`, h.eff > 1 ? '#ffd36a' : h.eff < 1 ? '#9aa7b8' : '#ffffff'); if (h.eff !== 1) setTimeout(() => this.ui.popText(p.x, p.y - 34, h.eff > 1 ? 'Super effective!' : 'Resisted', h.eff > 1 ? '#ffd36a' : '#9aa7b8'), 120);
     if (h.status && h.status !== 'shielded') setTimeout(() => this.ui.popText(p.x + 30, p.y + 10, h.status, '#c49bff'), 220); if (h.heal) this.ui.popText(p.x - 40, p.y - 40, `+${fmt(h.heal)}`, '#7cf29a');
-    w.burst(new Vector3(at.x, at.y, at.z), MOVESCOLOR(h.move), h.crit ? 34 : 20); this.app.audio.play(h.crit ? 'build' : 'tap'); this.renderHUD(); }
+    w.burst(new Vector3(at.x, at.y, at.z), MOVESCOLOR(h.move), h.crit ? 34 : 20); this.app.audio.play(h.crit ? 'crit' : 'hit'); this.renderHUD(); }
   renderHUD() { const el = document.getElementById('battle')!; const f = this.fight; if (!f) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const bt = f.bt; const me = bt.A[bt.a], foe = bt.B[bt.b];
     const side = (arr: AR.Fighter[], act: number, right: boolean, name: string) => { const x = arr[act]; return `<div class="bside ${right ? 'r' : ''}"><div class="bname"><b>${esc(x.name)}</b> <span class="sub" style="margin:0">L${x.lvl}</span> ${pills(SPECIES[x.sp].el)}${x.shield ? ' 🛡' : ''}${x.burn ? ' 🔥' : ''}${x.frozen ? ' ❄' : ''}</div><div class="hp"><i style="width:${(x.hp / x.max) * 100}%;background:${x.hp / x.max > 0.5 ? '#5fdc7a' : x.hp / x.max > 0.25 ? '#ffd36a' : '#ff6b7a'}"></i><span>${fmt(x.hp)} / ${fmt(x.max)}</span></div><div class="bench">${arr.map((y, i) => `<i class="${y.hp <= 0 ? 'ko' : i === act ? 'on' : ''}"></i>`).join('')}<span class="sub" style="margin:0 6px">${esc(name)}</span></div></div>`; };
     const moves = AR.movesOf(me.sp).map((mk) => { const mv = AR.MOVES[mk]; const e = AR.effectiveness(mv.el, SPECIES[foe.sp].el); const col = mv.el === 'none' ? '#9aa7b8' : ELEMENTS[mv.el].color;

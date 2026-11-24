@@ -104,9 +104,9 @@ export class World {
   // ---------------- sync with the save ----------------
   look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'star' } };
   sync(s: State) {
-    this.look = { primary: s.paint.primary, accent: s.paint.accent, banner: s.banner }; const lookKey = JSON.stringify(this.look);
+    this.look = { primary: s.paint.primary, accent: s.paint.accent, banner: s.banner, name: s.name }; const lookKey = JSON.stringify(this.look);
     const buyable = []; for (let px = 0; px < 5; px++) for (let pz = 0; pz < 5; pz++) { const k = `${px},${pz}`; if (G.plotState(s, k) === 'buyable') buyable.push(k); }
-    const isl = G.here(s); this.island.build(isl.plots, buyable, ISLANDS[s.at] ? ISLANDS[s.at].theme : 'haven'); this.backdrop.setWorld(ISLANDS[s.at] ? ISLANDS[s.at].world : 'earth'); const occ = new Set<string>(); for (const it of isl.items) { const [w, d] = G.dims(it); for (let i = it.x; i < it.x + w; i++) for (let j = it.z; j < it.z + d; j++) occ.add(i + ',' + j); } this.island.scatter(isl.plots, occ);
+    const isl = G.here(s); this.island.build(isl.plots, buyable, isl.turf || (ISLANDS[s.at] ? ISLANDS[s.at].theme : 'haven')); this.backdrop.setWorld(ISLANDS[s.at] ? ISLANDS[s.at].world : 'earth'); const occ = new Set<string>(); for (const it of isl.items) { const [w, d] = G.dims(it); for (let i = it.x; i < it.x + w; i++) for (let j = it.z; j < it.z + d; j++) occ.add(i + ',' + j); } this.island.scatter(isl.plots, occ);
     const seen = new Set<string>();
     for (const it of isl.items) { seen.add(it.id); const job = G.jobOf(s, it.id, 'build'); const padFree = it.t === 'pad' ? (space(s).exps.length < launchSlots(it.lvl) ? 1 : 0) : 0; const key = `${it.t}|${it.lvl}|${it.el}|${it.r}|${lookKey}|${job ? 1 : 0}|${padFree}`; let v = this.views.get(it.id);
       if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it, key, !!job, it.t === 'pad' && !padFree); this.views.set(it.id, v); }

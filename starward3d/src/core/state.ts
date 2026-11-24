@@ -3,7 +3,7 @@ import { uid } from './util';
 import { STEPS } from '../data/progress';
 export const VERSION = 1;
 export interface Item { id: string; t: string; el?: string; lvl: number; x: number; z: number; r: number; }
-export interface Island { plots: string[]; items: Item[]; bought: number; }
+export interface Island { plots: string[]; items: Item[]; bought: number; turf?: string; }
 export interface BotRec { id: string; sp: string; lvl: number; fed: number; bay: string | null; nick?: string; born: number; post?: string; stored?: boolean; }
 export interface Core { id: string; sp: string; from: 'fusion' | 'shop' | 'gift'; state: 'waiting' | 'booting' | 'ready'; at: number; }
 export interface Job { id: string; kind: 'build' | 'craft' | 'fuse' | 'boot' | 'dig'; item: string; start: number; end: number; lvl?: number; recipe?: number; sp?: string; core?: string; parents?: [string, string]; }

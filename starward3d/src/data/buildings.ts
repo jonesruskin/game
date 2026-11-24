@@ -49,10 +49,16 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   crystal:  decor('Crystal Cluster', [1, 1], 250, 4, 'Grown in microgravity, sold by the kilo.'),
   fountain: decor('Gravity Fountain', [2, 2], 600, 5, 'Water arcing in a gentle artificial gravity well.'),
   dish:     decor('Dish Array', [2, 2], 900, 7, 'Listening to the stars, mostly for show.'),
-  statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A monument to the bots who built the colony.'),
+  statue:   decor('Bot Statue', [2, 2], 1500, 9, 'A golden monument. Tap it to choose which of your bots stands on the plinth.'),
+  bench:    decor('Park Bench', [1, 1], 80, 2, 'Somewhere for the crew to sit and watch Earth turn.'),
+  topiary:  decor('Topiary Bot', [1, 1], 150, 3, 'A hedge clipped into the shape of a friendly robot.'),
+  sign:     decor('Neon Sign', [2, 1], 800, 6, 'Your colony name in flickering neon. Rename your colony in Style.'),
+  turbine:  decor('Wind Turbine', [1, 1], 700, 8, 'Orbital winds are mostly imaginary. The turbine does not mind.'),
+  beacon:   decor('Holo Beacon', [1, 1], 1100, 10, 'Projects your banner emblem as a slowly turning hologram.'),
+  pond:     decor('Koi Pond', [2, 2], 1400, 11, 'Three koi, one lily, endless circles.'),
   arch:     { ...decor('Starlight Arch', [2, 1], 0, 1, 'A ring of light that only loyal commanders own. Earned on day 21 of the login calendar.'), exclusive: 'calendar' },
 };
-export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'arena', 'pad', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'fountain', 'dish', 'statue'];
+export const SHOP_ORDER = ['bay', 'fab', 'assembly', 'fusion', 'arena', 'pad', 'tree', 'rock', 'path', 'lamp', 'flag', 'crystal', 'bench', 'topiary', 'fountain', 'sign', 'turbine', 'dish', 'statue', 'beacon', 'pond'];
 // limits by Command Center level
 export const bayLimit = (cc: number) => 2 + cc;
 export const fabLimit = (cc: number) => 1 + Math.floor(cc / 3);

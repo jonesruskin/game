@@ -1,6 +1,6 @@
 // Synthesised sound (WebAudio, no files): collection chimes that rise with the amount, construction thunks,
 // feeding zaps and a level-up fanfare, plus a gentle generative ambient score.
-type Cue = 'tap' | 'collect' | 'build' | 'done' | 'feed' | 'levelup' | 'deny' | 'harvest' | 'buy' | 'claim' | 'place' | 'whoosh';
+type Cue = 'tap' | 'collect' | 'build' | 'done' | 'feed' | 'levelup' | 'deny' | 'harvest' | 'buy' | 'claim' | 'place' | 'whoosh' | 'hit' | 'crit' | 'launch' | 'crystal' | 'evolve' | 'sparkle';
 export class Audio {
   ctx: AudioContext | null = null; out: GainNode | null = null; vol = 0.8; mvol = 0.45; muted = false; private music: { bus: GainNode; next: number; chord: number; lp: BiquadFilterNode } | null = null; private timer = 0;
   unlock() { if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; } try { this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)(); this.out = this.ctx.createGain(); this.out.gain.value = this.muted ? 0 : this.vol; this.out.connect(this.ctx.destination); } catch (e) { this.ctx = null; } }
@@ -24,6 +24,12 @@ export class Audio {
       case 'buy': this.tone(660, t, 0.1, 'triangle', 0.1); this.tone(990, t + 0.08, 0.18, 'triangle', 0.1); break;
       case 'claim': [0, 7, 12].forEach((s, i) => this.tone(659 * Math.pow(2, s / 12), t + i * 0.07, 0.35, 'triangle', 0.12)); break;
       case 'whoosh': this.noise(t, 0.35, 0.18, 2400); break;
+      case 'hit': this.noise(t, 0.09, 0.22, 900); this.tone(170, t, 0.12, 'square', 0.07, 0.5); break;
+      case 'crit': this.noise(t, 0.18, 0.32, 1800); this.tone(95, t, 0.28, 'sawtooth', 0.11, 0.4); this.tone(1250, t + 0.02, 0.16, 'triangle', 0.06, 0.5); break;
+      case 'launch': this.noise(t, 1.8, 0.32, 320); this.tone(55, t, 1.8, 'sawtooth', 0.1, 2.6); this.noise(t + 0.2, 1.4, 0.12, 2600); break;
+      case 'crystal': [0, 7, 12, 19].forEach((s, i) => this.tone(1046 * Math.pow(2, s / 12), t + i * 0.05, 0.45, 'sine', 0.07)); this.tone(2093, t + 0.22, 0.6, 'triangle', 0.03); break;
+      case 'evolve': [0, 4, 7, 11, 14, 19, 24].forEach((s, i) => { this.tone(330 * Math.pow(2, s / 12), t + i * 0.06, 0.55, 'triangle', 0.1); this.tone(660 * Math.pow(2, s / 12), t + i * 0.06 + 0.02, 0.4, 'sine', 0.04); }); this.noise(t + 0.42, 0.5, 0.08, 5000); break;
+      case 'sparkle': [12, 19, 24, 31].forEach((s, i) => this.tone(784 * Math.pow(2, s / 12) / 2, t + i * 0.045, 0.3, 'sine', 0.06)); break;
     }
   }
   setMusic(v: number) { this.mvol = v; if (this.music) this.music.bus.gain.setTargetAtTime(this.muted ? 0 : v * 0.4, this.ctx!.currentTime, 0.4); else if (v > 0) this.startMusic(); }
