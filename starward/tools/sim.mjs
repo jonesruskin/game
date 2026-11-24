@@ -154,20 +154,23 @@ function warfare() {
   if (SO.yardLevel(s) < 10) { const c = S.canLaunch(s, { module: 'yard' }); if (c.ok) S.launch(s, { module: 'yard' }, t); else if (c.rocket && !S.rocketBusy(s)) { const id = ['colossus', 'leviathan'].find((k) => S.canBuildRocket(s, k).ok); if (id) S.startRocket(s, id, t); } } // capital ships need a bigger shipyard
   const W = WR.war(s); for (const e of WR.tickWar(s, t)) if (e.kind === 'raidResult') warLog.push(`${when(t)} raid on ${e.rep.name}: ${e.rep.win ? 'repelled' : 'LOST'}`);
   const next = WR.HIVE_ORDER.find((id) => !W.hives[id + '_done']); const total = Object.values(W.ships).reduce((a, b) => a + b, 0);
-  const needMore = next ? WR.assaultForecast(s, next) < 0.9 && WR.power(W.ships) < 3 * WR.power(WR.hiveLeft(s, next)) : total < 300; // build only what the next fight needs; past 3x the hive's power the answer is better hulls, not more of them
-  // like a player reading the forecast: build the heaviest hull the fleet is short of, and save up for it rather than padding with corvettes
-  if (needMore && !WR.warBusy(s)) { const opts = Object.keys(MIX).filter((k) => s.tech[WR.WARSHIPS[k].req] && yardOK(k)); const pw = (k) => WR.power({ [k]: 1 });
-    // follow Fleet Command's advice: only hulls that can hurt the hive's toughest unit (by damage per credit), then balance those
-    const foe = next ? Object.keys(WR.hiveLeft(s, next)).map((u) => WR.UNIT(u)).sort((x, y) => y.sh - x.sh)[0] : null;
-    const eff = (x) => { const u = WR.WARSHIPS[x]; if (!foe) return 1; const sh = foe.sh * (u.wpn === 'rail' ? 0.5 : 1); return (u.atk * WR.VS[u.wpn][foe.size] * (1 - sh / (sh + u.atk))) / u.cost.credits; };
-    const best = Math.max(...opts.map(eff)); const good = opts.filter((x) => eff(x) >= best * 0.4);
+  const st1 = G.currentStep(s); const warOn = !!(st1 && ['ch11', 'ch12'].includes(st1.ch)); warSaving = false;
+  // follow Fleet Command's advice: only hulls that can hurt the hive's toughest unit count (by damage per credit)
+  const opts = Object.keys(MIX).filter((k) => s.tech[WR.WARSHIPS[k].req] && yardOK(k)); const pw = (k) => WR.power({ [k]: 1 });
+  const foe = next ? Object.keys(WR.hiveLeft(s, next)).map((u) => WR.UNIT(u)).sort((x, y) => y.sh - x.sh)[0] : null;
+  const eff = (x) => { const u = WR.WARSHIPS[x]; if (!foe) return 1; const sh = foe.sh * (u.wpn === 'rail' ? 0.5 : 1); return (u.atk * WR.VS[u.wpn][foe.size] * (1 - sh / (sh + u.atk))) / u.cost.credits; };
+  const best = opts.length ? Math.max(...opts.map(eff)) : 0; const good = opts.filter((x) => eff(x) >= best * 0.4); const goodPow = good.reduce((a, k) => a + (W.ships[k] || 0) * pw(k), 0);
+  // before the war chapters, just the squadron the objectives ask for; in them, only what the next fight needs (past 3x the hive's power in useful hulls, the answer is better research)
+  const needMore = (st1 && st1.kind === 'warships' && total < st1.n) || (!warOn ? total < 20 : next ? WR.assaultForecast(s, next) < 0.9 && goodPow < 3 * WR.power(WR.hiveLeft(s, next)) : false);
+  if (needMore && !WR.warBusy(s)) {
     const k = good.filter((x) => good.length < 3 || WR.WARSHIPS[x].size !== 'S' || (W.ships.corvette || 0) < 60).sort((a, b) => (W.ships[a] || 0) * pw(a) / MIX[a] - (W.ships[b] || 0) * pw(b) / MIX[b])[0];
-    if (k) for (const n of [10, 5, 2, 1]) if (WR.canWarship(s, k, n).ok) { WR.startWarship(s, k, n, t); break; } }
+    let built = false; if (k) for (const n of [10, 5, 2, 1]) if (WR.canWarship(s, k, n).ok) { WR.startWarship(s, k, n, t); built = true; break; }
+    if (k && !built && warOn && WR.canWarship(s, k, 1).why === 'Not enough resources') warSaving = true; }
   for (const tg of WR.targets(s)) if (WR.defLevel(s, tg.key) < 4 && WR.canDefence(s, tg.key).ok) { WR.startDefence(s, tg.key, t); break; }
   const raid = W.raids[0]; if (raid && WR.raidForecast(s, raid, false) < 0.7 && W.fleetAt !== raid.target && WR.canMove(s, raid.target).ok && WR.moveTime(s, raid.target) * 1000 < raid.eta - t) WR.startMove(s, raid.target, t);
   if (!raid) for (const id of WR.HIVE_ORDER) { if (W.hives[id + '_done'] || !WR.hiveOpen(s, id)) continue; if (WR.canAssault(s, id).ok && WR.assaultForecast(s, id) >= 0.8) { WR.startAssault(s, id, t); warLog.push(`${when(t)} assault on ${id} (power ${Math.round(WR.power(W.ships))} vs ${Math.round(WR.power(WR.hiveLeft(s, id)))})`); } break; }
 }
-const yardOK = (k) => SO.yardLevel(s) >= WR.WARSHIPS[k].yard; const warLog = [];
+const yardOK = (k) => SO.yardLevel(s) >= WR.WARSHIPS[k].yard; const warLog = []; let warSaving = false; // saving up for a capital hull: other spending waits a turn
 // ---- Part 7: antimatter, relays, expeditions, endgame megaprojects ----
 // the funded megaprojects: route surplus into the next one on the road to the Far Shore (or the one the objective
 // asks for), and invest whatever sits above half of storage, like a player topping it up at each check-in
@@ -189,7 +192,7 @@ while (t < t0 + DAYS * 86400000) {
   if (awake) { for (let k = 0; k < 8; k++) { const st = G.claimStep(s); if (!st) break; log.push(`${when(t).padStart(9)}  ✓ ${st.id.padEnd(4)} ${st.text}${ready[st.id] && t - ready[st.id] > 5 * 86400e3 ? `   (achievable since ${when(ready[st.id]).trim()})` : ''}`); } // like a player, save up for the megastructure or starship the campaign is asking for
     const st0 = G.currentStep(s); const saving = st0 && ((st0.kind === 'mega' && ST.canMega(s, st0.mega).why === 'Not enough resources') || (st0.kind === 'drive' && ST.canBuildDrive(s, st0.ship).why === 'Not enough resources')); const capOK = (c) => { const R0 = G.rates(s); return Object.entries(c || {}).every(([r, n]) => R0.cap[r] >= n); }; const savingOK = saving && capOK(st0.kind === 'mega' ? ST.megaCost(st0.mega, ST.megaStage(s, st0.mega)) : (ST.DRIVES[st0.ship] || {}).cost);
     if (st0 && st0.kind === 'ruins' && AL.canDig(s).ok) AL.startDig(s, t); // the objective's dig before anything else spends the science
-    research(); if (s.tech.laserSails) interstellar(); if (s.tech.contactProtocols) contact(); if (s.tech.navalWarfare || (s.war && s.war.raids.length)) warfare(); else WR.tickWar(s, t); if (s.tech.relayNetwork || s.tech.antimatterProduction) beyond(); if (!savingOK) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
+    const holdFire = warSaving; research(); if (s.tech.laserSails && !holdFire) interstellar(); if (s.tech.contactProtocols) contact(); if (s.tech.navalWarfare || (s.war && s.war.raids.length)) warfare(); else WR.tickWar(s, t); if (s.tech.relayNetwork || s.tech.antimatterProduction) beyond(); if (!savingOK && !holdFire) { construct(); fly(); if (s.tech.nuclearThermal) { shipyard(); voyages(); } } }
   if (s.obj.i >= STEPS.length) { log.push(`${when(t).padStart(9)}  campaign complete`); break; }
   t += awake ? (t - t0 > 150 * 86400e3 ? Math.max(STEP, 1800) : STEP) * 1000 : 3600 * 1000; // late-game players check in less often
 }
