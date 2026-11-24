@@ -4,6 +4,7 @@ import { esc, fmt, fmtTime, clamp, pct } from '../core/util';
 import * as SO from '../core/solar';
 import * as SP from '../core/space';
 import * as G from '../core/game';
+import { megaStage } from '../core/stars';
 import { BODIES, SITES, SHIPS, SHIP_ORDER, ZONE_NAME, TERRA, RELAY } from '../data/solar';
 import { TECH } from '../data/research';
 import type { UI } from './ui';
@@ -21,7 +22,7 @@ export class SolarUI {
       const tag = this.s.bases[id] ? '🏠 ' : S.sites[id] ? '🛰 ' : S.surveyed[id] ? '' : '? '; const html = `${tag}${esc(BODIES[id].name)}`; if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
       el.style.left = r.left + p.x + 'px'; el.style.top = r.top + p.y + 'px'; el.classList.toggle('full', id === this.sel); }
     root.querySelectorAll('[data-lbl]').forEach((e) => { if (!seen.has((e as HTMLElement).dataset.lbl!)) e.remove(); });
-    if (this.ui.tick % 8 === 0) { for (const b of ['mars', 'venus'] as const) W.system.setTerra(b, SO.terraState(this.s, b)); W.system.setRelays(S.relays || {}); }
+    if (this.ui.tick % 8 === 0) { for (const b of ['mars', 'venus'] as const) W.system.setTerra(b, SO.terraState(this.s, b)); W.system.setRelays(S.relays || {}); W.system.setMega(megaStage(this.s, 'dyson'), megaStage(this.s, 'gate')); }
     if (this.ui.tick % 8 === 0) W.system.setFlights(this.s.jobs.filter((j) => j.kind === 'voyage' || (j.kind === 'mission' && j.payload.probe)).map((j) => ({ body: j.kind === 'voyage' ? j.payload.body : j.payload.probe, f: (Date.now() - j.start) / (j.end - j.start), col: j.kind === 'voyage' ? SHIPS[j.ship].col : '#ffd36a' })));
   }
   clearLabels() { document.querySelectorAll('#bubbles [data-lbl]').forEach((e) => e.remove()); }
@@ -70,7 +71,7 @@ export class SolarUI {
     return `<div class="box"><b class="ox">Colony: ${esc(B.name)}</b><table class="stats"><tr><td>👥 Colonists</td><td>${fmt(pop)} / ${fmt(R ? R.house : 0)} housing</td></tr><tr><td>💧 Water (${base === 'venus' ? 'cloud skimmers' : base === 'titan' ? 'ice and refineries' : 'ice mines'})</td><td>${fmt(L.water)} ${need(L.water)}</td></tr><tr><td>🫧 Air (hub, greenhouses, domes)</td><td>${L.air === Infinity ? 'open sky <span class="good">✓</span>' : `${fmt(L.air)} ${need(L.air)}`}</td></tr>${TERRA[base] ? `<tr><td>🌍 Terraforming</td><td>${SO.terraStage(s, base)} / ${TERRA[base].stages.length}${SO.terraJob(s, base) ? ' (under way)' : ''}</td></tr>` : ''}${SO.relayLevel(s, base) ? `<tr><td>📡 Relays</td><td>+${Math.round(SO.relayLevel(s, base) * RELAY.bonus * 100)}% output</td></tr>` : ''}<tr><td>📈 Growth</td><td>${R && R.grow > 0 && pop < R.house ? `+${R.grow.toFixed(1)}/h` : R && R.ls < 1 ? 'stopped: life support short' : pop >= (R ? R.house : 0) ? 'housing full' : '–'}</td></tr><tr><td>🛠 Jobs filled</td><td>${pct(R ? R.staff : 1)}</td></tr></table>
       ${L.ls < 1 ? '<p class="why">Life support is short: growth has stopped and work is slower. Build or upgrade Ice Mines (water) and Greenhouses (air).</p>' : ''}${C ? `<div class="muted" style="font-size:12px">${C.traits.map((t) => '• ' + esc(t)).join('<br>')}</div>` : ''}</div>`;
   }
-  basesHTML() { const s = this.s; return `<h1 style="font-size:22px">Your worlds</h1><div class="bots" style="text-align:left">${Object.entries(s.bases).map(([k, B]) => `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${worldIcon(k)} ${esc(B.name)}</b><div class="meta">${esc(BODIES[B.body]?.name || k)}${k !== 'earth' ? ` · ${fmt(Math.floor(B.pop || 0))} colonists` : ''} · ${B.items.length} buildings</div></div>${s.at === k ? '<span class="good ox">You are here</span>' : `<button class="btn small gold" data-a="travel" data-k="${k}">Go</button>`}</div>`).join('')}</div><button class="btn small" data-a="map" style="margin-top:8px">🪐 Solar System map</button> <button class="btn small" data-a="closeModal">Close</button>`; }
+  basesHTML() { const s = this.s; return `<h1 style="font-size:22px">Your worlds</h1><div class="bots" style="text-align:left">${Object.entries(s.bases).map(([k, B]) => `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${worldIcon(k)} ${esc(B.name)}</b><div class="meta">${esc(BODIES[B.body]?.name || k)}${k !== 'earth' ? ` · ${fmt(Math.floor(B.pop || 0))} colonists` : ''} · ${B.items.length} buildings</div></div>${s.at === k ? '<span class="good ox">You are here</span>' : `<button class="btn small gold" data-a="travel" data-k="${k}">Go</button>`}</div>`).join('')}</div><button class="btn small" data-a="map" style="margin-top:8px">🪐 Solar System map</button> <button class="btn small" data-a="empire">👑 Empire overview</button> <button class="btn small" data-a="closeModal">Close</button>`; }
   act(a: string, t: HTMLElement): boolean {
     const s = this.s, A = this.A, ui = this.ui;
     switch (a) {

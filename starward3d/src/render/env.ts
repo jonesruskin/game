@@ -3,13 +3,14 @@
 // Each world is a config; Part 1 dresses Earth, later parts add the Moon, Mars, Venus and beyond.
 import * as THREE from 'three';
 import { GRID } from '../data/buildings';
-import { rng } from '../core/util';
+import { rng, hash } from '../core/util';
+import { STARS, PTYPE, CLASS } from '../data/stars';
 import { earthGlobe } from './planet';
 export interface WorldLook {
   id: string; ground: string[]; base: string; rim: string; rock: string; sky: [string, string, string]; fog: string; fogNear: number; fogFar: number;
   sun: string; sunI: number; amb: [string, string, number]; sea?: string; seaSide?: number; hills: number; flora?: 'trees' | 'rocks' | 'none'; clouds?: string; cloudN?: number;
   stars?: number; craters?: number; skyBody?: 'earth' | 'phobos' | 'saturn' | 'belt'; baseGround?: string;
-  deck?: boolean; cloudFloor?: string; gap?: number; trees?: number; lakes?: number; curve?: number; green?: number; dust?: number; salt?: number; ponds?: number;
+  deck?: boolean; cloudFloor?: string; gap?: number; trees?: number; lakes?: number; curve?: number; green?: number; dust?: number; salt?: number; ponds?: number; island?: boolean; sunPow?: number; craterN?: number;
 }
 export const WORLDS: Record<string, WorldLook> = {
   earth: { id: 'earth', ground: ['#4a8f3e', '#5ea34a', '#3a7a36', '#6cad52'], base: '#5aa648', rim: '#c9b98c', rock: '#8a8478', sky: ['#2f6fd0', '#8fc3f2', '#e8f2ff'], fog: '#cfe2f6', fogNear: 90, fogFar: 420,
@@ -31,6 +32,29 @@ export const WORLDS: Record<string, WorldLook> = {
 const mix = (a: string, b: string, k: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), Math.max(0, Math.min(1, k))).getHexString();
 const sstep = (a: number, b: number, x: number) => THREE.MathUtils.smoothstep(x, a, b);
 // a world part-way through terraforming: the same place, with thicker air, bluer sky, clouds, lakes, then seas, lichen and forests
+// an exoplanet: its look comes from the planet type and its star (a red dwarf paints the sky orange-pink and hangs a big
+// red sun; ocean worlds put the colony on an island; lava worlds glow; giants get a cloud-top deck)
+export function exoLook(key: string): WorldLook {
+  const [st, ps] = key.split(':'); const S = STARS[st], pl = S && S.planets[+ps]; if (!pl) return WORLDS.earth; const T = PTYPE[pl.type]; const sc = CLASS[S.cls].col; const [c0, c1, c2] = T.col; const R = rng(hash(key));
+  const sunPow = ({ M: 110, K: 300, G: 900, F: 1200, A: 1600, D: 2000 } as Record<string, number>)[S.cls] || 900; const sunI = ({ M: 1.9, K: 2.2, G: 2.4, F: 2.6, A: 2.8, D: 1.6 } as Record<string, number>)[S.cls] || 2.3;
+  const sun = mix('#ffffff', sc, 0.75); const g4 = (a: string, b: string) => [mix(a, b, 0.2), mix(a, b, 0.5), mix(a, '#000000', 0.15), mix(b, '#ffffff', 0.12)];
+  const L: WorldLook = { id: key, ground: g4(c0, c1), base: mix(c1, '#9a968e', 0.35), rim: c2, rock: mix(c0, '#000000', 0.25), sky: [mix('#05060b', sc, 0.08), mix('#0a0c14', sc, 0.12), mix('#1a1c26', sc, 0.25)], fog: mix('#10121a', sc, 0.25), fogNear: 300, fogFar: 2200,
+    sun, sunI, amb: [mix('#a8b8d0', sc, 0.4), mix(c0, '#000000', 0.5), 0.45], hills: 6, flora: 'rocks', stars: 1, craters: 30, sunPow, craterN: 20 };
+  const airSky = (k = 0.35): [string, string, string] => [mix('#2f6fd0', sc, k), mix('#8fc3f2', sc, k * 0.85), mix('#e8f2ff', sc, k * 0.7)];
+  switch (pl.type) {
+    case 'temperate': Object.assign(L, { ground: g4(c1, '#5ea34a'), base: mix(c1, '#6a9a50', 0.4), rim: c2, sky: airSky(), fog: mix('#cfe2f6', sc, 0.3), fogNear: 90, fogFar: 420, amb: [mix('#bcd8ff', sc, 0.3), '#3b5a34', 0.72], sea: c0, seaSide: 1, hills: 9, flora: pl.hab >= 0.5 ? 'trees' : 'rocks', clouds: '#ffffff', cloudN: 20, stars: 0, craters: 0, craterN: 2 }); break;
+    case 'ocean': Object.assign(L, { ground: g4('#c9b88a', '#5f9a4c'), base: '#9aa070', rim: '#e8dcb8', sky: airSky(0.3), fog: mix('#d8ecfb', sc, 0.3), fogNear: 90, fogFar: 420, amb: [mix('#bcd8ff', sc, 0.3), '#2a4a5a', 0.72], sea: c1, seaSide: 1, island: true, hills: 5, flora: pl.hab >= 0.55 ? 'trees' : 'rocks', clouds: '#ffffff', cloudN: 24, stars: 0, craters: 0, craterN: 0 }); break;
+    case 'desert': Object.assign(L, { ground: g4(c0, c1), base: c1, rim: c2, sky: [mix('#9a7a5a', sc, 0.3), mix('#d6b080', sc, 0.25), mix('#f0dcb8', sc, 0.2)], fog: mix('#e8c89a', sc, 0.25), fogNear: 80, fogFar: 420, amb: [mix('#f0d0a8', sc, 0.3), '#5a3e2a', 0.65], hills: 11, stars: 0, craters: 8, dust: 0.8, craterN: 6 }); break;
+    case 'super': Object.assign(L, { sky: [mix('#5a6a7a', sc, 0.3), mix('#9aa4ac', sc, 0.25), mix('#c9ccc4', sc, 0.2)], fog: mix('#a8aca4', sc, 0.2), fogNear: 50, fogFar: 300, amb: [mix('#c4ccd4', sc, 0.3), '#3a3a30', 0.75], hills: 4, stars: 0, craters: 6, craterN: 5 }); break;
+    case 'ice': Object.assign(L, { ground: g4(c1, c2), base: mix(c1, '#c9d6e0', 0.4), rim: '#ffffff', rock: '#cfe2f0', sky: [mix('#3a5a7a', sc, 0.25), mix('#9fc0d8', sc, 0.2), mix('#e6f0f8', sc, 0.15)], fog: mix('#dceaf4', sc, 0.2), fogNear: 90, fogFar: 500, amb: [mix('#d6e6ff', sc, 0.25), '#5a6a7a', 0.7], hills: 7, stars: 0.4, craters: 10, craterN: 8 }); break;
+    case 'lava': Object.assign(L, { ground: g4(c0, '#3a2a24'), base: '#3a3030', rim: '#1a1210', rock: '#1a1412', sky: [mix('#140604', sc, 0.1), mix('#3a120a', sc, 0.15), mix('#8a2e12', sc, 0.2)], fog: '#5a1e0e', fogNear: 60, fogFar: 340, amb: [mix('#ff8a4a', sc, 0.2), '#2a0e08', 0.7], sea: '#ff6a1a', seaSide: 1, hills: 8, stars: 0.3, craters: 6, craterN: 4 }); break;
+    case 'belt': Object.assign(L, { skyBody: 'belt', curve: 0.0028, craters: 70, craterN: 40, salt: R() < 0.5 ? 1 : 0 }); break;
+    case 'dwarf': Object.assign(L, { ground: g4('#3a3448', '#5a5470'), base: '#4a4458', rock: '#2a2438', sky: ['#020108', '#06040e', mix('#140c24', sc, 0.4)], amb: ['#9a8ac8', '#1a1428', 0.4], stars: 1.6, craters: 50, craterN: 30 }); break;
+    case 'rocky': default: if (!T.giant) Object.assign(L, { craters: 50, craterN: 32 });
+  }
+  if (T.giant) Object.assign(L, { deck: true, ground: ['#d8d2c2'], base: '#d8d2c4', rim: '#d8d2c4', rock: '#b9b2a0', sky: [mix(c2, '#000010', 0.55), mix(c0, '#202030', 0.25), mix(c1, '#ffffff', 0.2)], fog: mix(c1, '#ffffff', 0.15), fogNear: 120, fogFar: 900, amb: [mix(c1, '#ffffff', 0.3), mix(c0, '#000000', 0.4), 0.85], hills: 0, flora: 'none', clouds: mix(c1, '#ffffff', 0.5), cloudN: 12, stars: 0, cloudFloor: c0, gap: 0, craters: 0 });
+  return L;
+}
 export function terraLook(base: WorldLook, T?: Record<string, number> | null): WorldLook {
   if (!T || !T.n) return base; const L: WorldLook = JSON.parse(JSON.stringify(base)); const o2 = T.o2 || 0, water = T.water || 0, p = T.pressure || 0;
   const blue: [string, string, string] = ['#3f78c8', '#9cc4ec', '#e6eef8'];
@@ -58,7 +82,7 @@ function noise2(seed: number) { const R = rng(seed); const P = new Float32Array(
 export class Env {
   group = new THREE.Group(); sky: THREE.Mesh; private clouds: THREE.Group = new THREE.Group(); private water: THREE.Mesh | null = null; private grid: THREE.LineSegments | null = null; private bound: THREE.Mesh | null = null; look: WorldLook;
   height: (x: number, z: number) => number = () => 0;
-  constructor(private scene: THREE.Scene, id: string, private quality: 'high' | 'low', private renderer?: THREE.WebGLRenderer, terra?: Record<string, number> | null) { this.look = terraLook(WORLDS[id] || WORLDS.earth, terra); this.sky = this.makeSky(); this.build(); this.skyBodies(); this.scene.add(this.sats); }
+  constructor(private scene: THREE.Scene, id: string, private quality: 'high' | 'low', private renderer?: THREE.WebGLRenderer, terra?: Record<string, number> | null) { this.look = terraLook(WORLDS[id] || (id.includes(':') ? exoLook(id) : WORLDS.earth), terra); this.sky = this.makeSky(); this.build(); this.skyBodies(); this.scene.add(this.sats); }
   private skyObjs: THREE.Object3D[] = [];
   private skyBodies() { const L = this.look; const sun = new THREE.Vector3(-0.55, 0.62, 0.42).normalize();
     if (L.skyBody === 'earth' && this.renderer) { const e = earthGlobe(this.renderer, 70, sun, this.quality === 'high'); e.group.position.set(-620, 420, -1500); e.mesh.rotation.z = 0.4; this.scene.add(e.group); this.skyObjs.push(e.group); this.earthSky = e; }
@@ -72,12 +96,12 @@ export class Env {
   private earthSky: ReturnType<typeof earthGlobe> | null = null;
   private makeSky() {
     const L = this.look; const g = new THREE.SphereGeometry(3000, 32, 16);
-    const m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { top: { value: new THREE.Color(L.sky[0]) }, mid: { value: new THREE.Color(L.sky[1]) }, hor: { value: new THREE.Color(L.sky[2]) }, sunDir: { value: new THREE.Vector3(-0.55, 0.62, 0.42).normalize() }, sunCol: { value: new THREE.Color(L.sun) }, stars: { value: L.stars || 0 } },
+    const m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { top: { value: new THREE.Color(L.sky[0]) }, mid: { value: new THREE.Color(L.sky[1]) }, hor: { value: new THREE.Color(L.sky[2]) }, sunDir: { value: new THREE.Vector3(-0.55, 0.62, 0.42).normalize() }, sunCol: { value: new THREE.Color(L.sun) }, stars: { value: L.stars || 0 }, sunPow: { value: L.sunPow || 900 } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform vec3 top, mid, hor, sunCol, sunDir; uniform float stars; varying vec3 vP;
+      fragmentShader: `uniform vec3 top, mid, hor, sunCol, sunDir; uniform float stars, sunPow; varying vec3 vP;
         float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453); }
         void main(){ float y = vP.y; vec3 c = y > 0.18 ? mix(mid, top, smoothstep(0.18, 0.75, y)) : mix(hor, mid, smoothstep(-0.02, 0.18, y));
-          float sd = max(dot(vP, sunDir), 0.0); c += sunCol * (pow(sd, 900.0) * 3.0 + pow(sd, 18.0) * 0.18);
+          float sd = max(dot(vP, sunDir), 0.0); c += sunCol * (pow(sd, sunPow) * 3.0 + pow(sd, 18.0) * 0.18 * (900.0 / sunPow > 2.0 ? 2.0 : 1.0));
           if (stars > 0.0) { vec3 q = floor(vP * 420.0); float s = step(0.9975, h(q)); c += vec3(s) * stars * smoothstep(0.0, 0.2, y); }
           gl_FragColor = vec4(c, 1.0); }` });
     const s = new THREE.Mesh(g, m); s.renderOrder = -10; s.frustumCulled = false; this.scene.add(s); return s;
@@ -91,6 +115,7 @@ export class Env {
     const sea = (x: number, z: number) => (L.seaSide ? (x + z) / Math.SQRT2 : 99999); // signed distance toward the shore (−x −z side is sea)
     this.height = (x: number, z: number) => { const r = Math.max(Math.abs(x), Math.abs(z)); const flat = THREE.MathUtils.smoothstep(r, C + 4, C + 30);
       let h = flat * (n(x * 0.018, z * 0.018) * L.hills * 2.2 + n(x * 0.06, z * 0.06) * 2.2 - 1.2) + flat * Math.max(0, r - 90) * 0.06;
+      if (L.island) h = Math.min(h, THREE.MathUtils.lerp(h, -6, THREE.MathUtils.smoothstep(Math.hypot(x, z) + (n(x * 0.035 + 4, z * 0.035) - 0.5) * 16, C + 6, C + 18))); // an island in an open sea, with a ragged coast clear of the buildable square
       if (L.seaSide) { const d = sea(x, z); h = Math.min(h, THREE.MathUtils.lerp(-6, h, THREE.MathUtils.smoothstep(d, -C - 34, -C - 12))); } if (CR.length) h += crater(x, z) * THREE.MathUtils.smoothstep(r, C + 6, C + 16); if (L.curve) h -= Math.pow(Math.max(0, r - C - 24), 2) * L.curve; return h; };
     const g = new THREE.PlaneGeometry(span, span, seg, seg); g.rotateX(-Math.PI / 2); const p = g.attributes.position; const col = new Float32Array(p.count * 3); const c = new THREE.Color(), cg = L.ground.map((x) => new THREE.Color(x)), cb = new THREE.Color(L.base), cr = new THREE.Color(L.rim), ck = new THREE.Color(L.rock);
     for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i); const y = this.height(x, z); p.setY(i, y); const r = Math.max(Math.abs(x), Math.abs(z));
@@ -194,13 +219,13 @@ export class Env {
       for (let i = 0; i < 46; i++) blob(R() * S, R() * S, (1.5 + R() * 6) * u, R() < 0.55 ? 'rgba(0,0,0,0.11)' : 'rgba(255,255,255,0.08)');
       speck(S * 9, 'rgba(0,0,0,0.16)', L.id === 'titan' ? 'rgba(255,240,210,0.22)' : 'rgba(255,255,255,0.12)');
       if (L.green) for (let i = 0; i < Math.round(60 * L.green); i++) blob(R() * S, R() * S, (0.8 + R() * 3.5) * u, `rgba(70,${110 + Math.round(R() * 40)},50,${0.18 + L.green * 0.12})`);
-      if (L.id === 'mars' && (L.dust ?? 1) > 0.05) { const da = L.dust ?? 1; // dust ripples and dust-devil trails
+      if ((L.dust ?? 0) > 0.05) { const da = L.dust ?? 1; // dust ripples and dust-devil trails
         for (let i = 0; i < 260; i++) { const x = R() * S, y = R() * S, l = (0.6 + R() * 1.6) * u; g.strokeStyle = `rgba(${R() < 0.5 ? '0,0,0' : '255,230,200'},${0.1 * da})`; g.lineWidth = 0.08 * u; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l * 0.5, y - l * 0.18, x + l, y + l * 0.12); g.stroke(); }
         for (let i = 0; i < 7; i++) { let x = R() * S, y = R() * S, a = R() * 6.3; g.strokeStyle = `rgba(40,10,0,${0.09 * da})`; g.lineWidth = (0.25 + R() * 0.35) * u; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 40; k++) { a += (R() - 0.5) * 0.5; x += Math.cos(a) * u * 0.9; y += Math.sin(a) * u * 0.9; g.lineTo(x, y); } g.stroke(); } }
       if (L.id === 'titan') for (let i = 0; i < 5; i++) { const branch = (x: number, y: number, a: number, w: number, d: number) => { g.strokeStyle = 'rgba(30,18,6,0.2)'; g.lineWidth = w * u; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 18; k++) { a += (R() - 0.5) * 0.6; x += Math.cos(a) * u * 0.7; y += Math.sin(a) * u * 0.7; g.lineTo(x, y); if (d < 2 && R() < 0.08) branch(x, y, a + (R() < 0.5 ? 0.8 : -0.8), w * 0.6, d + 1); } g.stroke(); }; branch(R() * S, R() * S, R() * 6.3, 0.35, 0); }
       if (L.salt) for (let i = 0; i < 7; i++) { const x = R() * S, y = R() * S; for (let k = 0; k < 5; k++) blob(x + (R() - 0.5) * u * 3, y + (R() - 0.5) * u * 3, (0.6 + R() * 1.8) * u, 'rgba(255,255,255,0.32)'); }
       // craters: shaded floor, a lit far wall and a shadowed near wall (light comes from the lower left of the canvas)
-      const nC = L.id === 'moon' ? 46 : L.id === 'ceres' ? 40 : L.id === 'titan' ? 3 : 16; for (let i = 0; i < nC; i++) { const x = R() * S, y = R() * S, r = (0.4 + Math.pow(R(), 2.4) * 2.4) * u;
+      const nC = L.craterN ?? (L.id === 'moon' ? 46 : L.id === 'ceres' ? 40 : L.id === 'titan' ? 3 : 16); for (let i = 0; i < nC; i++) { const x = R() * S, y = R() * S, r = (0.4 + Math.pow(R(), 2.4) * 2.4) * u;
         if (R() < 0.18) for (let k = 0; k < 9; k++) { const a = R() * 6.3, l = r * (2.2 + R() * 2.5); g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = r * 0.22; g.beginPath(); g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
         blob(x, y, r * 1.6, 'rgba(255,255,255,0.07)'); const gr = g.createRadialGradient(x - r * 0.3, y + r * 0.3, 0, x, y, r); gr.addColorStop(0, 'rgba(0,0,0,0.22)'); gr.addColorStop(0.75, 'rgba(0,0,0,0.11)'); gr.addColorStop(1, 'rgba(0,0,0,0.04)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
         g.lineWidth = Math.max(1, r * 0.13); g.strokeStyle = 'rgba(255,255,255,0.2)'; g.beginPath(); g.arc(x, y, r * 0.88, -Math.PI * 0.85, Math.PI * 0.35); g.stroke(); g.strokeStyle = 'rgba(0,0,0,0.17)'; g.beginPath(); g.arc(x, y, r * 0.88, Math.PI * 0.35, Math.PI * 1.15); g.stroke(); }

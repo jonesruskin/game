@@ -4,6 +4,7 @@
 //   count how many may stand, indexed by command level   req   { tech, hq } needed to build
 // 3D additions: fp = footprint in grid cells [w, d]; collect = output waits in the building until tapped.
 import { TimeDef } from '../core/util';
+import { STARS, PTYPE } from './stars';
 export type Curve = [number, number];
 export interface BuildingDef {
   name: string; fp: [number, number]; bases: string[]; max: number; cat: string; desc: string;
@@ -11,8 +12,9 @@ export interface BuildingDef {
   cost: Record<string, Curve>; time: TimeDef; prod?: Record<string, Curve>; cap?: Record<string, Curve>; gen?: Curve; draw?: Curve;
   speed?: number; house?: Curve; jobs?: Curve; grow?: Curve; collect?: boolean; instant?: boolean; fuelCut?: number; liftCut?: number; terra?: number; claims?: number;
 }
-const COL = ['moon', 'mars', 'ceres', 'titan', 'venus'];
-const GROUND = ['moon', 'mars', 'ceres', 'titan']; // colonies with ground to dig into (Venus floats)
+// star colonies' bases are 'exo' (ground) or 'exodeck' (a cloud-top deck over a gas giant), see kindOf
+const COL = ['moon', 'mars', 'ceres', 'titan', 'venus', 'exo', 'exodeck'];
+const GROUND = ['moon', 'mars', 'ceres', 'titan', 'exo']; // colonies with ground to dig into (Venus and the giants float)
 export const BUILDINGS: Record<string, BuildingDef> = {
   // ---------------- Earth ----------------
   hq: {
@@ -145,7 +147,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Command, life support and the airlock everyone passes through. Raising it expands the colony and allows higher building levels.',
   },
   regolith: {
-    name: 'Regolith Mine', fp: [3, 3], bases: ['moon', 'mars', 'ceres'], jobs: [6, 1.08], max: 25, cat: 'production', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6], collect: true,
+    name: 'Regolith Mine', fp: [3, 3], bases: ['moon', 'mars', 'ceres', 'exo'], jobs: [6, 1.08], max: 25, cat: 'production', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6], collect: true,
     cost: { credits: [18000, 1.74], metal: [12000, 1.74] }, time: [8, 1.95], prod: { metal: [3200, 1.24] }, draw: [6, 1.14],
     desc: 'Robotic excavators scrape the soil; furnaces pull out iron, aluminium and titanium.',
   },
@@ -160,7 +162,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Roasts regolith to release helium-3, a fusion fuel almost absent on Earth.',
   },
   lsolar: {
-    name: 'Solar Array', fp: [3, 3], bases: ['moon', 'mars', 'ceres', 'venus'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
+    name: 'Solar Array', fp: [3, 3], bases: ['moon', 'mars', 'ceres', 'venus', 'exo', 'exodeck'], jobs: [2, 1.05], max: 25, cat: 'power', count: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6],
     cost: { credits: [12000, 1.72], metal: [14000, 1.72] }, time: [7.5, 1.95], gen: [45, 1.24],
     desc: 'Photovoltaic arrays. Superb on the Moon, best of all above the clouds of Venus (190% of Earth\'s sunlight); weaker on Mars (43%) and Ceres (13%).',
   },
@@ -205,7 +207,7 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     desc: 'Traffic control for a thousand mining tugs. Every asteroid claim produces 5% more per level; refines rare elements.',
   },
   skimmer: {
-    name: 'Cloud Skimmer', fp: [3, 3], bases: ['venus'], jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
+    name: 'Cloud Skimmer', fp: [3, 3], bases: ['venus', 'exodeck'], jobs: [6, 1.08], max: 25, cat: 'production', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], collect: true,
     cost: { credits: [30000, 1.74], metal: [26000, 1.74] }, time: [8.5, 1.95], prod: { fuel: [3200, 1.24] }, draw: [9, 1.14],
     desc: 'Long intakes dangle into the clouds below and haul up CO₂, nitrogen and sulphuric acid: fuel, and water cracked out of the acid for the colonists.',
   },
@@ -259,11 +261,13 @@ export const capClamp = (n: number, h: number, r: string) => { const c = capRef(
 // the Mission Control level at which building b's level L first becomes possible
 export const unlockHq = (b: string, L: number) => { const d = BUILDINGS[b]; if (b === 'hq') return Math.max(1, L - 1); if (b === 'hub') return L + 7; if (!d.bases.includes('earth') && !d.bases.includes('moon')) return Math.ceil(L / 2) + 10; return d.bases.includes('earth') ? Math.max(1, Math.ceil(L / 2)) : Math.ceil(L / 2) + 7; };
 // command-building prerequisites: grow the whole base before the next command level
+// which building rules a base follows: its own name in the Solar System, 'exo' or 'exodeck' around other stars
+export const kindOf = (base: string) => { if (!base.includes(':')) return base; const [st, p] = base.split(':'); const pl = STARS[st] && STARS[st].planets[+p]; return pl && PTYPE[pl.type] && PTYPE[pl.type].giant ? 'exodeck' : 'exo'; };
 export function cmdReqs(b: string, L: number, base?: string): [string, number][] {
   const r: [string, number][] = []; const n = 2 * L - 4;
   if (b === 'hq') { if (L >= 3) r.push(['research', n], ['depot', n]); if (L >= 4) r.push(['mine', n], ['office', n]); if (L >= 5) r.push(['launch', n - 2], ['refinery', n - 2]); if (L >= 6) r.push(['vab', n - 4], ['solar', n]); if (L >= 7) r.push(['tracking', n - 4]); if (L >= 8) r.push(['academy', n - 6]); }
   if (b === 'hub' && (!base || base === 'moon')) { if (L >= 2) r.push(['regolith', 2 * L - 2], ['lsolar', 2 * L - 2]); if (L >= 3) r.push(['ice', 2 * L - 3], ['he3x', 2 * L - 4]); if (L >= 4) r.push(['dome', 2 * L - 6], ['llab', 2 * L - 6]); }
-  else if (b === 'hub') { const main = ({ mars: 'regolith', ceres: 'ice', titan: 'ice' } as Record<string, string>)[base || 'mars'] || 'regolith'; if (L >= 2) r.push([main, 2 * L - 2], ['dome', 2 * L - 2]); if (L >= 3) r.push(['reactor', 2 * L - 3], ['greenhouse', 2 * L - 4]); if (L >= 4) r.push(['llab', 2 * L - 6]); }
+  else if (b === 'hub') { const main = ({ mars: 'regolith', ceres: 'ice', titan: 'ice', venus: 'skimmer', exo: 'ice', exodeck: 'skimmer' } as Record<string, string>)[kindOf(base || 'mars')] || 'regolith'; if (L >= 2) r.push([main, 2 * L - 2], ['dome', 2 * L - 2]); if (L >= 3) r.push(['reactor', 2 * L - 3], ['greenhouse', 2 * L - 4]); if (L >= 4) r.push(['llab', 2 * L - 6]); }
   return r.filter(([, lv]) => lv > 0).map(([rb, lv]) => [rb, Math.min(lv, BUILDINGS[rb].max)] as [string, number]);
 }
 export const crewsFromHq = (hq: number) => 2 + (hq >= 5 ? 1 : 0) + (hq >= 10 ? 1 : 0) + (hq >= 15 ? 1 : 0);

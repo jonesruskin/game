@@ -189,3 +189,7 @@ body.battling #obj, body.battling #panel, body.battling #nav, body.battling #bub
 .bc.on { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(255, 211, 106, 0.6); transform: translateY(-4px); } .bc.used { opacity: 0.28; filter: grayscale(1); }
 .bigstars { font-size: 54px; margin: 4px 0; } .bigstars i { font-style: normal; color: rgba(255, 255, 255, 0.15); display: inline-block; } .bigstars i.on { color: var(--gold); text-shadow: 0 0 18px rgba(255, 211, 106, 0.8); animation: zoom 0.45s both; }
 @media (max-width: 720px) { #bhud .bt { flex-wrap: wrap; } #bhud .who { font-size: 12px; } .bc { width: 50px; height: 56px; } #bhud .mid b { font-size: 16px; } #bhud .hint { font-size: 11px; padding: 4px 8px; } }
+/* interstellar */
+.specs { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .specs .tab { padding: 4px 8px; font-size: 11px; }
+.box.planet { border-left: 3px solid rgba(110, 231, 255, 0.35); }
+body.mapping #bubbles .bub:not(.lbl) { display: none !important; }

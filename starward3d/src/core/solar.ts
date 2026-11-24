@@ -43,12 +43,14 @@ export const COLONY: Record<string, ColonyDef> = {
   titan: { name: 'Kraken Shore', tech: 'cryoHabitats', start: [['hub', M - 2, M - 2], ['ice', M - 7, M - 7], ['reactor', M + 4, M - 7], ['dome', M - 8, M + 3]], pop: 24, drift: 0.15, traits: ['A sea of liquid methane: the Hydrocarbon Refinery', 'Thick orange haze and -180 °C', 'Almost no sunlight: reactors only'] },
 };
 export const baseFounders: ((s: State, base: string) => void)[] = [];
+// worlds whose open air people can breathe without terraforming (the kindest exoplanets)
+export const airHooks: ((s: State, base: string) => boolean)[] = [];
 export function foundColony(s: State, id: string) { const C = COLONY[id]; if (!C || s.bases[id]) return; let n = 0; const items: Item[] = C.start.map(([b, x, z]) => ({ id: id[0] + 'c' + (n++), b, x, z, r: 0, lvl: 1, held: 0 })); s.bases[id] = { body: id, name: C.name, items, pop: C.pop }; sol(s).surveyed[id] = 1; for (const f of baseFounders) f(s, id); }
 // life support: colonists need water (ice mines, oceans) and air (the hub, greenhouses, domes, a breathable sky)
 export function lifeSupport(s: State, base: string) {
   const B = s.bases[base]; if (!B || base === 'earth') return { water: Infinity, air: Infinity, ls: 1, pop: 0 }; let water = 0, air = 0;
   for (const it of B.items) { if (it.lvl <= 0) continue; if (it.b === 'ice') water += 45 * Math.pow(1.22, it.lvl - 1); if (it.b === 'hub') air += 30 * Math.pow(1.2, it.lvl - 1); if (it.b === 'greenhouse') air += 50 * Math.pow(1.22, it.lvl - 1); if (it.b === 'dome') air += 15 * Math.pow(1.2, it.lvl - 1); if (it.b === 'methane') water += 20 * Math.pow(1.2, it.lvl - 1); if (it.b === 'skimmer') water += 40 * Math.pow(1.22, it.lvl - 1); }
-  const T = terraState(s, base); if (T) { water *= 1 + (T.water || 0) / 10; air *= 1 + (T.o2 || 0) / 4; if (breathable(T)) air = Infinity; } const pop = B.pop || 0; const ls = pop <= 0 ? 1 : Math.min(1, water / pop, air / pop); return { water, air, ls, pop };
+  const T = terraState(s, base); if (T) { water *= 1 + (T.water || 0) / 10; air *= 1 + (T.o2 || 0) / 4; if (breathable(T)) air = Infinity; } if (airHooks.some((h) => h(s, base))) air = Infinity; const pop = B.pop || 0; const ls = pop <= 0 ? 1 : Math.min(1, water / pop, air / pop); return { water, air, ls, pop };
 }
 // ---------------- voyages ----------------
 export const siteLevel = (s: State, id: string) => sol(s).sites[id] || 0;

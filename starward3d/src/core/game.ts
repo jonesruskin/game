@@ -2,7 +2,7 @@
 // construction drones, research, collecting, dark-matter speed-ups, objectives, and exact offline catch-up
 // (production is integrated piecewise between timer completions, so a reactor finishing at 3 a.m. powers the
 // mines from 3 a.m.). Later systems register job completers and objective checks through the hooks below.
-import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, cmdReqs, capClamp, unlockHq, areaSide, GRID } from '../data/buildings';
+import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, cmdReqs, capClamp, unlockHq, areaSide, GRID, kindOf } from '../data/buildings';
 import { TECH, techCost, techTime } from '../data/research';
 import { allSteps, Step } from '../data/objectives';
 import { mods, rates, accrue, canPay, pay, give, hqLevel, lvlOf, collectsOf, Mods, Rates } from './econ';
@@ -44,7 +44,7 @@ export function freeSpot(s: State, base: string, b: string, r = 0): [number, num
 // ---------------- building ----------------
 export function canBuild(s: State, base: string, b: string): Check {
   const d = BUILDINGS[b]; const m = mods(s); const hq = hqLevel(s, base);
-  if (!d || !s.bases[base]) return { ok: false, why: 'Unknown' }; if (!d.bases.includes(base)) return { ok: false, why: 'Cannot be built on this world' };
+  if (!d || !s.bases[base]) return { ok: false, why: 'Unknown' }; if (!d.bases.includes(kindOf(base))) return { ok: false, why: 'Cannot be built on this world' };
   if (d.req && d.req.tech && !s.tech[d.req.tech]) return { ok: false, why: `Research ${TECH[d.req.tech].name}`, tech: d.req.tech };
   if (d.req && d.req.hq && hq < d.req.hq) return { ok: false, why: `Mission Control level ${d.req.hq}`, hq: true };
   for (const f of buildChecks) { const c = f(s, base, b); if (c) return c; }

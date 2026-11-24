@@ -44,6 +44,16 @@ export class SystemView {
     const hit = ray.intersectObjects(meshes, false)[0]; if (hit) return hit.object.userData.body as string;
     // generous picking for small worlds: the nearest body to the ray within a few pixels
     let best = '', bd = 1e9; for (const [id, b] of this.bodies) { const p = b.g.position.clone().project(this.camera); const dx = ((p.x + 1) / 2) * w - x, dy = ((1 - p.y) / 2) * h - y; const d = Math.hypot(dx, dy); if (d < 22 && d < bd && p.z < 1) { bd = d; best = id; } } return best || null; }
+  // megastructures: the Dyson swarm thickens around the Sun stage by stage (collectors on tilted rings); the Sol gate
+  // hangs past Neptune's orbit
+  private swarm: THREE.InstancedMesh | null = null; private swarmN = -1; private gate: THREE.Group | null = null;
+  setMega(dyson: number, gate: number) {
+    const n = Math.min(1400, dyson * 140); if (n !== this.swarmN) { this.swarmN = n; if (this.swarm) { this.scene.remove(this.swarm); this.swarm = null; }
+      if (n > 0) { const m = new THREE.InstancedMesh(new THREE.CircleGeometry(0.11, 6), new THREE.MeshBasicMaterial({ color: '#e8b04a', side: THREE.DoubleSide, toneMapped: false }), n); const o = new THREE.Object3D(); const rings = Math.min(7, 1 + Math.floor(n / 140)), per = Math.ceil(n / rings);
+        for (let i = 0; i < n; i++) { const ring = Math.floor(i / per), a = ((i % per) / per) * Math.PI * 2, r = 4.6 + ring * 0.42, tilt = (ring - (rings - 1) / 2) * 0.42; o.position.set(Math.cos(a) * r, Math.sin(a) * r * Math.sin(tilt), Math.sin(a) * r * Math.cos(tilt)); o.lookAt(0, 0, 0); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }
+        this.swarm = m; this.scene.add(m); } }
+    if (gate && !this.gate) { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.28, 10, 40), new THREE.MeshStandardMaterial({ color: '#8f7ad6', metalness: 0.6, roughness: 0.3, emissive: '#3a2a6a' })));
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(2, 40), new THREE.MeshBasicMaterial({ color: '#c9a0ff', transparent: true, opacity: 0.45, side: THREE.DoubleSide, toneMapped: false })); g.add(disc); g.position.set(distOf(36), 1.5, 0); g.lookAt(0, 1.5, 0); this.gate = g; this.scene.add(g); } }
   // terraforming shows from space: seas, green, clouds and a bluer halo, stage by stage
   setTerra(id: 'mars' | 'venus', T: Record<string, number> | null) { const b = this.bodies.get(id); if (b && b.globe) setTerraGlobe(b.globe, id, T); }
   // comms relays: tiny satellites circling every world that has them (one per level, up to eight)
@@ -58,6 +68,7 @@ export class SystemView {
   frame(dt: number, sel: string | null) {
     this.t += dt; const now = Date.now();
     for (const [id, b] of this.bodies) { const p = this.posOf(id, now); b.g.position.copy(p); b.mesh.rotation.y = this.t * 0.2; const sd = p.clone().negate().normalize().multiplyScalar(0.55).add(this.camera.position.clone().sub(p).normalize().multiplyScalar(0.8)).normalize(); if (b.globe && b.globe.uniforms) { b.globe.uniforms.uSun.value = sd; b.globe.uniforms.uTime.value = this.t; } else if (b.globe) { const u = (b.globe.mesh.material as THREE.ShaderMaterial).uniforms; if (u && u.uSun) u.uSun.value = sd; } }
+    if (this.swarm) this.swarm.rotation.y = this.t * 0.05; if (this.gate) (this.gate.children[1] as THREE.Mesh).rotation.z = this.t;
     for (const m of this.relays.children) { const d = m.userData; const c = this.bodies.get(d.id)!.g.position; const a = d.a + this.t * d.s; m.position.set(c.x + Math.cos(a) * d.r, c.y + Math.sin(a) * d.r * Math.sin(d.tilt), c.z + Math.sin(a) * d.r * Math.cos(d.tilt)); m.rotation.y = this.t; }
     if (this.focus) { const p = this.posOf(this.focus, now); this.cam.tfx = p.x; this.cam.tfz = p.z; }
     this.head.position.copy(this.camera.position); this.head.target.position.set(this.cam.fx, 0, this.cam.fz);
