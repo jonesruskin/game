@@ -3,3 +3,4 @@ dist/*/
 **/dist/*/
 .DS_Store
 !starward3d/dist/web/
+!starward3d/dist/crazygames/

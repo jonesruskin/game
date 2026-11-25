@@ -8,7 +8,7 @@ Everything you need is in this folder. You don't need to build anything.
 ## 📦 What to upload (file map)
 | What the portal asks for | File | Spec |
 |---|---|---|
-| Game build (CrazyGames) | `starward3d/dist/helioscend-crazygames.zip` | ~450 KB, `index.html` at the zip root, CrazyGames SDK v3 |
+| Game build (CrazyGames) | the files inside `starward3d/dist/crazygames/` (drag them in; CrazyGames refuses archives) | 9 files, ~1.4 MB, `index.html` at the top, CrazyGames SDK v3. The same files zipped: `starward3d/dist/helioscend-crazygames.zip` |
 | Game build (itch.io / own site) | `starward3d/dist/helioscend-web.zip` | No SDK, no ads |
 | Mobile web assets | `starward3d/dist/mobile/` | Wrap with Capacitor, see `mobile/README.md` |
 | Landscape cover | `starward3d/store/cover-landscape-1920x1080.png` | 1920×1080 |
@@ -24,7 +24,7 @@ Everything you need is in this folder. You don't need to build anything.
 
 ## 1️⃣ CrazyGames, step by step
 1. Sign up at **developer.crazygames.com** (free) → **Submit a game** → HTML5.
-2. Upload `helioscend-crazygames.zip`.
+2. Upload the game files (CrazyGames does not accept archives): open `starward3d/dist/crazygames/`, select **everything inside it** (`index.html`, the `assets` folder and `LICENSES.txt`) and drag the selection into the upload zone. `index.html` must sit at the top level, so drag the contents, not the `crazygames` folder itself. (`helioscend-crazygames.zip` holds the same files, for portals that do take a zip.)
 3. Fill in the form from `store/description.md`:
    - **Category:** Strategy (alternatives: Simulation, Idle, Casual)
    - **Orientation:** both (the site asks players to rotate if needed; portrait and landscape layouts are built in)
