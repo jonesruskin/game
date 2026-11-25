@@ -48,7 +48,7 @@ export const capacity = (s: State) => (s.tech.starColonies ? 2 : 0) + (s.tech.do
 // open-air colonies need a habitability of 25%+; Dome Worlds allows domed, orbital and mining settlements anywhere
 const livable = (s: State, pl: Planet) => pl.hab >= 0.25 || !!s.tech.domeWorlds;
 export const gated = (s: State, star: string) => !!(megaStage(s, 'gate') && ist(s).gates[star]);
-export function travel(s: State, star: string, ship: string) { const k = ship === 'warp' && xt(s, 'photonicSails') ? 0.5 : 1; return Math.max(300, Math.round(gated(s, star) ? 600 : dist(star) * DRIVES[ship].hpl * 3600 * k)); }
+export function travel(s: State, star: string, ship: string) { const k = (ship === 'warp' && xt(s, 'photonicSails') ? 0.5 : 1) * (s.flags.drifterSails ? 0.8 : 1); return Math.max(300, Math.round(gated(s, star) ? 600 : dist(star) * DRIVES[ship].hpl * 3600 * k)); }
 export function pickDrive(s: State) { for (const id of DRIVE_ORDER.slice().reverse()) if (drivesFree(s, id) > 0) return id; return null; }
 export function foundCost(s: State) { const n = Object.keys(ist(s).colonies).length; return fitMax({ credits: round2(2e7 * Math.pow(1.3, n)), metal: round2(1.5e7 * Math.pow(1.3, n)), he3: round2(3000 * Math.pow(1.2, n)) }); }
 export function canFound(s: State, star: string, p: number): Check {

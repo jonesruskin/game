@@ -70,6 +70,15 @@ Multi-stage projects that run for real days: atmosphere, warmth, water, magnetic
 ## 9. Aliens (Era 5)
 Starward's civilisations (Veyari, Lumen Concord, Synod of Iron, Mycelar, Oshoru, the Kr'thul Swarm, the Hollow, Ascendants) plus procedural minor species. Translation, relations (−100 to +100), gifts, **trade routes** (technology, knowledge, food), research pacts, alliances; hostile empires raid colonies and fight fleet battles.
 
+### 9.1 The Life Ladder
+Aliens are not only civilisations. Everything alive sits on one of eight rungs: **I Microbial, II Colonial, III Complex, IV Leviathan, V Sapient, VI Industrial, VII Spacefaring, VIII Ascended**. First contact with life is a single cell in Martian brine long before it is a voice from another star.
+- **Solar System life follows real astrobiology:** Mars subglacial brine (MARSIS radar, seasonal methane), the Venus cloud deck at 50 km (phosphine, Sagan 1967), Enceladus plumes (Cassini: hydrogen, organics, phosphates), Titan's methane seas (azotosome membranes), Europa's hydrothermal vents. Each is searched for from the colony or station that is actually there, and each plate carries a short "real science" note.
+- **Leviathans** are honest speculation: Sagan and Salpeter's 1976 Jovian floaters, lithophage reefs in the asteroid belt, Void Drifters riding starlight between the stars, Coronal Kites grazing the Sun's magnetic field (the Lumen Concord's wild ancestors).
+- **Exoplanet biospheres** are generated from each world's habitability once Exoplanetology can read its air; worlds with people always carry a full biosphere.
+- **Civilisations and the Ascendants** take rungs V to VIII as they are met; the Ascendants were the Hollow once.
+- Loop: biosignature → search → three studies → a permanent gift (biomining, chemosynthetic food vats for the domes, cold enzymes, living balloons for helium-3, drifter sails...). First find on each rung pays dark matter. **Outbreaks** turn discovery into a decision: lithophages halve a mining claim's output, native spores stop a new star colony growing; contain (credits) or study (science, and you learn what it is). Outbreaks burn out after 12 hours, so being away is never punished hard.
+- Procedural specimen plates (microscope fields for microbes, habitats for colonies and creatures, scale for leviathans) with a rung numeral and scale bar; a spectrum with the tell-tale line stands in for anything not yet seen.
+
 ## 10. The Kardashev scale
 `K = (log10(W) − 6) / 10` (Sagan), with W the civilisation's power in watts: Earth's grid at the start (~2×10¹³ W, K 0.73), fusion and space solar towards Type I, Dyson swarm stages towards Type II, star colonies, galactic grids and the relays towards Type III. Every +0.05 is a milestone with rewards.
 
@@ -85,5 +94,5 @@ Timers from seconds to days on Starward's ladder; offline time always counts (co
 6. **Daily loop & War Games:** calendar, missions, supply capsules, robot core, achievements, weekly events; defences and walls; the battle engine, replays, leagues; the server and the AI fallback.
 7. **Interstellar:** galaxy map (real stars + procedural systems), FTL, exoplanet bases, cosmic resources, megastructures, empire overview.
 8. **Contact & conflict:** alien civilisations, diplomacy, trade routes, hostile raids (PvE battles), fleets and space battles.
-9. **Beyond & Type III:** other galaxies, the endgame, Ascension; Style Locker, decor and the colony card.
+9. **Beyond & Type III, the Life Ladder:** other galaxies, funding pools, the endgame megastructures, Type III, Ascension; alien life from microbes to the Ascendants (§9.1); Style Locker, decor and the colony card.
 10. **Polish & ship:** tutorial, audio, balance simulation, performance, store assets, docs, review loop.

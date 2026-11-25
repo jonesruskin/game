@@ -11,6 +11,8 @@ import { BODIES } from '../data/solar';
 import type { UI } from './ui';
 import { costHTML } from './ui';
 import { worldIcon } from './solar';
+import { bioAt, life } from '../core/life';
+import { RUNGS } from '../data/life';
 const perH = (o: Record<string, number>) => Object.entries(o).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${RES[k].icon}</span>${fmt(n)}/h</span>`).join(' ');
 const PIC: Record<string, string> = { temperate: '🌍', ocean: '🌊', desert: '🏜', super: '🪨', rocky: '🌑', ice: '🧊', lava: '🌋', gas: '🪐', neptune: '🔵', dwarf: '✨', belt: '☄' };
 export class StarsUI {
@@ -21,6 +23,9 @@ export class StarsUI {
   private progress(j: any, label: string) { return `<div class="now"><div class="grow"><div class="tier">${esc(label)}</div><div class="bar gold" style="margin-top:6px"><i style="width:${clamp((Date.now() - j.start) / (j.end - j.start)) * 100}%"></i></div></div><div style="text-align:right"><b class="ox">${fmtTime((j.end - Date.now()) / 1000)}</b><br><button class="btn gold small" data-a="finish" data-job="${j.id}">Finish</button></div></div>`; }
   private btn(c: any, act: string, label: string, data = '') { return `<button class="btn small ${c.ok ? 'gold' : ''}" data-a="${act}" ${data} ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? label : esc(c.why === 'Research required' && c.tech ? `Research ${TECH[c.tech]?.name || c.tech}` : c.why || '')}</button>`; }
   // ---------------- labels and map state ----------------
+  // life on a surveyed world, once Exoplanetology can read its air (tap to open the Life screen)
+  private lifeTag(star: string, p: number) { const s = this.s, b = bioAt(star, p); if (!b || !s.tech.exoplanetology) return ''; const f = life(s).found['x:' + star + ':' + p];
+    return ` · <span class="good" data-a="lifeAt" data-k="x:${star}:${p}" style="cursor:pointer;text-decoration:underline dotted">🧬 ${f ? esc(b.name) : 'biosignature'} (${esc(RUNGS[b.rung].name.toLowerCase())})</span>`; }
   frameLabels() { const W = this.A.world; if (W.mode !== 'stars' || !W.starMap) return; const M = W.starMap, s = this.s, I = ST.ist(s); const root = document.getElementById('bubbles')!; const r = W.renderer.domElement.getBoundingClientRect();
     const cols = new Set(Object.values(I.colonies).map((C) => C.star)); const ids = Object.keys(STARS).filter((id) => id === 'sol' || !STARS[id].proc || I.surveyed[id] || id === this.sel); const seen = new Set<string>();
     for (const id of ids) { const p = M.project(id, r.width, r.height); if (!p) continue; seen.add(id); let el = root.querySelector(`[data-slbl="${id}"]`) as HTMLElement | null;
@@ -51,7 +56,7 @@ export class StarsUI {
       return h + (S.planets.length ? `<div class="meta">${S.planets.length} known planet${S.planets.length > 1 ? 's' : ''}: survey to learn more.</div>` : ''); }
     if (!S.planets.length) h += '<p class="desc">No planets: a quiet system. Its light still helps the survey network.</p>';
     S.planets.forEach((pl, p) => { const key = ST.ckey(id, p), T = PTYPE[pl.type], col = I.colonies[key]; const go = this.job('star', (j) => j.payload.star === id && j.payload.p === p);
-      h += `<div class="box planet"><div class="row"><b class="grow">${PIC[pl.type] || '•'} ${esc(pl.name)}</b><span class="muted">${esc(T.name)}</span></div><div class="meta">Habitability ${Math.round(pl.hab * 100)}%${Object.keys(pl.res).length ? ' · rich in ' + Object.keys(pl.res).map((r) => `<span style="color:${RES[r].color}">${esc(RES[r].name)}</span>`).join(', ') : ''}${ST.exoBreathable(key) ? ' · <span class="good">breathable air</span>' : ''}</div>${pl.note ? `<p class="desc">${esc(pl.note)}</p>` : ''}`;
+      h += `<div class="box planet"><div class="row"><b class="grow">${PIC[pl.type] || '•'} ${esc(pl.name)}</b><span class="muted">${esc(T.name)}</span></div><div class="meta">Habitability ${Math.round(pl.hab * 100)}%${Object.keys(pl.res).length ? ' · rich in ' + Object.keys(pl.res).map((r) => `<span style="color:${RES[r].color}">${esc(RES[r].name)}</span>`).join(', ') : ''}${ST.exoBreathable(key) ? ' · <span class="good">breathable air</span>' : ''}${this.lifeTag(id, p)}</div>${pl.note ? `<p class="desc">${esc(pl.note)}</p>` : ''}`;
       if (col) h += `<div class="row"><span class="grow good">🏠 Colony, level ${col.lvl} · ${esc(SPECS[col.spec].name)}</span><button class="btn small gold" data-a="travel" data-k="${key}">Visit</button></div>`;
       else if (go) h += this.progress(go, `${DRIVES[go.ship].name.toUpperCase()} EN ROUTE`);
       else { const c = ST.canFound(s, id, p); h += `<div class="row"><span class="grow">${costHTML(c.cost || ST.foundCost(s), s.res)}</span>${c.time ? `<span class="muted" style="font-size:11px">⏱ ${fmtTime(c.time)}</span>` : ''}</div>${this.btn(c, 'found', c.ok ? `🚀 Send the ${DRIVES[c.ship].name}` : '', `data-k="${id}" data-p="${p}"`)}`; }

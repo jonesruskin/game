@@ -132,8 +132,10 @@ baseHooks.house = (s, base) => { const T = terraState(s, base); return T ? T.hou
 baseHooks.grow = (s, base) => (COLONY[base] ? COLONY[base].drift * lvlOf(s, base, 'hub') : 0.1);
 baseHooks.life = (s, base) => lifeSupport(s, base).ls;
 // outposts, mining claims and gas-giant scoops across the Solar System
+// per-site multipliers from other systems (a lithophage outbreak halves a mining claim's output)
+export const siteHooks: ((s: State, id: string) => number)[] = [];
 rateHooks.push((s: State, R: Rates) => { const S = sol(s); const claimK = 1 + lvlOf(s, 'ceres', 'beltControl') * 0.05;
-  for (const id in S.sites) { const L = S.sites[id]; const d = SITES[id]; if (!L || !d) continue; const k = (BODIES[id].presence === 'claim' ? claimK : 1) * (1 + RELAY.bonus * relayLevel(s, id)); for (const r in d.prod || {}) R.prod[r] += curve(d.prod![r][0], d.prod![r][1], L) * k * (1 + (R.m.mult[r] || 0)); if (d.gen) R.gen += curve(d.gen[0], d.gen[1], L) * (1 + R.m.gen); } });
+  for (const id in S.sites) { const L = S.sites[id]; const d = SITES[id]; if (!L || !d) continue; const k = (BODIES[id].presence === 'claim' ? claimK : 1) * (1 + RELAY.bonus * relayLevel(s, id)) * siteHooks.reduce((m, h) => m * h(s, id), 1); for (const r in d.prod || {}) R.prod[r] += curve(d.prod![r][0], d.prod![r][1], L) * k * (1 + (R.m.mult[r] || 0)); if (d.gen) R.gen += curve(d.gen[0], d.gen[1], L) * (1 + R.m.gen); } });
 stepChecks.survey = (s, st) => !!sol(s).surveyed[st.body];
 stepChecks.site = (s, st) => (sol(s).sites[st.body] || 0) >= (st.lvl || 1);
 stepChecks.sites = (s, st) => Object.keys(sol(s).sites).length >= st.n;

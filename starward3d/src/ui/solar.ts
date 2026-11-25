@@ -8,6 +8,8 @@ import { megaStage } from '../core/stars';
 import { BODIES, SITES, SHIPS, SHIP_ORDER, ZONE_NAME, TERRA, RELAY } from '../data/solar';
 import { TECH } from '../data/research';
 import type { UI } from './ui';
+import { LIFE, LIFE_ORDER } from '../data/life';
+import { life, entry } from '../core/life';
 import { costHTML, icon } from './ui';
 export class SolarUI {
   sel: string | null = null; fleet = false;
@@ -26,10 +28,15 @@ export class SolarUI {
     if (this.ui.tick % 8 === 0) W.system.setFlights(this.s.jobs.filter((j) => j.kind === 'voyage' || (j.kind === 'mission' && j.payload.probe)).map((j) => ({ body: j.kind === 'voyage' ? j.payload.body : j.payload.probe, f: (Date.now() - j.start) / (j.end - j.start), col: j.kind === 'voyage' ? SHIPS[j.ship].col : '#ffd36a' })));
   }
   clearLabels() { document.querySelectorAll('#bubbles [data-lbl]').forEach((e) => e.remove()); }
+  // the life a world hides (the real places astrobiologists look)
+  private lifeLine(body: string) { const s = this.s; const id = LIFE_ORDER.find((k) => LIFE[k].find.colony === body || LIFE[k].find.site === body); if (!id) return ''; const e = entry(s, id); if (!e) return ''; const L = life(s);
+    if (!s.tech.xenobiology && !L.found[id]) return `<p class="meta">🧬 Astrobiologists think something could live here. Research Xenobiology to look.</p>`;
+    const txt = e.state === 'found' ? `${esc(e.name)} · ${e.lvl >= 3 ? 'fully studied' : `studied ${e.lvl}/3`}` : e.state === 'signal' ? 'biosignature detected: search for it' : esc(e.hint || '');
+    return `<p class="meta"><span class="good" data-a="lifeAt" data-k="${id}" style="cursor:pointer;text-decoration:underline dotted">🧬 ${txt}</span></p>`; }
   panelHTML(): string {
     if (this.fleet) return this.fleetHTML(); const id = this.sel; if (!id) return `<h2>The Solar System</h2><p class="desc">Tap a world to see what you can do there. Planets move on their real orbits: launch windows to Mars and the belt open every few days of play, and a good window halves the fuel bill.</p>${this.voyagesHTML()}<button class="btn" style="width:100%" data-a="fleet">🚀 Fleet & shipyard</button>`;
     const s = this.s, b = BODIES[id], S = SO.sol(s); const w = SO.windowOf(id); const site = SITES[id]; const col = SO.COLONY[id]; const L = SO.siteLevel(s, id);
-    let h = `<button class="ibtn x" data-a="mapClose">✕</button><h2>${esc(b.name)}</h2><div class="sub">${esc(b.type)}${b.zone ? ' · ' + esc(ZONE_NAME[b.zone] || '') : ''}</div><p class="desc">${esc(b.fact)}</p>`;
+    let h = `<button class="ibtn x" data-a="mapClose">✕</button><h2>${esc(b.name)}</h2><div class="sub">${esc(b.type)}${b.zone ? ' · ' + esc(ZONE_NAME[b.zone] || '') : ''}</div><p class="desc">${esc(b.fact)}</p>${this.lifeLine(id)}`;
     const Tn = SO.terraState(s, id), tf = Tn && Tn.n > 0; const temp = tf ? `${Math.round(Tn!.temp)} °C` : b.temp, atm = tf ? `${Tn!.pressure < 0.1 ? Tn!.pressure.toFixed(3) : Tn!.pressure.toFixed(2)} bar${Tn!.o2 ? `, ${Math.round(Tn!.o2)}% oxygen` : ''} (terraforming ${Tn!.n}/${Tn!.of})` : b.atm;
     h += `<table class="stats">${b.g !== undefined ? `<tr><td>Gravity</td><td>${b.g} g</td></tr>` : ''}${b.day ? `<tr><td>Day</td><td>${esc(b.day)}</td></tr>` : ''}${temp ? `<tr><td>Temperature</td><td>${esc(temp)}</td></tr>` : ''}${atm ? `<tr><td>Atmosphere</td><td>${esc(atm)}</td></tr>` : ''}</table>`;
     if (b.a && id !== 'earth') { const nx = SO.nextWindow(id); h += `<div class="box"><div class="row"><b class="ox grow">Launch window</b><span class="${w.open ? 'good' : 'warn'} ox">${w.open ? 'OPEN' : `opens in ${fmtTime(nx / 1000)}`}</span></div><div class="bar ${w.open ? 'green' : 'gold'}" style="margin-top:6px"><i style="width:${w.q * 100}%"></i></div><div class="muted" style="font-size:11px;margin-top:4px">Fuel ×${w.fuel.toFixed(2)}, flight time ×${w.time.toFixed(2)} today.</div></div>`; }

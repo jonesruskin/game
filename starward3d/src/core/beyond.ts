@@ -49,7 +49,7 @@ export function buyPerk(s: State, id: string) { const A = ascOf(s), P = PERKS[id
 export function ascend(s: State, t = Date.now()): State | null {
   if (!canAscend(s)) return null; const A = ascOf(s); const n: any = fresh(t); const o = s as any; const earned = ascensionPoints(s);
   n.asc = { points: A.points + earned, spent: { ...A.spent }, count: A.count + 1 }; n.settings = { ...s.settings }; n.tut = 1; n.name = s.name; n.bases.earth.name = s.bases.earth.name;
-  if (o.robots) n.robots = { list: [], dex: { ...o.robots.dex }, cores: [], made: 0 }; if (o.style) n.style = JSON.parse(JSON.stringify(o.style)); if (o.daily) n.daily = JSON.parse(JSON.stringify(o.daily)); if (o.war) { n.war = JSON.parse(JSON.stringify(o.war)); n.war.opps = []; n.war.hist = []; n.war.log = []; }
+  if (o.robots) n.robots = { list: [], dex: { ...o.robots.dex }, cores: [], made: 0 }; if (o.style) n.style = JSON.parse(JSON.stringify(o.style)); if (o.life) n.life = { ...JSON.parse(JSON.stringify(o.life)), outbreaks: [], nextOut: 0, voyages: 0, sig: {} }; if (o.daily) n.daily = JSON.parse(JSON.stringify(o.daily)); if (o.war) { n.war = JSON.parse(JSON.stringify(o.war)); n.war.opps = []; n.war.hist = []; n.war.log = []; }
   const head = A.spent.headstart || 0; for (const r in n.res) if (r !== 'dm') n.res[r] = Math.round(n.res[r] * (1 + head * 4)); n.res.dm = (s.res.dm || 0) + 100 * (A.spent.reserves || 0);
   n.stats.ascended = (s.stats.ascended || 0) + 1; n.stats.lifetimePlayS = (s.stats.lifetimePlayS || 0) + (s.stats.playS || 0); n.flags.ascendedOnce = 1; return n;
 }

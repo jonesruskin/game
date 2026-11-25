@@ -211,3 +211,24 @@ body.mapping #bubbles .bub:not(.lbl) { display: none !important; }
 #shud .sides { position: absolute; bottom: 12px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 8px; pointer-events: none; }
 #shud .sides > div { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px; min-width: 140px; } #shud .sides > div:empty { display: none; }
 #shud .banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font: 700 32px Oxanium; padding: 12px 28px; border-radius: 16px; background: var(--bg); border: 2px solid currentColor; animation: zoom 0.5s both; }
+/* ---------------- the Life Ladder ---------------- */
+.body.life { display: grid; grid-template-columns: 210px 1fr; gap: 14px; align-items: start; }
+.ladder { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; padding-left: 10px; border-left: 2px solid rgba(255, 255, 255, 0.08); }
+.rung { --rc: var(--muted); display: flex; gap: 10px; align-items: center; text-align: left; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025); color: var(--text); cursor: pointer; position: relative; font: inherit; }
+.rung::before { content: ''; position: absolute; left: -16px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #0b1220; border: 2px solid rgba(255, 255, 255, 0.15); }
+.rung.on::before { background: var(--rc); border-color: var(--rc); box-shadow: 0 0 10px var(--rc); }
+.rung .num { font: 800 13px Oxanium; width: 34px; text-align: center; color: var(--rc); opacity: 0.55; } .rung.on .num { opacity: 1; }
+.rung b { display: block; font: 700 13px Oxanium; } .rung i { display: block; font-style: normal; font-size: 11px; color: var(--muted); }
+.rung.sel { border-color: var(--rc); background: rgba(255, 255, 255, 0.07); } .rung.all { --rc: var(--gold); margin-top: 6px; } .rung:hover { border-color: var(--rc); }
+.lmain { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.lcard { display: flex; gap: 10px; align-items: center; padding: 7px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); cursor: pointer; }
+.lcard:hover { border-color: rgba(255, 255, 255, 0.25); } .lcard.on { border-color: var(--gold); background: rgba(255, 211, 106, 0.07); } .lcard.unknown { opacity: 0.6; } .lcard.signal { border-color: rgba(124, 242, 154, 0.45); animation: sigglow 2.4s infinite; }
+@keyframes sigglow { 50% { box-shadow: 0 0 14px rgba(124, 242, 154, 0.35); border-color: rgba(124, 242, 154, 0.8); } }
+.lcard b { font: 700 13px Oxanium; display: block; line-height: 1.2; } .lcard .meta { font-size: 11px; color: var(--muted); }
+.plate { border-radius: 12px; flex: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.06); background: #05080f; }
+.pips { display: inline-flex; gap: 3px; margin-top: 4px; } .pips i { width: 14px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); } .pips i.on { background: var(--green); box-shadow: 0 0 6px rgba(124, 242, 154, 0.6); }
+.ldet { padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)); display: flex; flex-direction: column; gap: 10px; }
+.ldet h2 { font: 800 22px Oxanium; } .ldet .desc { margin: 6px 0 0; }
+.science { border-left: 3px solid var(--cyan); padding: 6px 10px; background: rgba(110, 231, 255, 0.05); border-radius: 0 10px 10px 0; } .science b { font: 700 10px Oxanium; letter-spacing: 0.18em; color: var(--cyan); } .science p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: #c8d4e8; }
+@media (max-width: 720px) { .body.life { display: flex; flex-direction: column; } .lmain { flex: none; } .ladder { flex: none; position: static; flex-direction: row; overflow-x: auto; border-left: 0; padding: 0 0 4px; } .rung { flex: none; padding: 6px 8px; } .rung::before { display: none; } .rung .num { width: auto; } .lgrid { grid-template-columns: 1fr; } .ldet .plate { width: 96px; height: 96px; } }
