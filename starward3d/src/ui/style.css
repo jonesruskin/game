@@ -282,3 +282,21 @@ details.scout summary { cursor: pointer; list-style: none; } details.scout summa
 .cost { gap: 4px; } .cost .ri { width: 1.3em; height: 1.3em; }
 .pop .ri { width: 1.2em; height: 1.2em; }
 @media (max-width: 720px) { .res { font-size: 12px; padding: 4px 8px 6px 4px; min-width: 0; gap: 4px; } .res .ic { width: 22px; height: 22px; } .res .ic .ri { width: 18px; height: 18px; } }
+/* clear costs: shortfall, finish time, what a building makes */
+.afford { margin: 6px 0 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 107, 122, 0.07); border: 1px solid rgba(255, 107, 122, 0.35); } .afford.ok { background: rgba(124, 242, 154, 0.07); border-color: rgba(124, 242, 154, 0.35); color: var(--green); font: 700 12px Oxanium; padding: 6px 10px; }
+.afford .ah { font: 700 12px Oxanium; color: #ffb0ba; margin-bottom: 4px; letter-spacing: 0.02em; }
+.afford .sh { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 8px; align-items: center; margin: 3px 0; font-size: 12px; } .afford .sh .ri { width: 20px; height: 20px; }
+.afford .sh .bar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin: 0; } .afford .sh .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff6b7a, #ffd36a); }
+.afford .sh b { font: 700 12px Oxanium; color: #ff9aa6; } .afford .sh > i { font-style: normal; color: var(--muted); font-size: 11px; min-width: 72px; text-align: right; }
+.short1 { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin: 2px 0 6px; font: 700 11.5px Oxanium; color: #ff9aa6; } .short1 i { font-style: normal; color: var(--muted); font-weight: 600; margin-left: auto; }
+.tl { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #cfe6ff; white-space: nowrap; } .tl b { font: 700 12px Oxanium; } .tl i { font-style: normal; color: var(--muted); font-size: 11px; }
+.flow { display: flex; align-items: stretch; gap: 6px; margin: 6px 0; font: 700 12px Oxanium; } .flow .fin, .flow .fout { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 5px 8px; border-radius: 9px; }
+.flow .fin { background: rgba(255, 211, 106, 0.08); border: 1px solid rgba(255, 211, 106, 0.25); } .flow .fout { background: rgba(124, 242, 154, 0.07); border: 1px solid rgba(124, 242, 154, 0.25); flex: 1; }
+.flow i { font-style: normal; font: 600 10px Inter, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); width: 100%; } .flow .arr { align-self: center; color: var(--gold); font-size: 16px; } .flow small { font-size: 10px; color: var(--muted); } .flow span { display: inline-flex; align-items: center; gap: 3px; } .flow .cap { color: #cfe6ff; }
+/* deposit gains with pictures */
+.boosts { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; } .boost { display: grid; grid-template-columns: 46px 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.boost img { width: 46px; height: 38px; object-fit: cover; border-radius: 7px; background: rgba(0, 0, 0, 0.25); } .boost b { font: 700 12.5px Oxanium; display: block; } .boost i { font-style: normal; font-size: 11.5px; color: #c9f7d6; display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.mult { font: 800 13px Oxanium; color: #0b1424; background: var(--c, var(--green)); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.deps.guide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } .deps.guide .thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .deps.guide .thumbs span { display: flex; flex-direction: column; align-items: center; width: 64px; } .deps.guide .thumbs img { width: 60px; height: 46px; object-fit: cover; border-radius: 8px; background: rgba(0, 0, 0, 0.25); } .deps.guide .thumbs i { font-style: normal; font-size: 10px; color: var(--muted); text-align: center; line-height: 1.15; margin-top: 2px; }
+@media (max-width: 720px) { .deps.guide { grid-template-columns: 1fr; } }
+.deps.guide .dep { text-align: left; } .deps.guide { max-height: 62vh; overflow-y: auto; padding-right: 4px; }

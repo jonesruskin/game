@@ -30,6 +30,7 @@ import { isExo } from '../core/stars';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
 const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
+const COLLECTED_R = ['credits', 'metal', 'fuel'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${ri(r)}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 const AD_SKIPS = 8; // rewarded timer skips per day
@@ -97,7 +98,7 @@ export class UI {
   // ---------------- building panel ----------------
   select(id: string | null) { this.sel = id; this.app.world.select(id); this.renderPanel(); }
   private panelSig() { const s = this.s; const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) return ''; const j = G.jobOf(s, it.id); return [it.id, it.lvl, it.x, it.z, j ? j.id : '', G.canUpgrade(s, s.at, it.id).ok, G.crewsBusy(s), Math.floor((s.res.dm || 0) / 5), RB.operatorsAt(s, s.at, it.id).map((r) => r.id + r.lvl).join()].join('|'); }
-  refreshPanel() { if (this.app.world.mode === 'system' || this.app.world.mode === 'stars' || this.app.world.mode === 'galaxy' || this.app.world.land?.mode) { if (this.tick % 8 === 0) this.renderPanel(); return; } if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey) { this.renderPanel(); return; } const s = this.s;
+  refreshPanel() { if (this.app.world.mode === 'system' || this.app.world.mode === 'stars' || this.app.world.mode === 'galaxy' || this.app.world.land?.mode) { if (this.tick % 8 === 0) this.renderPanel(); return; } if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey || (this.tick % 6 === 0 && document.querySelector('#panel .afford:not(.ok)'))) { this.renderPanel(); return; } const s = this.s;
     $$('#panel [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); });
     $$('#panel [data-bar]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.bar); if (j) e.style.width = clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100 + '%'; });
     $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); e.innerHTML = c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'; } });
@@ -128,7 +129,7 @@ export class UI {
     if (job && !BUILDINGS[it.b].instant) h += this.merUpBtn(it.id);
     if (!job && it.lvl > 0) { const c = G.canUpgrade(s, s.at, it.id);
       if (c.max) h += '<p class="good ox">Maximum level reached.</p>';
-      else { const cost = G.costOf(it.b, it.lvl + 1, m); h += `<div class="box"><div class="row"><b class="grow ox">Upgrade to level ${it.lvl + 1}</b><span class="muted">${BUILDINGS[it.b].instant ? ri('energy') + ' instant' : ri('time') + ' ' + fmtTime(G.timeOf(it.b, it.lvl + 1, m))}</span></div><div style="margin:6px 0">${this.costLive(cost)}</div>`;
+      else { const cost = G.costOf(it.b, it.lvl + 1, m); h += `<div class="box"><div class="row"><b class="grow ox">Upgrade to level ${it.lvl + 1}</b>${BUILDINGS[it.b].instant ? '<span class="muted">instant</span>' : this.timeHTML(G.timeOf(it.b, it.lvl + 1, m))}</div><div style="margin:6px 0">${this.costLive(cost)}</div>${this.needHTML(cost)}`;
         if (c.reqs && c.reqs.length) h += `<ul class="reqs">${c.reqs.map(([b, n]: [string, number]) => `<li>${esc(BUILDINGS[b].name)} level ${n}</li>`).join('')}</ul>`;
         h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}`; if (!c.ok && !BUILDINGS[it.b].instant) h += this.merUpBtn(it.id);
         if (BUILDINGS[it.b].instant) { const same = s.bases[s.at].items.filter((i) => i.b === it.b && i.lvl === it.lvl).length; if (same > 1) h += `<button class="btn" style="width:100%;margin-top:6px" data-a="upgradeAll" data-b="${it.b}" data-l="${it.lvl}">⬆ Upgrade all ${same} level-${it.lvl} ${esc(BUILDINGS[it.b].name.toLowerCase())}s (${fmt(cost.credits * same)} ${ri('credits')})</button>`; }
@@ -138,6 +139,22 @@ export class UI {
     h += `<div class="row" style="margin-top:10px"><button class="btn small" data-a="move" data-id="${it.id}">✥ Move</button>${G.canDemolish(s, s.at, it.id) ? `<button class="btn small red" data-a="demolish" data-id="${it.id}">Demolish</button>` : ''}</div>`;
     el.innerHTML = h; this.refreshPanel();
   }
+  // what you are short of, how long your income takes to cover it, and what storage stands in the way
+  needHTML(cost: Record<string, number>, compact = false) { const s = this.s, R = this.R; const short = Object.entries(cost).filter(([r, n]) => n > 0 && (s.res[r] || 0) < n); if (!short.length) return compact ? '' : '<div class="afford ok">✓ You can afford this now</div>';
+    let worst = 0, block = ''; const rows = short.map(([r, n]) => { const have = s.res[r] || 0, need = n - have, rate = (R.prod[r] || 0) + (R.collect[r] || 0), cap = R.cap[r]; let eta: string;
+      if (cap !== undefined && isFinite(cap) && cap < n) { block = `Your ${RES[r]?.name || r} storage holds ${fmt(cap)}: upgrade storage first.`; eta = 'storage too small'; worst = Infinity; } else if (rate > 0) { const h = need / rate; worst = Math.max(worst, h); eta = `≈ ${fmtTime(h * 3600)}`; } else { eta = 'no income yet'; worst = Infinity; }
+      return { r, have, n, need, eta }; });
+    const when = worst === Infinity ? '' : ` · ready in ${fmtTime(worst * 3600)}`;
+    if (compact) return `<div class="short1">${rows.map((x) => `<span>${ri(x.r)} −${fmt(x.need)}</span>`).join('')}<i>${worst === Infinity ? (block ? 'storage too small' : 'no income yet') : `≈ ${fmtTime(worst * 3600)}`}</i></div>`;
+    return `<div class="afford"><div class="ah">You are short${when}</div>${rows.map((x) => `<div class="sh">${ri(x.r)}<div class="bar"><i style="width:${clamp(x.have / x.n) * 100}%"></i></div><b>−${fmt(x.need)}</b><i>${x.eta}</i></div>`).join('')}${block ? `<div class="meta bad">${esc(block)}</div>` : ''}${COLLECTED_R.some((r) => short.some(([k]) => k === r)) ? '<div class="meta">Tap the bubbles over your mines, refineries and offices to collect what they hold.</div>' : ''}</div>`; }
+  // how long the work takes and the clock time it finishes
+  timeHTML(sec: number) { const t = new Date(Date.now() + sec * 1000); const hh = t.toTimeString().slice(0, 5); return `<span class="tl">${ri('time')} <b>${fmtTime(sec)}</b>${sec > 59 ? ` <i>done ${sec > 86400 ? t.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' : ''}${hh}</i>` : ''}</span>`; }
+  // what a building makes, uses and holds, as icons
+  flowHTML(b: string, L: number) { const st = bStats(b, L, this.R.m); const out: string[] = [], inn: string[] = [];
+    for (const r in st.prod) if (st.prod[r] > 0) out.push(`<span>${ri(r)} +${fmt(st.prod[r])}<small>/h</small></span>`); if (st.gen > 0) out.push(`<span>${ri('energy')} +${fmt(st.gen)}</span>`);
+    for (const r in st.cap) if (st.cap[r] > 0) out.push(`<span class="cap">${ri(r)} holds ${fmt(st.cap[r])}</span>`); if (st.house > 0) out.push(`<span>🏠 +${fmt(st.house)}</span>`);
+    if (st.draw > 0) inn.push(`<span>${ri('energy')} ${fmt(st.draw)}</span>`);
+    if (!out.length && !inn.length) return ''; return `<div class="flow">${inn.length ? `<div class="fin"><i>uses</i>${inn.join('')}</div><span class="arr">→</span>` : ''}${out.length ? `<div class="fout"><i>gives</i>${out.join('')}</div>` : ''}</div>`; }
   private costLive(cost: Record<string, number>) { return `<span class="costs">${Object.entries(cost).map(([r, n]) => `<span class="cost ${(this.s.res[r] || 0) < n ? 'short' : ''}" data-cost="${r}:${n}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
   // current output vs. the next level
   private statsHTML(b: string, L: number, m: any, next: boolean) {
@@ -176,7 +193,7 @@ export class UI {
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
     const s = this.s, c = G.canBuild(s, s.at, b), hq = G.hqLevel(s, s.at), n = G.countOf(s, s.at, b), lim = allowedCount(d, hq); const cost = G.costOf(b, 1, this.R.m); const locked = !c.ok && c.why !== 'Not enough resources' && !c.crews;
     return `<div class="card ${locked ? 'locked' : ''}"><div class="thumb"><img src="${this.app.studio.building(b, 1, this.app.world.look)}" alt=""></div><div class="row"><b class="grow">${esc(d.name)}</b><span class="n">${n}/${lim}</span></div><p class="desc">${esc(d.desc)}</p>
-      <div class="row"><span class="grow">${this.costLive(cost)}</span><span class="muted" style="font-size:11px">${ri('time')} ${fmtTime(G.timeOf(b, 1, this.R.m))}</span></div><button class="btn ${c.ok ? 'gold' : ''} small" data-a="buy" data-b="${b}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${locked ? '🔒 ' + esc(c.why || '') : 'Build'}</button></div>`;
+      ${this.flowHTML(b, 1)}<div class="row"><span class="grow">${this.costLive(cost)}</span>${d.instant ? '<span class="muted" style="font-size:11px">instant</span>' : this.timeHTML(G.timeOf(b, 1, this.R.m))}</div>${locked ? '' : this.needHTML(cost, true)}<button class="btn ${c.ok ? 'gold' : ''} small" data-a="buy" data-b="${b}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${locked ? '🔒 ' + esc(c.why || '') : c.ok ? 'Build' : c.crews ? 'All drones busy' : 'Build'}</button></div>`;
   }
   private researchHTML() {
     const s = this.s; const busy = s.jobs.filter((j) => j.kind === 'research'); const ids = Object.keys(TECH);
@@ -192,7 +209,7 @@ export class UI {
     const s = this.s, t = TECH[id], c = G.canResearch(s, id); const done = !!s.tech[id], busy = s.jobs.some((j) => j.kind === 'research' && j.tech === id); const cost = techCost(t);
     const cls = done ? 'done' : busy ? 'busy' : c.locked ? 'locked' : c.ok ? 'ready' : ''; const time = c.time || G.researchTimeOf(id, this.R);
     return `<div class="tech ${cls}" style="--bc:${BRANCHES[t.branch]?.color}"><div class="row"><span class="tier grow">${esc(BRANCHES[t.branch]?.name || '')} · TIER ${t.tier}${t.hq ? ` · MC ${t.hq}` : ''}</span>${done ? '<span class="good">✓</span>' : ''}</div><b>${esc(t.name)}</b><p class="desc">${esc(t.desc)}</p>${t.unlocks ? `<div class="unl">Unlocks: ${esc(t.unlocks)}</div>` : ''}
-      ${done ? '' : busy ? '<div class="warn ox">In progress</div>' : `<div class="row"><span class="grow">${this.costLive(cost)}</span><span class="muted" style="font-size:11px">${ri('time')} ${fmtTime(time)}</span></div><button class="btn small ${c.ok ? 'gold' : ''}" data-a="study" data-t="${id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Research' : esc(c.why || '')}</button>${this.merResBtn(id, c.ok)}`}</div>`;
+      ${done ? '' : busy ? '<div class="warn ox">In progress</div>' : `<div class="row"><span class="grow">${this.costLive(cost)}</span>${this.timeHTML(time)}</div>${c.locked ? '' : this.needHTML(cost, true)}<button class="btn small ${c.ok ? 'gold' : ''}" data-a="study" data-t="${id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Research' : esc(c.why || '')}</button>${this.merResBtn(id, c.ok)}`}</div>`;
   }
   private goalsHTML() {
     const s = this.s; const cur = G.currentStep(s); let h = `<div class="head"><h1>Goals</h1><span class="chip">${G.stepIndex(s)}/${G.stepCount()} complete</span><button class="ibtn" data-a="close">✕</button></div><div class="body" style="max-width:760px;margin:0 auto;width:100%">`;
