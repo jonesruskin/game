@@ -48,6 +48,8 @@ export function buildBot(sp: string, lvl = 1): BotModel {
   const inner = new THREE.Group(); while (g.children.length) inner.add(g.children[0]); inner.position.y = hover; g.add(inner);
   if (hover) { const sh = new THREE.Mesh(new THREE.CircleGeometry(0.22, 12), new THREE.MeshBasicMaterial({ color: ELEMENTS[d.el[0]].glow, transparent: true, opacity: 0.35, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.02; sh.name = 'hoverGlow'; g.add(sh); }
   const s = 0.95 + RARITY_ORDER.indexOf(d.rarity) * 0.08 + Math.min(0.25, (lvl - 1) * 0.008); g.scale.setScalar(s);
+  // rank ring under seasoned robots: bronze from level 10, silver from 20, gold at the top (30)
+  if (lvl >= 10) { const col = lvl >= 30 ? '#ffcb3c' : lvl >= 20 ? '#dfe6ee' : '#c98a4a'; const rr = new THREE.Mesh(new THREE.RingGeometry(0.24, 0.29, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); rr.rotation.x = -Math.PI / 2; rr.position.y = 0.025; rr.name = 'rank'; g.add(rr); }
   g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
   return { group: g, hover, anim: (t, mv) => { anim(t, mv); if (hover) inner.position.y = hover + Math.sin(t * 2.2 + lvl) * 0.05; } };
 }

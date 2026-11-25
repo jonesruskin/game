@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 complete (Parts 1-11), ready to upload.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets in `store/` and [UPLOAD.md](UPLOAD.md) describe v2. See [DESIGN.md](DESIGN.md) for the design and the build plan.
+> **Status: v2 complete (Parts 1-12), ready to upload.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets in `store/` and [UPLOAD.md](UPLOAD.md) describe v2. See [DESIGN.md](DESIGN.md) for the design and the build plan.
 
 ## Run it
 ```bash
@@ -147,6 +147,15 @@ Alien life from single cells to gods, on eight rungs (Microbial, Colonial, Compl
 - **Food** is the third line of colony life support, next to water and air. Algae Vats (the first food, a little oxygen), Greenhouses (food and air) and Deep Farms in caverns your robots dig under the ground colonies. Whatever the farms cannot cover comes up from Earth on **supply runs**, 10 credits per colonist-hour times the distance (the Moon next door, Titan six times as far, a star colony without a gate twenty-five), toggled per colony. Breathable and terraformed worlds farm in the open; Europa's vent life and exoplanet crops raise every harvest; the Mycelar trade spore-bread and the Oshoru kelp. A hungry colony stops growing and works slower, and the game says so.
 - **Meridian, the programme's AI**, never tells you what to do. It carries out orders: queue research and upgrades and it starts each one the moment a slot or drone crew and the resources are free. It grows with research: Artificial Intelligence (one order per queue), Autonomous Logistics (two, and colonies with spare food feed hungry ones), Cognitive Architectures (three, cheaper supply runs, almost nothing lost in transit), Matrioshka Brains (four).
 - **Worldseeding** terraforms star colonies: four stages (Atmosphere Factories, Comet Seas, Lifeseed, Breathable Sky) for desert, rocky, ice, super-Earth and thin-aired worlds. Lifeseed needs life you have fully studied on the Life Ladder; the last stage needs a developed colony. Each stage shows on the world: a blue sky, cloud, seas, lichen, then forests, and finally air people can breathe.
+
+## Part 12: Visible progress everywhere (done)
+Every upgrade, every new building and every step of progress shows in the world.
+- **Every level of every building looks different.** Sizes grow continuously with level (towers gain floors, stacks rise, domes swell); new structures arrive at each tier (the Launch Complex gains a fuel farm, a hammerhead crane, a mobile service structure, pad lights and a glass elevator; colony hubs gain solar wings, a ring module and an observation deck; domes gain annexes; fission plants gain cooling towers...). On top, every building wears its rank: a trim band in the tier's metal (steel, bronze, silver, gold, glowing platinum, prismatic), a corner pylon that grows with the tier (beacon, dish, gold spire, floating halo, prismatic crown) and one glowing ring per level within the tier. The same models appear in War Games, so an opponent's levels are readable at a glance.
+- **New models** for the Space Elevator (a ribbon and a climber), the Casimir Foundry, the Xenology Institute and the Antimatter Factory, each growing with its tiers.
+- **Towns grow beyond the bases:** around Earth as Mission Control rises, around colonies as their population grows (houses under an open sky, domes on airless worlds), across star colony worlds as they develop.
+- **The Solar System map shows what you built:** outposts as stations that grow with their level, colony dome clusters, the Dyson swarm, the Matrioshka Brain's shells and the Ringworld built arc by arc.
+- **The star map shows each colony's development** (a wider ring and more sparks as it grows; blue once terraformed).
+- **Meridian is visible:** a holographic core above Mission Control, one ring per level. **Robots** grow with level and wear a bronze, silver or gold rank ring from levels 10, 20 and 30.
 
 ## Code map
 ```

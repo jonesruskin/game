@@ -18,6 +18,7 @@ import { GalaxyView } from './galaxy';
 import { isExo, exoBreathable } from '../core/stars';
 import type { BattleInput } from '../core/battle';
 import { Walkers } from './walkers';
+import { level as meridianLevel } from '../core/meridian';
 import { rb } from '../core/robots';
 import { terraState, breathable, relayLevel } from '../core/solar';
 import { sp } from '../core/space';
@@ -144,7 +145,19 @@ export class World {
     if (y <= 0) { const k = Math.min(1, (c.t - 4) * 1.2); c.chute.scale.set(1 + k * 0.3, Math.max(0.05, 1 - k), 1 + k * 0.3); c.chute.position.set(k * 1.6, -k * 0.2, k * 0.4); c.chute.visible = k < 0.98; c.g.rotation.y = 0; } else c.chute.rotation.z = Math.sin(t * 1.3) * 0.08;
     (c.beacon.material as THREE.MeshBasicMaterial).color.set(Math.sin(t * 6) > 0 ? '#7cf29a' : '#1c5a2a'); }
   // ---------------- sync with the save ----------------
-  sync(s: State) {
+  // towns beyond the base grow with the programme: Mission Control on Earth, population on a colony, development on a star colony
+  private settle(s: State) { const id = this.baseId, B = s.bases[id]; if (!B || !this.env) return; let n = 0;
+    if (id === 'earth') n = Math.min(14, Math.max(0, G.lvlOf(s, 'earth', 'hq') - 2)); else if (isExo(id)) n = Math.min(14, (((s as any).stars || {}).colonies || {})[id]?.lvl || 0); else n = Math.min(12, Math.floor((B.pop || 0) / 250));
+    const T = terraState(s, B.body); const open = id === 'earth' || breathable(T) || (isExo(id) && exoBreathable(id)); this.env.setSettlements(n, this.look.accent, open); }
+  // Meridian, made visible: a holographic core above Mission Control, one orbiting ring for each level it has reached
+  private mer: THREE.Group | null = null; private merLv = -1;
+  private meridianCore(s: State) { const lv = meridianLevel(s); if (lv !== this.merLv) { this.merLv = lv; if (this.mer) { this.scene.remove(this.mer); this.mer = null; }
+      if (lv > 0) { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 1), new THREE.MeshBasicMaterial({ color: '#7fe4ff', wireframe: true, transparent: true, opacity: 0.9, toneMapped: false })));
+        g.add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), new THREE.MeshBasicMaterial({ color: '#e6fbff', toneMapped: false })));
+        for (let i = 0; i < lv; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.5 + i * 0.16, 0.018, 6, 40), new THREE.MeshBasicMaterial({ color: i % 2 ? '#c9a0ff' : '#7fe4ff', transparent: true, opacity: 0.85, toneMapped: false })); r.rotation.set(Math.PI / 2 + i * 0.5, i * 0.7, 0); r.userData.ring = i + 1; g.add(r); }
+        this.mer = g; this.scene.add(g); } }
+    const hq = this.baseId === 'earth' ? s.bases.earth.items.find((i) => i.b === 'hq') : null; const v = hq ? this.views.get(hq.id) : null; if (this.mer) { this.mer.visible = !!v; if (v) this.mer.position.set(v.root.position.x, v.model.height + 1.1, v.root.position.z); } }
+  sync(s: State) { this.settle(s);
     const B = s.bases[this.baseId]; if (!B) return; const A = G.area(s, this.baseId); if (A.lo !== this.area.lo || A.hi !== this.area.hi) { this.area = { lo: A.lo, hi: A.hi }; this.env.setArea(A.lo, A.hi); }
     this.env.setSats(this.baseId === 'earth' ? (sp(s).sats || []).length : relayLevel(s, this.baseId) * 2);
     const lookKey = JSON.stringify(this.look); const seen = new Set<string>();
@@ -156,6 +169,7 @@ export class World {
     // a drone hovers over every active construction site on this world
     const active = new Set<string>(); for (const j of s.jobs) if (j.kind === 'build' && j.base === this.baseId) { active.add(j.id); if (!this.drones.has(j.id)) { const g = droneModel(); const spark = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 4), new THREE.MeshBasicMaterial({ color: '#bff8ff', toneMapped: false })); g.add(spark); this.scene.add(g); this.drones.set(j.id, { g, job: j.item!, ph: Math.random() * 6, spark }); } }
     for (const [id, d] of this.drones) if (!active.has(id)) { this.scene.remove(d.g); this.drones.delete(id); }
+    this.meridianCore(s);
   }
   private makeView(id: string, b: string, lvl: number, r: number, building: boolean, key: string): View {
     const root = new THREE.Group(); const m = buildModel(b, Math.max(1, lvl), this.look); m.group.rotation.y = (-r * Math.PI) / 2; root.add(m.group); const [w, d] = G.dims(b, r);
@@ -202,7 +216,7 @@ export class World {
     if (this.mode === 'stars' && this.starMap) { this.starMap.frame(dt); this.renderer.render(this.starMap.scene, this.starMap.camera); return; }
     if (this.mode === 'battle' && this.battle) { this.battle.frame(dt); this.renderer.render(this.battle.scene, this.battle.camera); return; }
     if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
-    this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt);
+    this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt); if (this.mer && this.mer.visible) { this.mer.children[0].rotation.y = t * 0.8; this.mer.children[0].rotation.x = t * 0.3; for (const c of this.mer.children) if (c.userData.ring) c.rotation.z = t * (0.4 + c.userData.ring * 0.15) * (c.userData.ring % 2 ? 1 : -1); this.mer.position.y += Math.sin(t * 1.5) * 0.002; }
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;
       d.spark.position.set(0, -0.25 - Math.random() * 0.1, 0); d.spark.visible = Math.sin(t * 23 + d.ph) > 0.2; }

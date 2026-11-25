@@ -32,7 +32,7 @@ export class StarsUI {
       if (!el) { el = document.createElement('div'); el.className = 'bub lbl'; el.dataset.slbl = id; el.dataset.a = 'starPick'; el.dataset.b = id; root.appendChild(el); }
       const tag = cols.has(id) ? '🏠 ' : I.surveyed[id] ? '' : id === 'sol' ? '' : '? '; const html = `${tag}${esc(STARS[id].name)}`; if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } el.style.left = r.left + p.x + 'px'; el.style.top = r.top + p.y + 'px'; el.classList.toggle('full', id === this.sel); }
     root.querySelectorAll('[data-slbl]').forEach((e) => { if (!seen.has((e as HTMLElement).dataset.slbl!)) e.remove(); });
-    if (this.ui.tick % 8 === 0) { M.sync(ST.surveyRange(s), I.surveyed, Object.values(I.colonies).map((C) => C.star), I.gates);
+    if (this.ui.tick % 8 === 0) { M.sync(ST.surveyRange(s), I.surveyed, Object.entries(I.colonies).map(([k, C]) => ({ star: C.star, lvl: C.lvl, terra: ST.exoTerraStage(s, k) })), I.gates);
       M.setFlights(s.jobs.filter((j) => j.kind === 'sail' || j.kind === 'star').map((j) => ({ star: j.kind === 'sail' ? j.star : j.payload.star, f: (Date.now() - j.start) / (j.end - j.start), col: j.kind === 'sail' ? '#ffd36a' : DRIVES[j.ship].col }))); } }
   clearLabels() { document.querySelectorAll('#bubbles [data-slbl]').forEach((e) => e.remove()); }
   // ---------------- panels ----------------

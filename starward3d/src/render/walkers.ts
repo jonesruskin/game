@@ -30,8 +30,8 @@ export class Walkers {
     const seen = new Set<string>(); const docks = B.items.filter((i) => i.b === 'dock' && i.lvl > 0); let di = 0;
     for (const r of robots.slice(0, this.max)) { let home: Item | undefined; let working = false;
       if (r.post && r.post.base === base) { home = G.itemOf(s, base, r.post.item); working = true; } else if (!r.post && docks.length) home = docks[di++ % docks.length]; if (!home) continue;
-      seen.add(r.id); let v = this.bots.get(r.id); const key = home.id;
-      if (!v || v.home !== key) { if (v) this.group.remove(v.m.group); const m = buildBot(r.sp, r.lvl); m.group.scale.setScalar(0.85); const p = centerOf(home); const pos = p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2)); m.group.position.copy(pos); this.group.add(m.group); v = { m, home: key, pos, target: pos.clone(), wait: 0, working }; this.bots.set(r.id, v); }
+      seen.add(r.id); let v = this.bots.get(r.id); const key = home.id + ':' + r.lvl; // a level-up rebuilds the robot (bigger, a rank ring)
+      if (!v || v.home !== key) { if (v) this.group.remove(v.m.group); const m = buildBot(r.sp, r.lvl); m.group.scale.multiplyScalar(0.85); const p = centerOf(home); const pos = p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2)); m.group.position.copy(pos); this.group.add(m.group); v = { m, home: key, pos, target: pos.clone(), wait: 0, working }; this.bots.set(r.id, v); }
       v.working = working; }
     for (const [id, v] of this.bots) if (!seen.has(id)) { this.group.remove(v.m.group); this.bots.delete(id); }
   }

@@ -61,6 +61,27 @@ export class SystemView {
   setRelays(map: Record<string, number>) { const key = JSON.stringify(map); if (key === this.relayKey) return; this.relayKey = key; this.relays.clear(); if (!this.relays.parent) this.scene.add(this.relays);
     const mat = new THREE.MeshBasicMaterial({ color: '#9ff3ff', toneMapped: false }); for (const id in map) { const b = this.bodies.get(id); if (!b) continue; const n = Math.min(8, map[id]);
       for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.07 + b.size * 0.03, 0), mat); m.userData = { id, r: b.size * (1.6 + (i % 3) * 0.25), a: (i / n) * Math.PI * 2, tilt: (i % 4) * 0.5 - 0.6, s: 0.6 + (i % 3) * 0.25 }; this.relays.add(m); } } }
+  // outposts and colonies, visible on the map: a station that grows with the outpost's level (more modules, a tier
+  // colour, a beacon), and for colonies a cluster of domes on top of the world that grows with the colony hub
+  private posts = new THREE.Group(); private postKey = '';
+  setSites(sites: Record<string, number>, colonies: Record<string, number>) { const key = JSON.stringify([sites, colonies]); if (key === this.postKey) return; this.postKey = key; this.posts.clear(); if (!this.posts.parent) this.scene.add(this.posts);
+    const METAL = ['#8a929c', '#c98a4a', '#dfe6ee', '#ffcb3c', '#a6f2ff', '#ff8ae6'];
+    for (const id in sites) { const b = this.bodies.get(id); const L = sites[id]; if (!b || !L) continue; const t = Math.min(6, 1 + Math.floor((L - 1) / 4)), col = METAL[t - 1], s = 0.12 + b.size * 0.06;
+      const g = new THREE.Group(); const hub = new THREE.Mesh(new THREE.CylinderGeometry(s, s, s * 0.5, 6), new THREE.MeshStandardMaterial({ color: '#dfe3e8', metalness: 0.5, roughness: 0.4 })); g.add(hub);
+      const n = Math.min(6, 1 + Math.floor(L / 3)); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; const m = new THREE.Mesh(new THREE.BoxGeometry(s * 0.9, s * 0.35, s * 0.35), new THREE.MeshStandardMaterial({ color: '#c9ced5', metalness: 0.4, roughness: 0.5 })); m.position.set(Math.cos(a) * s * 1.3, 0, Math.sin(a) * s * 1.3); m.rotation.y = -a; g.add(m); }
+      const band = new THREE.Mesh(new THREE.TorusGeometry(s * 1.05, s * 0.12, 6, 18), new THREE.MeshBasicMaterial({ color: col, toneMapped: false })); band.rotation.x = Math.PI / 2; g.add(band);
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(s * 0.3, 8, 6), new THREE.MeshBasicMaterial({ color: col, toneMapped: false })); beacon.position.y = s * 0.6; g.add(beacon);
+      g.userData = { id, r: b.size * 1.35 + s * 2, ph: (id.length * 1.7) % 6.28, beacon }; this.posts.add(g); }
+    for (const id in colonies) { const b = this.bodies.get(id); const L = colonies[id]; if (!b || !L) continue; const g = new THREE.Group(); const n = Math.min(7, 1 + Math.floor(L / 3)), s = 0.06 + b.size * 0.05;
+      for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, r = i ? s * 1.6 : 0; const d = new THREE.Mesh(new THREE.SphereGeometry(i ? s * 0.6 : s, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#bfe6ff', transparent: true, opacity: 0.85, metalness: 0.2, roughness: 0.2, emissive: '#2a4a6a' })); d.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); g.add(d); }
+      const lights = new THREE.Mesh(new THREE.TorusGeometry(s * 2.2, s * 0.1, 4, 24), new THREE.MeshBasicMaterial({ color: '#ffe7a8', toneMapped: false })); lights.rotation.x = Math.PI / 2; lights.visible = L >= 5; g.add(lights);
+      g.userData = { id, pole: true }; this.posts.add(g); } }
+  // the endgame megastructures round the Sun: Matrioshka shells (one per stage) and the Ringworld, built arc by arc
+  private brain: THREE.Group | null = null; private ringW: THREE.Mesh | null = null; private megaKey = '';
+  setMega2(matrioshka: number, ringworld: number) { const key = matrioshka + '|' + ringworld; if (key === this.megaKey) return; this.megaKey = key;
+    if (this.brain) { this.scene.remove(this.brain); this.brain = null; } if (this.ringW) { this.scene.remove(this.ringW); this.ringW = null; }
+    if (matrioshka > 0) { const g = new THREE.Group(); for (let i = 0; i < matrioshka; i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2 + i * 0.38, 1), new THREE.MeshBasicMaterial({ color: i % 2 ? '#c9a0ff' : '#7fe4ff', wireframe: true, transparent: true, opacity: 0.35 - i * 0.03, toneMapped: false })); m.userData.s = (i % 2 ? -1 : 1) * (0.05 + i * 0.02); g.add(m); } this.brain = g; this.scene.add(g); }
+    if (ringworld > 0) { const arc = (Math.PI * 2 * ringworld) / 3; const m = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 7.6, 0.5, 96, 1, true, 0, arc), new THREE.MeshStandardMaterial({ color: '#7fae5a', emissive: '#2a4a2a', side: THREE.DoubleSide, metalness: 0.2, roughness: 0.8 })); this.ringW = m; this.scene.add(m); } }
   // ships in flight: a glowing dot that moves from Earth to its target as the voyage goes
   setFlights(list: { body: string; f: number; col: string }[]) { this.ships.clear(); for (const fl of list) { const a = this.posOf('earth'), b = this.posOf(fl.body); const mid = a.clone().lerp(b, 0.5); mid.y += a.distanceTo(b) * 0.18; const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(32)), new THREE.LineBasicMaterial({ color: fl.col, transparent: true, opacity: 0.45 })); this.ships.add(line);
@@ -69,6 +90,8 @@ export class SystemView {
     this.t += dt; const now = Date.now();
     for (const [id, b] of this.bodies) { const p = this.posOf(id, now); b.g.position.copy(p); b.mesh.rotation.y = this.t * 0.2; const sd = p.clone().negate().normalize().multiplyScalar(0.55).add(this.camera.position.clone().sub(p).normalize().multiplyScalar(0.8)).normalize(); if (b.globe && b.globe.uniforms) { b.globe.uniforms.uSun.value = sd; b.globe.uniforms.uTime.value = this.t; } else if (b.globe) { const u = (b.globe.mesh.material as THREE.ShaderMaterial).uniforms; if (u && u.uSun) u.uSun.value = sd; } }
     if (this.swarm) this.swarm.rotation.y = this.t * 0.05; if (this.gate) (this.gate.children[1] as THREE.Mesh).rotation.z = this.t;
+    if (this.brain) for (const m of this.brain.children) { m.rotation.y += m.userData.s * dt; m.rotation.x += m.userData.s * dt * 0.5; } if (this.ringW) this.ringW.rotation.y = this.t * 0.02;
+    for (const g of this.posts.children) { const d = g.userData; const b = this.bodies.get(d.id); if (!b) continue; const c = b.g.position; if (d.pole) { g.position.set(c.x, c.y + b.size * 0.97, c.z); continue; } const a = d.ph + this.t * 0.35; g.position.set(c.x + Math.cos(a) * d.r, c.y + Math.sin(a * 0.7) * d.r * 0.25, c.z + Math.sin(a) * d.r); g.rotation.y = this.t * 0.5; d.beacon.visible = Math.sin(this.t * 4 + d.ph) > -0.3; }
     for (const m of this.relays.children) { const d = m.userData; const c = this.bodies.get(d.id)!.g.position; const a = d.a + this.t * d.s; m.position.set(c.x + Math.cos(a) * d.r, c.y + Math.sin(a) * d.r * Math.sin(d.tilt), c.z + Math.sin(a) * d.r * Math.cos(d.tilt)); m.rotation.y = this.t; }
     if (this.focus) { const p = this.posOf(this.focus, now); this.cam.tfx = p.x; this.cam.tfz = p.z; }
     this.head.position.copy(this.camera.position); this.head.target.position.set(this.cam.fx, 0, this.cam.fz);

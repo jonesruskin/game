@@ -98,4 +98,5 @@ Timers from seconds to days on Starward's ladder; offline time always counts (co
 10. **Polish & ship:** store assets from the real game, listing copy, upload guide (with the War Games server on Cloudflare), rewarded timer skips, mobile notifications, review loop.
 
 All ten parts are done.
+12. **Visible progress everywhere:** every building level and tier visibly different (continuous growth, tier structures, rank band, pylon and level rings), new models for the last generic buildings, towns around growing bases, outposts and endgame megastructures on the Solar System map, colony development on the star map, a visible Meridian core, robot rank rings.
 11. **Food, Meridian and Worldseeding:** food as a third life-support need (farms, supply runs from Earth priced by distance, open-air farming on living worlds, alien food trade); Meridian, an AI that carries out the player's orders (research and upgrade queues) and runs food logistics but never advises; terraforming star colonies in four stages.

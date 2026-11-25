@@ -263,6 +263,22 @@ export class Env {
   update(t: number, dt: number) { for (const m of this.sats.children) { const d = m.userData; d.a += d.s * dt; const p = (d.u as THREE.Vector3).clone().multiplyScalar(Math.cos(d.a)).add((d.v as THREE.Vector3).clone().multiplyScalar(Math.sin(d.a))).multiplyScalar(1500); m.position.copy(p); ((m as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = p.y > 40 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 3 + d.ph)) : 0; }
     for (const c of this.cloudSea) (c.material as THREE.ShaderMaterial).uniforms.t.value = t; if (this.drift) this.drift.children.forEach((g) => { g.position.y += Math.sin(t * 0.3 + g.userData.ph) * dt * 0.4; g.rotation.y += dt * 0.02; });
     if (this.earthSky) { this.earthSky.mesh.rotation.y = t * 0.01; if (this.earthSky.uniforms) this.earthSky.uniforms.uTime.value = t; } if (this.water) (this.water.material as THREE.ShaderMaterial).uniforms.t.value = t; for (const c of this.clouds.children) { c.position.x += (c.userData.v as number) * dt; if (c.position.x > 1000) c.position.x = -1000; } }
+  // settlements beyond the spaceport: towns that spread over the land as the programme grows (houses with lit windows
+  // under an open sky; domes and tunnels on airless worlds). One cluster per step of growth, golden-angle spiral outward.
+  private towns: THREE.Group | null = null; private townKey = '';
+  setSettlements(n: number, accent: string, open: boolean) { const key = n + accent + open; if (key === this.townKey) return; this.townKey = key; if (this.towns) { this.group.remove(this.towns); this.towns = null; } if (n <= 0 || this.look.deck) return;
+    const L = this.look, walls: THREE.Matrix4[] = [], roofs: THREE.Matrix4[] = [], lights: THREE.Matrix4[] = [], q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    for (let i = 0; i < n; i++) { const R = rng(5003 + i * 131); const a = i * 2.39996 + 0.7, d = C + 6 + (i % 4) * 5 + Math.floor(i / 4) * 7; const cx = Math.cos(a) * d, cz = Math.sin(a) * d;
+      const cy = this.height(cx, cz); if (cy < -0.25 || (L.lakes !== undefined && cy < L.lakes + 0.3)) continue; const m = 7 + Math.floor(R() * 6);
+      for (let j = 0; j < m; j++) { const x = cx + (R() - 0.5) * 7, z = cz + (R() - 0.5) * 7, y = this.height(x, z); if (y < -0.25) continue; const w = 0.9 + R() * 1.1, h = open ? 0.7 + R() * (1.4 + i * 0.1) : 0.5 + R() * 0.5, dpt = 0.9 + R() * 0.9; e.set(0, R() * 6, 0); q.setFromEuler(e);
+        if (open) { walls.push(new THREE.Matrix4().compose(v.set(x, y + h / 2, z).clone(), q.clone(), sc.set(w, h, dpt).clone())); roofs.push(new THREE.Matrix4().compose(v.set(x, y + h + 0.12, z).clone(), q.clone(), sc.set(w * 1.05, 0.24, dpt * 1.05).clone())); }
+        else roofs.push(new THREE.Matrix4().compose(v.set(x, y, z).clone(), q.clone(), sc.set(w * 1.7, w * 1.4, w * 1.7).clone()));
+        lights.push(new THREE.Matrix4().compose(v.set(x, y + (open ? h * 0.55 : 0.12), z).clone(), q.clone(), open ? sc.set(w * 1.02, 0.12, dpt * 1.02).clone() : sc.set(w * 2.1, 0.1, w * 2.1).clone())); }
+      if (i >= 3) { const tx = cx + 1.5, tz = cz - 1.2, ty = this.height(tx, tz), th = 3 + (i % 3); if (ty > -0.25) { walls.push(new THREE.Matrix4().compose(new THREE.Vector3(tx, ty + th / 2, tz), new THREE.Quaternion(), new THREE.Vector3(0.7, th, 0.7))); lights.push(new THREE.Matrix4().compose(new THREE.Vector3(tx, ty + th + 0.15, tz), new THREE.Quaternion(), new THREE.Vector3(0.4, 0.3, 0.4))); } } }
+    const g = new THREE.Group(); const box = new THREE.BoxGeometry(1, 1, 1); const dome = new THREE.SphereGeometry(0.6, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, list: THREE.Matrix4[]) => { if (!list.length) return; const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((mm, k) => im.setMatrixAt(k, mm)); im.castShadow = this.quality === 'high'; im.receiveShadow = true; g.add(im); };
+    inst(box, new THREE.MeshStandardMaterial({ color: '#e8e4dc', roughness: 0.9 }), walls); inst(open ? box : dome, new THREE.MeshStandardMaterial({ color: open ? accent : '#cfe3ef', roughness: open ? 0.7 : 0.3, metalness: open ? 0 : 0.2 }), roofs);
+    inst(box, new THREE.MeshBasicMaterial({ color: '#ffe2a0', toneMapped: false }), lights); this.towns = g; this.group.add(g); }
   dispose() { this.scene.remove(this.group); this.scene.remove(this.sky); this.scene.remove(this.sats); for (const o of this.skyObjs) this.scene.remove(o); }
 }
 let ctex: THREE.Texture | null = null;

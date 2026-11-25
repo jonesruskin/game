@@ -26,7 +26,8 @@ export class SolarUI {
       const tag = this.s.bases[id] ? '🏠 ' : S.sites[id] ? '🛰 ' : S.surveyed[id] ? '' : '? '; const html = `${tag}${esc(BODIES[id].name)}`; if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
       el.style.left = r.left + p.x + 'px'; el.style.top = r.top + p.y + 'px'; el.classList.toggle('full', id === this.sel); }
     root.querySelectorAll('[data-lbl]').forEach((e) => { if (!seen.has((e as HTMLElement).dataset.lbl!)) e.remove(); });
-    if (this.ui.tick % 8 === 0) { for (const b of ['mars', 'venus'] as const) W.system.setTerra(b, SO.terraState(this.s, b)); W.system.setRelays(S.relays || {}); W.system.setMega(megaStage(this.s, 'dyson'), megaStage(this.s, 'gate')); }
+    if (this.ui.tick % 8 === 0) { for (const b of ['mars', 'venus'] as const) W.system.setTerra(b, SO.terraState(this.s, b)); W.system.setRelays(S.relays || {}); W.system.setMega(megaStage(this.s, 'dyson'), megaStage(this.s, 'gate')); W.system.setMega2(megaStage(this.s, 'matrioshka'), megaStage(this.s, 'ringworld'));
+      const cols: Record<string, number> = {}; for (const k in this.s.bases) if (k !== 'earth' && !k.includes(':')) cols[k] = G.lvlOf(this.s, k, 'hub'); W.system.setSites(S.sites, cols); }
     if (this.ui.tick % 8 === 0) W.system.setFlights(this.s.jobs.filter((j) => j.kind === 'voyage' || (j.kind === 'mission' && j.payload.probe)).map((j) => ({ body: j.kind === 'voyage' ? j.payload.body : j.payload.probe, f: (Date.now() - j.start) / (j.end - j.start), col: j.kind === 'voyage' ? SHIPS[j.ship].col : '#ffd36a' })));
   }
   clearLabels() { document.querySelectorAll('#bubbles [data-lbl]').forEach((e) => e.remove()); }

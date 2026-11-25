@@ -27,11 +27,16 @@ export class StarMap {
   resize(w: number, h: number) { this.camera.aspect = w / h; if (w < 700) this.camera.setViewOffset(w, h, 0, h * 0.24, w, h); else this.camera.setViewOffset(w, h, Math.min(210, w * 0.15), 0, w, h); this.camera.updateProjectionMatrix(); }
   posOf(id: string) { return posOf(STARS[id]); }
   // what the player has done out here: survey range, colonies, gates, surveyed stars brighter
-  sync(range: number, surveyed: Record<string, number>, colonies: string[], gates: Record<string, number>) {
+  sync(range: number, surveyed: Record<string, number>, colonies: { star: string; lvl: number; terra: number }[], gates: Record<string, number>) {
     this.range.visible = range > 0; this.range.scale.setScalar(Math.max(0.01, range * K)); this.marks.clear();
     for (const [id, sp] of this.sprites) { const known = id === 'sol' || !!surveyed[id]; (sp.material as THREE.SpriteMaterial).opacity = known ? 1 : 0.55; sp.scale.setScalar(sp.userData.size * (known ? 1.15 : 1)); }
     const ringAt = (id: string, col: string, r: number) => { const m = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.18, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide })); m.position.copy(this.posOf(id)); m.userData.bill = true; this.marks.add(m); };
-    for (const id of new Set(colonies)) ringAt(id, '#7cf29a', 1.4); for (const id in gates) ringAt(id, '#c9a0ff', 2.0); }
+    // colonies grow visibly: the ring widens with the colony's development, a spark circles for every few levels, and a
+    // terraformed world's ring turns from green to blue
+    const by: Record<string, { lvl: number; terra: number }> = {}; for (const c of colonies) { const o = by[c.star] || (by[c.star] = { lvl: 0, terra: 0 }); o.lvl += c.lvl; o.terra = Math.max(o.terra, c.terra); }
+    for (const id in by) { const o = by[id]; ringAt(id, o.terra >= 4 ? '#6ec8ff' : o.terra > 0 ? '#5fe0c8' : '#7cf29a', 1.2 + Math.min(1.6, o.lvl * 0.06)); const n = Math.min(10, 1 + Math.floor(o.lvl / 3));
+      for (let i = 0; i < n; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), new THREE.MeshBasicMaterial({ color: '#ffe7a8', toneMapped: false })); d.userData = { orbit: id, r: 1.5 + Math.min(1.6, o.lvl * 0.06), a: (i / n) * Math.PI * 2 }; this.marks.add(d); } }
+    for (const id in gates) ringAt(id, '#c9a0ff', 2.6); }
   setFlights(list: { star: string; f: number; col: string }[]) { this.flights.clear(); const a = new THREE.Vector3();
     for (const fl of list) { const b = this.posOf(fl.star); const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineDashedMaterial({ color: fl.col, dashSize: 0.6, gapSize: 0.4, transparent: true, opacity: 0.6 })); line.computeLineDistances(); this.flights.add(line);
       const dot = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 6), new THREE.MeshBasicMaterial({ color: fl.col, toneMapped: false })); dot.position.copy(a).lerp(b, clamp(fl.f)); this.flights.add(dot); } }
@@ -40,7 +45,7 @@ export class StarMap {
   zoom(k: number) { this.cam.tdist = clamp(this.cam.tdist * k, 6, 200); }
   pick(x: number, y: number, w: number, h: number) { let best: string | null = null, bd = 22; for (const [id, sp] of this.sprites) { const p = sp.position.clone().project(this.camera); if (p.z > 1) continue; const d = Math.hypot(((p.x + 1) / 2) * w - x, ((1 - p.y) / 2) * h - y); if (d < bd) { bd = d; best = id; } } return best; }
   project(id: string, w: number, h: number) { const sp = this.sprites.get(id); if (!sp) return null; const p = sp.position.clone(); p.y += sp.userData.size * 0.45; const v = p.project(this.camera); if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) return null; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h }; }
-  frame(dt: number) { this.t += dt; const c = this.cam, k = 0.1; c.yaw += (c.tyaw - c.yaw) * k; c.pitch += (c.tpitch - c.pitch) * k; c.dist += (c.tdist - c.dist) * k; c.fx += (c.tfx - c.fx) * k; c.fy += (c.tfy - c.fy) * k; c.fz += (c.tfz - c.fz) * k;
+  frame(dt: number) { this.t += dt; for (const m of this.marks.children) { const d = m.userData; if (!d.orbit) continue; const p = this.posOf(d.orbit), a = d.a + this.t * 0.6; m.position.set(p.x + Math.cos(a) * d.r, p.y + Math.sin(a) * d.r * 0.3, p.z + Math.sin(a) * d.r); } const c = this.cam, k = 0.1; c.yaw += (c.tyaw - c.yaw) * k; c.pitch += (c.tpitch - c.pitch) * k; c.dist += (c.tdist - c.dist) * k; c.fx += (c.tfx - c.fx) * k; c.fy += (c.tfy - c.fy) * k; c.fz += (c.tfz - c.fz) * k;
     this.camera.position.set(c.fx + Math.cos(c.pitch) * Math.sin(c.yaw) * c.dist, c.fy + Math.sin(c.pitch) * c.dist, c.fz + Math.cos(c.pitch) * Math.cos(c.yaw) * c.dist); this.camera.lookAt(c.fx, c.fy, c.fz);
     if (this.sel && this.sprites.has(this.sel)) { const sp = this.sprites.get(this.sel)!; this.ring.visible = true; this.ring.position.copy(sp.position); this.ring.scale.setScalar(sp.userData.size * 0.75 + Math.sin(this.t * 3) * 0.05); this.ring.lookAt(this.camera.position); } else this.ring.visible = false;
     for (const m of this.marks.children) if (m.userData.bill) m.lookAt(this.camera.position); }
