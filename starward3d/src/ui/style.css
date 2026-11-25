@@ -300,3 +300,4 @@ details.scout summary { cursor: pointer; list-style: none; } details.scout summa
 .deps.guide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } .deps.guide .thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .deps.guide .thumbs span { display: flex; flex-direction: column; align-items: center; width: 64px; } .deps.guide .thumbs img { width: 60px; height: 46px; object-fit: cover; border-radius: 8px; background: rgba(0, 0, 0, 0.25); } .deps.guide .thumbs i { font-style: normal; font-size: 10px; color: var(--muted); text-align: center; line-height: 1.15; margin-top: 2px; }
 @media (max-width: 720px) { .deps.guide { grid-template-columns: 1fr; } }
 .deps.guide .dep { text-align: left; } .deps.guide { max-height: 62vh; overflow-y: auto; padding-right: 4px; }
+.box.meteor { border-color: rgba(255, 154, 60, 0.6); background: linear-gradient(90deg, rgba(255, 154, 60, 0.14), rgba(255, 154, 60, 0.03)); font-size: 12.5px; }

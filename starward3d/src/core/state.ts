@@ -4,7 +4,8 @@ import { GRID } from '../data/buildings';
 export const SAVE_KEY = 'starward3d_v2';
 export const VERSION = 3;
 export interface Item { id: string; b: string; lvl: number; x: number; z: number; r: number; held?: number; }
-export interface Base { body: string; name: string; items: Item[]; pop?: number; claims?: Record<string, number>; surveyed?: Record<string, number>; site?: string; }
+export interface Fall { cx: number; cz: number; x: number; z: number; t: number; kind: 'iron' | 'stony' | 'ice'; found?: number; }
+export interface Base { body: string; name: string; items: Item[]; pop?: number; claims?: Record<string, number>; surveyed?: Record<string, number>; site?: string; falls?: Fall[]; fallAt?: number; }
 export interface Job { id: string; kind: string; base?: string; item?: string; b?: string; from?: number; to?: number; tech?: string; start: number; end: number; [k: string]: any; }
 export interface State {
   v: number; created: number; last: number; seq: number; name: string;

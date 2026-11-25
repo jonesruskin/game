@@ -15,11 +15,11 @@ import { droneModel } from './models';
 const C = GRID / 2, N = LD.NCH;
 // the stain each deposit leaves in the ground
 const STAIN: Record<string, string> = { ore: '#8a4626', rare: '#8a5ad8', ice: '#eaf8ff', he3: '#d9cdf2', methane: '#1e1208', geo: '#c8461e', sun: '#ffe08a', shelter: '#34323a' };
-const LABEL: Record<string, string> = { ore: 'ORE', rare: 'RARE', ice: 'ICE', he3: 'He-3', methane: 'CH₄', geo: 'GEO', sun: 'SUN', shelter: 'SHELTER' };
+const LABEL: Record<string, string> = { meteor: 'METEOR', ore: 'ORE', rare: 'RARE', ice: 'ICE', he3: 'He-3', methane: 'CH₄', geo: 'GEO', sun: 'SUN', shelter: 'SHELTER' };
 const pillTex = new Map<string, THREE.Texture>();
 let softTex: THREE.Texture | null = null; // a soft round puff (dust, steam, dust clouds)
 function soft() { if (softTex) return softTex; const ct = document.createElement('canvas'); ct.width = ct.height = 64; const cg = ct.getContext('2d')!; const gr = cg.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); cg.fillStyle = gr; cg.fillRect(0, 0, 64, 64); softTex = new THREE.CanvasTexture(ct); return softTex; }
-function pill(t: string, hint: boolean) { const key = t + hint; let tx = pillTex.get(key); if (tx) return tx; const c = document.createElement('canvas'); c.width = 160; c.height = 56; const g = c.getContext('2d')!; const col = DEPOSITS[t]?.col || '#fff';
+function pill(t: string, hint: boolean) { const key = t + hint; let tx = pillTex.get(key); if (tx) return tx; const c = document.createElement('canvas'); c.width = 160; c.height = 56; const g = c.getContext('2d')!; const col = t === 'meteor' ? '#ff9a3c' : DEPOSITS[t]?.col || '#fff';
   g.fillStyle = 'rgba(8,14,28,0.86)'; g.strokeStyle = col; g.lineWidth = 4; if (hint) g.setLineDash([9, 6]); g.beginPath(); g.roundRect(4, 4, 152, 48, 22); g.fill(); g.stroke(); g.setLineDash([]);
   g.fillStyle = col; g.font = '700 26px Oxanium, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(LABEL[t] + (hint ? '?' : ''), 80, 30);
   tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; pillTex.set(key, tx); return tx; }
@@ -57,7 +57,7 @@ export class LandLayer {
     const B = s.bases[base]; if (!B) return; const A = area(s, base); const claims = Object.keys(B.claims || {}).sort().join(';'), surv = Object.keys(B.surveyed || {}).sort().join(';'), site = LD.siteOf(s, base)?.id || '', hl = LD.hintLevel(s, base), rr = LD.roverRange(s, base);
     const own = new Uint8Array(GRID * GRID); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (x >= A.lo && z >= A.lo && x < A.hi && z < A.hi) own[z * GRID + x] = 1; else if (B.claims && B.claims[Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK)]) own[z * GRID + x] = 2; }
     const kE = A.lo + ':' + A.hi + '|' + claims; if (kE !== this.kEdge) { this.kEdge = kE; this.buildEdge(own); if (this.look.deck) this.buildDecks(s, base); else this.buildRoads(own); }
-    const kT = kE + '|' + surv + '|' + site + '|' + hl + '|' + rr + '|' + this.mode; if (kT !== this.kTex) { this.kTex = kT; this.drawTex(s, base, own); }
+    const fk = (B.falls || []).map((f) => f.t + (f.found ? 'f' : '')).join(','); const kT = kE + '|' + surv + '|' + site + '|' + hl + '|' + rr + '|' + this.mode + '|' + fk; this.syncFalls(s, base, fk); if (kT !== this.kTex) { this.kTex = kT; this.drawTex(s, base, own); }
     const occ = new Set<number>(); for (const it of B.items) { const [w, d] = dims(it.b, it.r); for (let z = it.z; z < it.z + d; z++) for (let x = it.x; x < it.x + w; x++) occ.add(z * GRID + x); }
     const kP = surv + '|' + site + '|' + B.items.map((i) => i.x + ',' + i.z + ',' + i.r + i.b).join(';'); if (kP !== this.kProps) { this.kProps = kP; this.buildProps(s, base, occ); }
     const kM = kT; if (kM !== this.kMarks) { this.kMarks = kM; this.buildMarks(s, base); }
@@ -81,6 +81,7 @@ export class LandLayer {
     if (!this.look.deck) { g.fillStyle = this.look.id === 'earth' ? 'rgba(255,250,225,0.10)' : 'rgba(255,246,220,0.12)'; for (let i = 0; i < own.length; i++) if (own[i] === 2) g.fillRect((i % GRID) * P, Math.floor(i / GRID) * P, P, P); }
     const blob = (x: number, z: number, r: number, col: string, a: number) => { const X = (x + 0.5) * P, Y = (z + 0.5) * P, R = r * P; const gr = g.createRadialGradient(X, Y, 0, X, Y, R); const c = new THREE.Color(col); const rgb = `${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)}`; gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(X - R, Y - R, R * 2, R * 2); };
     for (const [i, t] of D) { const x = i % GRID, z = Math.floor(i / GRID); if (!sv[Math.floor(z / CHUNK) * N + Math.floor(x / CHUNK)]) continue; blob(x, z, 1.25, STAIN[t] || '#fff', t === 'methane' ? 0.7 : t === 'sun' || t === 'shelter' ? 0.28 : 0.42); }
+    for (const f of s.bases[base]?.falls || []) { const X = f.x * P, Y = f.z * P; const gr = g.createRadialGradient(X, Y, 0, X, Y, 3.2 * P); gr.addColorStop(0, f.found ? 'rgba(40,24,14,0.35)' : 'rgba(20,10,6,0.85)'); gr.addColorStop(0.55, f.found ? 'rgba(60,40,24,0.25)' : 'rgba(60,30,14,0.55)'); gr.addColorStop(0.8, 'rgba(255,230,200,0.18)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X - 3.2 * P, Y - 3.2 * P, 6.4 * P, 6.4 * P); }
     if (!this.mode) { this.tex.needsUpdate = true; return; }
     // Land mode: veil what is unknown, show hints from orbit, outline what the rovers can reach and what can be claimed
     const hl = LD.hintLevel(s, base), rr = LD.roverRange(s, base); const ownC = (x: number, z: number) => x >= 0 && z >= 0 && x < N && z < N && LD.ownedChunk(s, base, x, z);
@@ -117,8 +118,8 @@ export class LandLayer {
   // Land mode: what each plot holds (surveyed) or seems to hold (seen from orbit)
   private buildMarks(s: State, base: string) {
     for (const c of [...this.marks.children]) { this.marks.remove(c); ((c as THREE.Sprite).material as THREE.Material).dispose(); } if (!this.mode) return;
-    for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const I = LD.plotInfo(s, base, x, z); const types = I.surveyed ? Object.keys(I.found).sort((a, b) => I.found[b] - I.found[a]) : I.hints; if (!types.length) continue;
-      types.slice(0, 3).forEach((t, k) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: pill(t, !I.surveyed), transparent: true, depthWrite: false, depthTest: false, opacity: I.surveyed ? 0.95 : 0.8 })); sp.scale.set(4.4, 1.54, 1); sp.position.set((x + 0.5) * CHUNK - C, 1.4 + k * 1.7, (z + 0.5) * CHUNK - C); sp.renderOrder = 5; this.marks.add(sp); }); } }
+    for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const I = LD.plotInfo(s, base, x, z); const met = LD.openFalls(s, base).some((f) => f.cx === x && f.cz === z); const types = [...(met ? ['meteor'] : []), ...(I.surveyed ? Object.keys(I.found).sort((a, b) => I.found[b] - I.found[a]) : I.hints)]; if (!types.length) continue;
+      types.slice(0, 3).forEach((t, k) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: pill(t, t !== 'meteor' && !I.surveyed), transparent: true, depthWrite: false, depthTest: false, opacity: I.surveyed || t === 'meteor' ? 0.95 : 0.8 })); sp.scale.set(4.4, 1.54, 1); sp.position.set((x + 0.5) * CHUNK - C, 1.4 + k * 1.7, (z + 0.5) * CHUNK - C); sp.renderOrder = 5; this.marks.add(sp); }); } }
   // rovers on survey and crews laying out new plots
   private buildWork(jobs: { kind: string; key?: any }[]) {
     for (const c of [...this.work.children]) this.work.remove(c); this.rovers = []; this.drones = [];
@@ -186,9 +187,25 @@ export class LandLayer {
     const L = this.lander; if (L) { const T = 46, f = (t % T) / T; let y = L.y0, fl = 0; if (f < 0.25) { y = L.y0 + Math.pow(1 - f / 0.25, 2) * 40; fl = 1; } else if (f < 0.65) { y = L.y0; } else if (f < 0.9) { y = L.y0 + Math.pow((f - 0.65) / 0.25, 2) * 40; fl = 1; } else y = L.y0 + 60;
       L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.9; L.flame.visible = fl > 0; L.flame.scale.set(1, 0.8 + Math.random() * 0.5, 1); }
   }
+  // ---------------- skyfall ----------------
+  private fallG = new THREE.Group(); private fallKey = ''; private smoke: { p: THREE.Points; at: THREE.Vector3[]; life: Float32Array } | null = null; private strikes: { m: THREE.Mesh; trail: THREE.Mesh; t: number; from: THREE.Vector3; to: THREE.Vector3; boom: boolean; ring?: THREE.Mesh; flash?: THREE.PointLight }[] = [];
+  private syncFalls(s: State, base: string, key: string) { if (key === this.fallKey) return; this.fallKey = key; if (!this.fallG.parent) this.group.add(this.fallG); for (const c of [...this.fallG.children]) { this.fallG.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.smoke = null;
+    const open = LD.openFalls(s, base); if (!open.length) return; const at = open.map((f) => new THREE.Vector3(f.x - C, 0.2, f.z - C));
+    for (const v of at) { const glow = new THREE.Mesh(new THREE.RingGeometry(0.4, 1.3, 20), new THREE.MeshBasicMaterial({ color: '#ff7a2a', transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); glow.rotation.x = -Math.PI / 2; glow.position.set(v.x, 0.07, v.z); this.fallG.add(glow);
+      const k = new Kit(); k.add(new THREE.DodecahedronGeometry(0.42, 0), '#3a2c24', v.x, 0.2, v.z); k.add(new THREE.DodecahedronGeometry(0.2, 0), '#ff8a3c', v.x + 0.18, 0.32, v.z - 0.1, { glow: true }); this.fallG.add(k.build('meteorite')); }
+    const n = at.length * 24; const p = new Float32Array(n * 3).fill(-999); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); const pts = new THREE.Points(g, new THREE.PointsMaterial({ map: soft(), color: '#6b625a', size: 1.6, transparent: true, opacity: 0.55, depthWrite: false })); pts.frustumCulled = false; this.fallG.add(pts); this.smoke = { p: pts, at, life: new Float32Array(n).map(() => Math.random()) }; }
+  /** a meteorite streaks down onto a crater (x, z in land cells) */
+  strike(x: number, z: number) { const to = new THREE.Vector3(x - C, 0.2, z - C), from = to.clone().add(new THREE.Vector3(55, 90, -38)); const m = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 8), new THREE.MeshBasicMaterial({ color: '#fff1c4', toneMapped: false })); m.position.copy(from);
+    const trail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.6, 1, 8, 1, true).translate(0, -0.5, 0), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); this.group.add(m, trail); this.strikes.push({ m, trail, t: 0, from, to, boom: false }); }
+  private fallsFrame(t: number, dt: number) {
+    if (this.smoke) { const P = this.smoke.p.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < P.count; i++) { const v = this.smoke.at[Math.floor(i / 24)]; let l = this.smoke.life[i] + dt * 0.18; if (l >= 1) l = 0; this.smoke.life[i] = l; P.setXYZ(i, v.x + Math.sin(l * 4 + i) * 0.4 * l + l * 2.2, v.y + l * 9, v.z + Math.cos(l * 3 + i) * 0.4 * l - l * 1.2); } P.needsUpdate = true; }
+    for (const k of [...this.strikes]) { k.t += dt; const f = Math.min(1, k.t / 1.5);
+      if (!k.boom) { k.m.position.copy(k.from).lerp(k.to, f * f); const dir = k.from.clone().sub(k.to).normalize(); k.trail.position.copy(k.m.position); k.trail.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().negate()); k.trail.scale.set(1 + f, 8 + f * 18, 1 + f);
+        if (f >= 1) { k.boom = true; this.group.remove(k.m, k.trail); k.ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 1, 32), new THREE.MeshBasicMaterial({ color: '#ffd36a', transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false })); k.ring.rotation.x = -Math.PI / 2; k.ring.position.copy(k.to).setY(0.2); k.flash = new THREE.PointLight('#ffb347', 60, 40); k.flash.position.copy(k.to).setY(3); this.group.add(k.ring, k.flash); k.t = 0; } }
+      else { const g = k.t / 1.2; k.ring!.scale.setScalar(1 + g * 14); (k.ring!.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - g); k.flash!.intensity = Math.max(0, 60 * (1 - g * 2)); if (g >= 1) { this.group.remove(k.ring!, k.flash!); k.ring!.geometry.dispose(); this.strikes.splice(this.strikes.indexOf(k), 1); } } } }
   // ---------------- every frame ----------------
   frame(t: number, dt: number, cx: number, cz: number, fog: THREE.Fog | null) {
-    this.traffic(t, dt);
+    this.traffic(t, dt); this.fallsFrame(t, dt);
     for (const r of this.rovers) { const f = ((t / 46 + r.ph) % 1) * 3, row = Math.floor(f), u = f - row; const along = row % 2 ? 1 - u : u; const x = r.cx * CHUNK + 0.8 + along * (CHUNK - 1.6), z = r.cz * CHUNK + 1 + row * 2 + (u > 0.92 ? (u - 0.92) / 0.08 * 2 : 0);
       r.g.position.set(x - C, Math.abs(Math.sin(t * 9 + r.ph)) * 0.015, Math.min(z, r.cz * CHUNK + 5.2) - C); r.g.rotation.y = u > 0.92 ? -Math.PI / 2 : row % 2 ? Math.PI : 0; (r.beam.material as THREE.MeshBasicMaterial).opacity = 0.14 + Math.sin(t * 3 + r.ph) * 0.08; }
     for (const d of this.drones) { const a = t * 0.9 + d.ph; d.g.position.set((d.cx + 0.5) * CHUNK - C + Math.cos(a) * 1.8, 1.6 + Math.sin(t * 2.4 + d.ph) * 0.2, (d.cz + 0.5) * CHUNK - C + Math.sin(a) * 1.8); d.g.rotation.y = -a; (d.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + Math.sin(t * 3 + d.ph) * 0.3; }

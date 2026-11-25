@@ -6,10 +6,11 @@
 // methane pools, geothermal vents, sunny ridges and natural shelter (crater walls, lava tubes). Rovers survey plots near
 // owned land to reveal them; relay satellites over a world (Earth's satellites at home) show hints from orbit. A
 // building standing on a deposit it can use produces more. Exposed sites get dust storms; shelter shrugs them off.
-import { State, uid, Item } from './state';
+import { State, uid, Item, Fall } from './state';
+import { income } from './daily';
 import { GRID, CHUNK, BUILDINGS, capClamp } from '../data/buildings';
 import { sitesFor, DEFAULT_SITE, DEPOSITS, Site } from '../data/sites';
-import { canPay, pay, hqLevel, rateHooks, itemHooks } from './econ';
+import { canPay, pay, give, hqLevel, rateHooks, itemHooks } from './econ';
 import { completers, stepChecks, area, chunkKey, crewsBusy, crewsTotal, Check, Note } from './game';
 import { relayLevel, terraSpeed, COLONY } from './solar';
 import { sp } from './space';
@@ -40,15 +41,17 @@ const TYPES: Record<string, string[]> = { earth: ['ore', 'rare', 'geo', 'sun'], 
 function typesFor(s: State, base: string) { if (isExo(base)) { const P = planetOf(base); return P && /gas|neptune/.test(P.pl.type) ? [] : ['ore', 'rare', 'ice', 'sun', 'shelter', 'geo']; } return TYPES[s.bases[base]?.body] || []; }
 const richOf = (site: Site, t: string) => (t === 'sun' ? site.sun : t === 'shelter' ? site.shelter : (site as any)[t] || 0);
 const DEP = new Map<string, Map<number, string>>();
-export function deposits(s: State, base: string): Map<number, string> { const site = siteOf(s, base); const key = base + ':' + (site?.id || '-'); const hit = DEP.get(key); if (hit) return hit;
-  const m = new Map<number, string>(); const R = rng(hash(key)); const c = GRID / 2;
+export function deposits(s: State, base: string): Map<number, string> { const site = siteOf(s, base); const falls = s.bases[base]?.falls || []; const key = base + ':' + (site?.id || '-') + ':' + falls.map((f) => f.t).join(','); const hit = DEP.get(key); if (hit) return hit;
+  const m = new Map<number, string>(); const R = rng(hash(base + ':' + (site?.id || '-'))); const c = GRID / 2;
   const fill = (t: string, cx: number, cz: number, rad: number) => { for (let z = Math.floor(cz - rad - 1); z <= cz + rad + 1; z++) for (let x = Math.floor(cx - rad - 1); x <= cx + rad + 1; x++) { if (x < 0 || z < 0 || x >= GRID || z >= GRID) continue; const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz) + (R() - 0.5) * 0.8; if (d <= rad && !m.has(z * GRID + x)) m.set(z * GRID + x, t); } };
   // the site's two best finds lie in the plots just outside the core, on opposite sides, so the first surveys pay off
   if (site) { const top = typesFor(s, base).filter((t) => t !== 'sun' && t !== 'shelter' && richOf(site, t) > 0).sort((a, b) => richOf(site, b) - richOf(site, a)).slice(0, 2); const d0 = Math.floor(R() * 4);
     top.forEach((t, k) => { const d = (d0 + k * 2) % 4, ax = [1, 0, -1, 0][d], az = [0, 1, 0, -1][d], off = (R() - 0.5) * 10; fill(t, c + ax * 15.5 + az * off, c + az * 15.5 + ax * off, 2.1 + richOf(site, t) * 0.25); }); }
   for (const t of typesFor(s, base)) { const rich = site ? richOf(site, t) : 1; const n = rich * 3 + (R() < 0.5 ? 1 : 0);
     for (let i = 0; i < n; i++) { const cx = 6 + R() * (GRID - 12), cz = 6 + R() * (GRID - 12); if (Math.abs(cx - c) < 7 && Math.abs(cz - c) < 7) continue; const rad = 1.4 + R() * (1.2 + rich * 0.6); fill(t, cx, cz, rad); } }
-  DEP.set(key, m); return m; }
+  // meteorite craters: a rich core, overwriting whatever was there
+  for (const f of falls) { const types = f.kind === 'ice' ? ['ice', 'ice'] : f.kind === 'stony' ? ['rare', 'ore'] : ['ore', 'rare']; for (let z = Math.floor(f.z - 3); z <= f.z + 3; z++) for (let x = Math.floor(f.x - 3); x <= f.x + 3; x++) { if (x < 0 || z < 0 || x >= GRID || z >= GRID) continue; const d = Math.hypot(x + 0.5 - f.x, z + 0.5 - f.z); if (d <= 1.3) m.set(z * GRID + x, types[0]); else if (d <= 2.6) m.set(z * GRID + x, types[1]); } }
+  if (DEP.size > 40) DEP.clear(); DEP.set(key, m); return m; }
 // ---------------- what the player knows ----------------
 // a plot wholly inside the core square is core land; one the core square only touches is known ground (surveyed) but
 // still has to be claimed to build across all of it
@@ -91,8 +94,26 @@ export function canClaim(s: State, base: string, cx: number, cz: number): Check 
   if (s.jobs.some((j) => j.kind === 'claim' && j.base === base && j.key === cx + ',' + cz)) return { ok: false, why: 'Crews at work', busy: true }; if (crewsBusy(s) >= crewsTotal(s)) return { ok: false, why: 'All construction drones are busy', busy: true };
   const cost = claimCost(s, base); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: claimTime(s, base) }; }
 export function startClaim(s: State, base: string, cx: number, cz: number, t = Date.now()) { const c = canClaim(s, base, cx, cz); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'claim', base, key: cx + ',' + cz, start: t, end: t + c.time! * 1000 }); return c; }
-completers.prospect = (s, j): Note => { const base = j.base || 'earth', B = s.bases[base]; if (!B) return { kind: 'none' }; (B.surveyed || (B.surveyed = {}))[j.key] = j.end; const [cx, cz] = String(j.key).split(',').map(Number); return { kind: 'prospect', base, key: j.key, found: Object.keys(plotInfo(s, base, cx, cz).found) }; };
+completers.prospect = (s, j): Note => { const base = j.base || 'earth', B = s.bases[base]; if (!B) return { kind: 'none' }; (B.surveyed || (B.surveyed = {}))[j.key] = j.end; const [cx, cz] = String(j.key).split(',').map(Number); const met = recover(s, base, cx, cz, j.end); return { kind: 'prospect', base, key: j.key, found: Object.keys(plotInfo(s, base, cx, cz).found), meteor: met }; };
 completers.claim = (s, j): Note => { const base = j.base || 'earth', B = s.bases[base]; if (!B) return { kind: 'none' }; (B.claims || (B.claims = {}))[j.key] = j.end; return { kind: 'claim', base, key: j.key }; };
+// ---------------- skyfall: meteorites come down on the land ----------------
+// Every day or so a meteorite falls near a base (more often on airless worlds), on land nobody has claimed yet. The crater
+// smokes until a rover surveys it: the meteorite is recovered for a reward and leaves a rich deposit behind.
+export const FALL_H = (s: State, base: string) => (base === 'earth' ? 30 : ['moon', 'ceres'].includes(s.bases[base]?.body) ? 16 : 22);
+const fallKind = (s: State, base: string): Fall['kind'][] => { const b = s.bases[base]?.body; return b === 'titan' || b === 'europa' ? ['ice', 'ice', 'stony'] : b === 'mars' || b === 'ceres' ? ['iron', 'ice', 'stony'] : ['iron', 'iron', 'stony']; };
+export const openFalls = (s: State, base: string) => (s.bases[base]?.falls || []).filter((f) => !f.found);
+export function tickFalls(s: State, now = Date.now()): Note[] { const out: Note[] = [];
+  for (const base in s.bases) { const B = s.bases[base]; if (noGround(s, base)) continue; if (base === 'earth' && hqLevel(s) < 2) continue; const H = FALL_H(s, base) * 3600e3;
+    if (!B.fallAt) { B.fallAt = now + H * (0.15 + rng(hash(base + s.created))() * 0.4); continue; } if (now < B.fallAt) continue; const R = rng(hash(base + ':fall:' + B.fallAt)); B.fallAt = now + H * (0.6 + R() * 0.8);
+    if (openFalls(s, base).length >= 2) continue; // two smoking craters already waiting
+    const cand: number[][] = []; const near = roverRange(s, base); /* always somewhere the rovers can reach */ for (let cz = 1; cz < NCH - 1; cz++) for (let cx = 1; cx < NCH - 1; cx++) { if (ownedChunk(s, base, cx, cz) || touchesCore(s, base, cx, cz) || openFalls(s, base).some((f) => f.cx === cx && f.cz === cz)) continue; const d = distToOwned(s, base, cx, cz); if (d >= 1 && d <= near) cand.push([cx, cz]); }
+    if (!cand.length) continue; const [cx, cz] = cand[Math.floor(R() * cand.length)]; const K = fallKind(s, base); const f: Fall = { cx, cz, x: cx * CHUNK + 1.5 + R() * 3, z: cz * CHUNK + 1.5 + R() * 3, t: now, kind: K[Math.floor(R() * K.length)] };
+    if (B.surveyed) delete B.surveyed[cx + ',' + cz]; (B.falls || (B.falls = [])).push(f); if (B.falls.length > 12) B.falls.splice(0, B.falls.length - 12); out.push({ kind: 'fall', base, key: cx + ',' + cz, meteor: f.kind }); }
+  return out; }
+// a rover reaches a crater: the meteorite is recovered
+function recover(s: State, base: string, cx: number, cz: number, t: number) { const f = openFalls(s, base).find((x) => x.cx === cx && x.cz === cz); if (!f) return null; f.found = t; const inc = income(s, f.kind === 'stony' ? 3 : 2.5);
+  const reward: Record<string, number> = f.kind === 'ice' ? { fuel: round2(inc.fuel * 1.6), science: round2(inc.science * 1.2) } : { metal: round2(inc.metal * 1.6), science: round2(inc.science * (f.kind === 'stony' ? 2 : 1)) }; if (hqLevel(s) >= 8 && f.kind !== 'ice') reward.rare = Math.max(5, round2((s.res.rare || 0) * 0.02 + 20));
+  give(s, reward); s.stats.meteors = (s.stats.meteors || 0) + 1; return { kind: f.kind, reward }; }
 // ---------------- storms ----------------
 export function stormAt(s: State, base: string, t = Date.now()) { const site = siteOf(s, base); if (!site || !site.storm) return null; const day = Math.floor(t / 86400e3);
   for (const d of [day - 1, day]) { const R = rng(hash(base + ':storm:' + d)); const start = d * 86400e3 + R() * 86400e3, dur = (1.5 + R() * 2.5 + site.storm) * 3600e3; if (R() < 0.25 + 0.2 * site.storm && t >= start && t < start + dur) return { start, end: start + dur, k: site.storm }; }

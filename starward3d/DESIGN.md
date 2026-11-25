@@ -21,8 +21,8 @@
 | 6. Beyond | other galaxies | Relays, intergalactic expeditions, Type III, Ascension |
 
 ## 3. Economy (ported from Starward)
-One empire stockpile, storage caps from Mission Control, depots and vaults. Resources: **credits, metal, fuel, science**, energy (a live balance; a deficit slows output), **Helium-3** (Moon, gas giants), **rare elements** (asteroids), **exotic matter**, **antimatter**, **influence** and **xenodata** (aliens), **dark matter** (earned; finishes timers), **Power Cells** (new: robot upkeep and levelling, the Dragon City "food").
-- **Collectors (CoC):** credits, metal and fuel accumulate inside their buildings (a few hours' worth) and are tapped to collect; science and the rest flow straight to the stockpile.
+One empire stockpile, storage caps from Mission Control, depots and vaults. Resources: **Aurivane (the currency), metal, fuel, science**, energy (a live balance; a deficit slows output), **Helium-3** (Moon, gas giants), **rare elements** (asteroids), **exotic matter**, **antimatter**, **influence** and **xenodata** (aliens), **dark matter** (earned; finishes timers), **Power Cells** (new: robot upkeep and levelling, the Dragon City "food").
+- **Collectors:** Aurivane, metal and fuel accumulate inside their buildings (a few hours' worth) and are tapped to collect; science and the rest flow straight to the stockpile.
 - **Construction drones** are the builder bottleneck (Starward's engineering crews, now visible robots flying to each site).
 - **Command gating:** buildings cap at 2 × Mission Control; Mission Control levels need the base grown first (Starward's `cmdReqs`).
 - **Time ladder** and cost curves from Starward (`ladder`, `curve`, `capClamp`), so the year-long pacing holds.
@@ -33,7 +33,7 @@ Every base stands in 96 × 96 cells of its world's own ground, under its own sky
 **Exploration, not handouts.** Where a colony lands is the player's choice among real sites (Shackleton, Marius Hills, Jezero, Hellas, Kraken Mare...; exoplanet regions from the planet type), each rated for ice, ore, rare minerals, sun, shelter, storms and how fast it terraforms. The site seeds the deposits hidden in the land (ore, rare minerals, ice, helium-3, methane, geothermal vents, sunny ridges, natural shelter), with its two best finds just outside the core. Rovers survey plots near owned land; satellites and relay networks show hints from orbit. A building on a deposit it can use produces more, so the map is a puzzle the player solves for themselves. Exposed sites get storms that cut solar output; shelter ignores them.
 | World | Look | Traits |
 |---|---|---|
-| Earth (Cape Horizon) | Coastal plain, sea, blue sky, clouds, day/night | Home: funding (credits), full population, the launch complex |
+| Earth (Cape Horizon) | Coastal plain, sea, blue sky, clouds, day/night | Home: funding (Aurivane), full population, the launch complex |
 | The Moon | Grey regolith, craters, black sky, Earth overhead | Low gravity (cheaper launches), polar ice, Helium-3; colonists live in domes or regolith-covered underground habitats |
 | Mars | Rust dunes, butterscotch sky, dust devils | Dust storms (weaker solar), iron-rich metal bonus, **terraformable in 7 visible stages** |
 | Venus | A cloud city floating 50 km up in yellow clouds | Aerostat: breathable air is a lifting gas; strong solar, acid hazards; terraform with a sunshade |
@@ -53,7 +53,7 @@ Every base stands in 96 × 96 cells of its world's own ground, under its own sky
 
 ## 6. Spaceflight
 - **Rocket designer:** research unlocks parts (engines, tanks, stages, boosters, fairings, capsules, landing legs). A design's stats (payload class, reliability, cost, build time) come from its parts; the Launch Complex caps its size; the Vehicle Assembly builds it; launches play out in 3D.
-- **Satellites** orbit Earth and, later, every settled world: comms (credits, connectivity), observation (deposits), weather (storm forecasts), navigation, telescopes, power.
+- **Satellites** orbit Earth and, later, every settled world: comms (Aurivane, connectivity), observation (deposits), weather (storm forecasts), navigation, telescopes, power.
 - **The space station** grows module by module in orbit.
 - **Asteroid mining:** claims across the belt worked by mining ships; Ceres runs them.
 
@@ -61,12 +61,12 @@ Every base stands in 96 × 96 cells of its world's own ground, under its own sky
 Multi-stage projects that run for real days: atmosphere, warmth, water, magnetic shield, lichens, forests, breathable air. Each stage visibly changes the base (ground colour, sky, clouds, lakes and seas, plants) and the planet view, raises population caps and removes the need for domes.
 
 ## 8. Orbital Trials (daily battles between players)
-**Why it fits:** the Defence Council runs daily war games between colony commanders. Strike squads of your robots attack a holographic copy of another commander's real base layout. Nothing is destroyed for real, so nobody loses anything, but the simulations pay out grants, data and robot experience, and they harden the defences you will need when hostile aliens arrive in Era 5.
+**Why it fits:** Earth has never been attacked, and the Defence Council is not waiting to find out how it would go. Commanders drill against each other: strike squads of robots attack a holographic copy of another commander's whole base (every building on the land they hold, walls and outposts included). When the Swarm comes, its landings hit the same layout, so a base built for the Trials is a base built for the war. Nothing is destroyed for real, so nobody loses anything, but the simulations pay out grants, data and robot experience, and they harden the defences you will need when hostile aliens arrive in Era 5.
 - From Mission Control 3: defences (point-defence turrets, laser batteries, missile silos, shield generators, EMP towers, walls) placed on your Earth base.
 - **Attack:** 3 sorties a day. Pick one of three commanders of similar strength, deploy robot squads at the edge, watch the real-time battle. Stars: 50% destruction, Mission Control down, 100%.
-- **Rewards that feed the main game:** credits, metal, fuel and science scaled to your level and the stars won, robot XP, merit (circles, weekly season rewards), a daily first-win bonus.
+- **Rewards that feed the main game:** Aurivane, metal, fuel and science scaled to your level and the stars won, merit (circles, weekly season rewards), a daily first-win bonus, and **Council charters** granted for good by the best circle reached: cheaper land (10/20/30%), a third rover, wider survey range, less energy for claimed land, Swarm Guard (smaller landings), bigger grants. Expanding the base makes it harder to defend; the Trials make expanding cheaper.
 - **Defence:** others attack your snapshot; you get a log with replays and a bounty for every defence you hold.
-- **Server:** a Cloudflare Worker + D1 (`server/`): snapshots, matchmaking, results, replays, leaderboard. The engine is deterministic, so the server re-runs each battle to verify it (this needs Workers Paid: a battle costs ~20 ms of CPU and Workers Free allows 10 ms; on Free the server sanity-checks the client's result instead). Without it (or offline) the Academy fields AI commanders built from the same templates, clearly labelled, with a difficulty that rises with merit so fights stay close.
+- **Server:** a Cloudflare Worker + D1 (`server/`): snapshots, matchmaking, results, replays, leaderboard. The engine is deterministic, so the server re-runs each battle to verify it (this needs Workers Paid: a battle costs ~20-100 ms of CPU, more for sprawling bases and Workers Free allows 10 ms; on Free the server sanity-checks the client's result instead). Without it (or offline) the Academy fields AI commanders built from the same templates, clearly labelled, with a difficulty that rises with merit so fights stay close.
 - The same battle engine runs the Era 5 alien assaults (PvE), so defences matter for the whole game.
 
 ## 9. Aliens (Era 5)
@@ -99,7 +99,8 @@ Timers from seconds to days on Starward's ladder; offline time always counts (co
 9. **Beyond & Type III, the Life Ladder:** other galaxies, funding pools, the endgame megastructures, Type III, Ascension; alien life from microbes to the Ascendants (§9.1); Style Studio, decor and the colony card.
 10. **Polish & ship:** store assets from the real game, listing copy, upload guide (with the Orbital Trials server on Cloudflare), rewarded timer skips, mobile notifications, review loop.
 
-All thirteen parts are done.
+All fourteen parts are done.
+14. **Trials that matter, roads, Aurivane, menus that show:** Orbital Trials over the whole base with a briefing and Council charters; ring roads, a highway and traffic, colony landing pads; the Aurivane currency and drawn resource icons; shortfalls, time to afford, finish times, uses-and-gives strips, deposit gains in real numbers; Skyfall meteorites.
 13. **The land is yours to take:** the Helioscend name and terms of our own; 96 × 96 land per base, claimed plot by plot (cost, crew time, energy draw); landing sites on every world; deposits found by rovers and hinted from orbit, boosting buildings on them; storms and shelter; Land mode; Venus deck modules.
 12. **Visible progress everywhere:** every building level and tier visibly different (continuous growth, tier structures, rank band, pylon and level rings), new models for the last generic buildings, towns around growing bases, outposts and endgame megastructures on the Solar System map, colony development on the star map, a visible Aova core, robot rank rings.
 11. **Food, Aova and Worldseeding:** food as a third life-support need (farms, supply runs from Earth priced by distance, open-air farming on living worlds, alien food trade); Aova, an AI that carries out the player's orders (research and upgrade queues) and runs food logistics but never advises; terraforming star colonies in four stages.
