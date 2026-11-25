@@ -40,10 +40,14 @@ export function fits(s: State, base: string, b: string, x: number, z: number, r:
   for (const it of s.bases[base].items) { if (it.id === ignore) continue; const [iw, id] = dims(it.b, it.r); if (x < it.x + iw && x + w > it.x && z < it.z + id && z + d > it.z) return { ok: false, why: 'Something is in the way' }; }
   return { ok: true };
 }
-// the first free spot nearest the centre (used to suggest a placement)
-export function freeSpot(s: State, base: string, b: string, r = 0): [number, number] | null {
-  const A = ownedBox(s, base), [w, d] = dims(b, r), c = GRID / 2; let best: [number, number] | null = null, bd = 1e9;
-  for (let z = A.lo; z + d <= A.hi; z++) for (let x = A.lo; x + w <= A.hi; x++) { const dd = Math.hypot(x + w / 2 - c, z + d / 2 - c); if (dd < bd && fits(s, base, b, x, z, r).ok) { bd = dd; best = [x, z]; } }
+// a suggested spot for something new: free, nearest to where the player is looking (or the centre), and with a clear
+// cell around it when there is room, so a new building never arrives jammed against another (a suggestion only:
+// buildings may still be placed side by side)
+export function freeSpot(s: State, base: string, b: string, r = 0, near?: [number, number]): [number, number] | null {
+  const A = ownedBox(s, base), [w, d] = dims(b, r), [ax, az] = near || [GRID / 2, GRID / 2]; const items = s.bases[base].items.map((it) => { const [iw, id] = dims(it.b, it.r); return [it.x, it.z, iw, id]; });
+  const clear = (x: number, z: number) => items.every(([ix, iz, iw, id]) => !(x - 1 < ix + iw && x + w + 1 > ix && z - 1 < iz + id && z + d + 1 > iz));
+  let best: [number, number] | null = null, bd = 1e9;
+  for (let z = A.lo; z + d <= A.hi; z++) for (let x = A.lo; x + w <= A.hi; x++) { const dd = Math.hypot(x + w / 2 - ax, z + d / 2 - az); const score = dd + (clear(x, z) ? 0 : 40); if (score < bd && fits(s, base, b, x, z, r).ok) { bd = score; best = [x, z]; } }
   return best;
 }
 // ---------------- building ----------------

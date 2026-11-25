@@ -356,3 +356,13 @@ details.scout summary { cursor: pointer; list-style: none; } details.scout summa
 @media (max-width: 720px) { .rankc { padding: 2px 3px 3px; } .rankc .patch { width: 28px; height: 28px; } .rankc .rbar { width: 28px; } #standby { left: 8px; width: calc(100vw - 16px); } #standby .sbt { display: none; } #standby .sb { padding: 4px 9px 4px 7px; font-size: 11px; } }
 .rankm { position: relative; } .rankm .mx { position: absolute; top: -6px; right: -6px; } .rankhead > div { text-align: left; }
 .rsec { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; text-align: left; } .rsec .tier { margin-bottom: 6px; } .rsec .unlocks { justify-content: flex-start; }
+/* placement: the floating buttons ride just above the preview; the bar below says how it works */
+#ghostUi { position: fixed; z-index: 16; display: flex; gap: 10px; transform: translate(-50%, -100%); pointer-events: none; filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
+#ghostUi.hidden { display: none; }
+#ghostUi .gb { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); font: 700 20px/1 Oxanium; color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+#ghostUi .gb.x { background: #c8384a; } #ghostUi .gb.r { background: #2f5d8f; } #ghostUi .gb.ok { background: linear-gradient(#ffd977, #f2a93b); color: #2a1a00; width: 56px; height: 56px; font-size: 26px; margin-top: -5px; }
+#ghostUi .gb.ok:disabled { background: #5b6472; color: #a9b3c1; border-color: rgba(255,255,255,.35); cursor: not-allowed; } #ghostUi .gb:active { transform: scale(.94); }
+#place .phint { font: 600 11px Barlow; color: var(--muted); padding: 0 8px 0 4px; max-width: 300px; }
+body.placing #standby { display: none; }
+@media (max-width: 720px) { body.placing #obj { display: none; } #place { flex-direction: column; align-items: flex-start; gap: 2px; max-width: calc(100vw - 16px); } #place .phint { max-width: none; } #ghostUi .gb { width: 44px; height: 44px; font-size: 18px; } #ghostUi .gb.ok { width: 52px; height: 52px; font-size: 24px; } #ghostUi { gap: 8px; } }
+#coach.flip .cap { left: auto; right: -14px; }

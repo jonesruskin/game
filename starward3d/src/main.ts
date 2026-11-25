@@ -11,7 +11,7 @@ import { World } from './render/world';
 import { Studio } from './render/studio';
 import { UI, costHTML, kReward } from './ui/ui';
 import { Audio } from './audio';
-import { $, fmt, esc, fmtTime } from './core/util';
+import { $, fmt, esc, fmtTime, clamp } from './core/util';
 import { BUILDINGS, areaSide, GRID } from './data/buildings';
 import { DEPOSITS } from './data/sites';
 import { TECH } from './data/research';
@@ -56,6 +56,7 @@ export class App {
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
+    window.addEventListener('keydown', (e) => { if (!this.placing || (e.target as HTMLElement).tagName === 'INPUT') return; const k = e.key.toLowerCase(); if (k === 'r') this.world.rotateGhost(); else if (k === 'escape') this.cancelPlace(); else if (k === 'enter') { e.preventDefault(); this.confirmPlace(); } }); /* placing: R rotates, Enter builds, Esc cancels */
     for (const ev of ['click', 'touchend']) document.addEventListener(ev, () => this.audio.unlock(), { passive: true }); // iOS only lets audio start inside a click or touchend
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
     // draw the build-menu thumbnails in idle moments, one at a time, so opening the menu never stalls the game
@@ -77,7 +78,7 @@ export class App {
   private loop(t: number) {
     const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt; this.s.stats.playS += dt;
     if (this.acc >= 0.25) { this.acc = 0; this.tick(); }
-    this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel();
+    this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel(); if (this.placing) this.placeUi();
     if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing && !this.ui.coach.on && this.world.mode !== 'battle' && this.world.mode !== 'space') this.queue.shift()!(); // never over a battle
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -231,12 +232,16 @@ export class App {
   // ---------------- placement ----------------
   private wallDir: [number, number] = [1, 0];
   startPlacing(b: string, move?: string, at?: [number, number]) {
-    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = at || G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: claim more land (Land) or raise the command level'); return; } [x, z] = sp; }
-    this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - GRID / 2, z + d / 2 - GRID / 2);
-    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}<i class="gnd"></i></span><button class="btn small" data-a="rotate">⟳ Rotate</button><button class="btn small red" data-a="unplace">✕</button><button class="btn small gold" data-a="place" id="placeOk">✓ ${move ? 'Move here' : 'Build here'}</button>`; this.ghostMoved();
+    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const cam = this.world.cam; const sp = at || G.freeSpot(s, s.at, b, 0, [cam.tx + GRID / 2, cam.tz + GRID / 2]); if (!sp) { this.ui.deny('No room left: claim more land (Land) or raise the command level'); return; } [x, z] = sp; }
+    this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - GRID / 2, z + d / 2 - GRID / 2, clamp(this.world.cam.tdist, 20, 38)); document.body.classList.add('placing');
+    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}<i class="gnd"></i></span><span class="phint">Drag it or tap the ground where it should go${matchMedia('(pointer: fine)').matches ? ' · R rotate · Enter build · Esc cancel' : ''}</span>`;
+    let gu = document.getElementById('ghostUi'); if (!gu) { gu = document.createElement('div'); gu.id = 'ghostUi'; document.body.appendChild(gu); } gu.innerHTML = `<button class="gb x" data-a="unplace" title="Cancel">✕</button><button class="gb r" data-a="rotate" title="Rotate">⟳</button><button class="gb ok" data-a="place" id="placeOk" title="${move ? 'Move here' : 'Build here'}">✓</button>`; gu.classList.remove('hidden'); this.ghostMoved(); this.placeUi();
     this.world.sync(s);
   }
-  private ghostMoved() { const g = this.world.ghost; if (!g) return; const f = G.fits(this.s, this.s.at, g.b, g.x, g.z, g.r, g.move); g.ok = f.ok; this.world.syncGhost(); const b = $('#placeOk') as HTMLButtonElement; if (b) b.disabled = !g.ok; const lb = $('#place .gnd'); if (lb) { const t = g.ok ? this.ui.land.ghostLine(this.s.at, g.b, g.x, g.z, g.r) : f.why || ''; lb.textContent = t; lb.className = 'gnd ' + (g.ok ? 'good' : 'bad'); } }
+  // keep the floating buttons just above the preview (clamped to the screen)
+  private placeUi() { const gu = document.getElementById('ghostUi'); if (!gu || !this.placing) return; const p = this.world.ghostScreen(); if (!p) return; const x = clamp(p.x, 90, innerWidth - 150), /* clear of the right-hand rail */ y = clamp(p.behind ? 120 : p.y, 110, innerHeight - 170); gu.style.left = x + 'px'; gu.style.top = y + 'px'; }
+  private ghostMoved() { const g = this.world.ghost; if (!g) return; const f = G.fits(this.s, this.s.at, g.b, g.x, g.z, g.r, g.move); g.ok = f.ok; this.world.syncGhost();
+    const [w, d] = G.dims(g.b, g.r); this.world.showBlockers(this.s.bases[this.s.at].items.filter((it) => it.id !== g.move).map((it) => { const [iw, id] = G.dims(it.b, it.r); return [it.x, it.z, iw, id] as [number, number, number, number]; }).filter(([ix, iz, iw, id]) => g.x < ix + iw && g.x + w > ix && g.z < iz + id && g.z + d > iz)); const b = $('#placeOk') as HTMLButtonElement; if (b) b.disabled = !g.ok; const lb = $('#place .gnd'); if (lb) { const t = g.ok ? this.ui.land.ghostLine(this.s.at, g.b, g.x, g.z, g.r) : f.why || ''; lb.textContent = t; lb.className = 'gnd ' + (g.ok ? 'good' : 'bad'); } }
   confirmPlace() {
     const g = this.world.ghost, P = this.placing; if (!g || !P) return; const s = this.s;
     const r = P.move ? G.moveItem(s, s.at, P.move, g.x, g.z, g.r) : G.startBuild(s, s.at, g.b, g.x, g.z, g.r);
@@ -246,7 +251,7 @@ export class App {
       if (next) { this.wallDir = [next[0] - g.x, next[1] - g.z]; this.changed(); this.startPlacing(g.b, undefined, next); return; } }
     if (!P.move && r.item && !BUILDINGS[g.b].instant) { this.ui.select(r.item.id); } this.changed();
   }
-  cancelPlace() { this.placing = null; this.world.endGhost(); $('#place').classList.add('hidden'); this.world.sync(this.s); }
+  cancelPlace() { this.placing = null; this.world.endGhost(); $('#place').classList.add('hidden'); document.getElementById('ghostUi')?.classList.add('hidden'); document.body.classList.remove('placing'); this.world.sync(this.s); }
   // ---------------- settings & save ----------------
   setSetting(k: string, v: any) { (this.s.settings as any)[k] = v; if (k === 'sfx') this.audio.setVolume(v); if (k === 'music') this.audio.setMusic(v); this.save(); }
   save() { try { this.s.last = Math.max(this.s.last, Date.now()); this.platform.save(SAVE_KEY, JSON.stringify(this.s)); } catch (e) { /* storage full */ } }

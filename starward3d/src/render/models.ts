@@ -544,7 +544,14 @@ function dress(m: Model, b: string, L: number, look: Look): Model {
     halo.position.set(px, (top + 0.3) / grow, pz); halo.scale.set(1 / m.group.scale.x, 1 / grow, 1 / m.group.scale.z); m.group.add(halo); const a0 = m.anim; m.anim = (tt, st) => { a0?.(tt, st); halo.rotation.y = tt * 1.4; halo.children[1] && (halo.children[1].rotation.x = tt * 0.9); }; }
   return m; }
 export function buildModel(b: string, L: number, look: Look): Model {
-  const dm = decorModel(b, look); if (dm) return dm; return dress(baseModel(b, L, look), b, L, look); }
+  const dm = decorModel(b, look); if (dm) return dm; return fitFoot(dress(baseModel(b, L, look), b, L, look), b); }
+// every building stays inside its own cells (a hair inside, so neighbours never touch): a model that spills over (an
+// apron, a dish, growth at high levels) is centred and narrowed in plan only, so its height and round shapes survive
+const FIT_GAP = 0.06;
+function fitFoot(m: Model, b: string): Model { const fp = BUILDINGS[b]?.fp; if (!fp || b === 'wall') return m; m.group.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(m.group); if (box.isEmpty()) return m;
+  const hw = fp[0] / 2 - FIT_GAP, hd = fp[1] / 2 - FIT_GAP; if (box.min.x >= -hw && box.max.x <= hw && box.min.z >= -hd && box.max.z <= hd) return m;
+  const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2, k = Math.min(1, hw / ((box.max.x - box.min.x) / 2), hd / ((box.max.z - box.min.z) / 2));
+  const wrap = new THREE.Group(); m.group.position.x -= cx; m.group.position.z -= cz; wrap.add(m.group); wrap.scale.set(k, 1, k); return { ...m, group: wrap }; }
 function baseModel(b: string, L: number, look: Look): Model {
   switch (b) {
     case 'hq': return hq(L, look); case 'research': return research(L, look); case 'university': return university(L, look); case 'mine': return mine(L, look);

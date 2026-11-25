@@ -30,13 +30,21 @@ interface View { key: string; root: THREE.Group; model: Model; pick: THREE.Mesh;
 interface Drone { g: THREE.Group; job: string; ph: number; spark: THREE.Mesh; }
 export interface Ghost { b: string; r: number; x: number; z: number; move?: string; ok: boolean; }
 const C = GRID / 2;
+// the placement preview reads as a preview: a translucent hologram (cyan when it fits, red when it does not) floating
+// over a glowing footprint with a bold frame and chevrons that say it can be dragged; whatever is in the way is outlined
+const HOLO = { ok: new THREE.MeshLambertMaterial({ color: '#a6f2ff', emissive: '#1d7d9c', transparent: true, opacity: 0.62 }), bad: new THREE.MeshLambertMaterial({ color: '#ffa0a9', emissive: '#a12233', transparent: true, opacity: 0.62 }),
+  edgeOk: new THREE.MeshBasicMaterial({ color: '#7dffb0', toneMapped: false, transparent: true, opacity: 0.95, depthWrite: false }), edgeBad: new THREE.MeshBasicMaterial({ color: '#ff5a6a', toneMapped: false, transparent: true, opacity: 0.95, depthWrite: false }),
+  arrow: new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true, opacity: 0.92, depthWrite: false, side: THREE.DoubleSide }), block: new THREE.MeshBasicMaterial({ color: '#ff5a6a', toneMapped: false, transparent: true, opacity: 0.22, depthWrite: false }) };
+function frameOf(w: number, d: number, t: number, mat: THREE.Material) { const g = new THREE.Group(); const bar = (bw: number, bd: number, x: number, z: number) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(bw, bd), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0, z); m.renderOrder = 5; g.add(m); };
+  bar(w + t, t, 0, -d / 2); bar(w + t, t, 0, d / 2); bar(t, d + t, -w / 2, 0); bar(t, d + t, w / 2, 0); return g; }
+const CHEVRON = (() => { const sh = new THREE.Shape(); sh.moveTo(0, -0.26); sh.lineTo(0.34, 0); sh.lineTo(0, 0.26); sh.lineTo(0.1, 0); sh.closePath(); return new THREE.ShapeGeometry(sh); })();
 export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; land!: LandLayer; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
   cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
   mode: 'base' | 'orbit' | 'system' | 'battle' | 'stars' | 'space' | 'galaxy' = 'base'; space: SpaceBattleView | null = null; galaxy: GalaxyView | null = null; onGalaxyPick: (id: string | null) => void = () => {}; starMap: StarMap | null = null; onStarPick: (id: string | null) => void = () => {}; battle: BattleView | null = null; onBattleTap: (x: number, z: number) => void = () => {}; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
-  ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; selRing: THREE.Mesh; selected: string | null = null; t = 0;
+  ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostH = 2; private ghostOkShown: boolean | null = null; private blockers = new THREE.Group(); selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
   onTap: (hit: { item?: string; cell?: [number, number]; drop?: boolean }) => void = () => {}; onGhostMove: () => void = () => {};
   private shF = 0; private shX = 1e9; private shZ = 1e9;
@@ -122,16 +130,29 @@ export class World {
   }
   // ---------------- placement ghost ----------------
   startGhost(g: Ghost) { this.ghost = g; this.land.showGrid(true); this.rebuildGhost(); }
-  endGhost() { this.ghost = null; if (this.ghostObj) this.scene.remove(this.ghostObj); this.ghostObj = null; this.land.showGrid(false); for (const v of this.views.values()) v.root.visible = true; }
+  endGhost() { this.ghost = null; if (this.ghostObj) this.scene.remove(this.ghostObj); this.ghostObj = null; this.showBlockers([]); this.land.showGrid(false); for (const v of this.views.values()) v.root.visible = true; }
   private ghostTo(cx: number, cy: number) { const g = this.groundAt(cx, cy); if (!g || !this.ghost) return; const [w, d] = G.dims(this.ghost.b, this.ghost.r);
     const x = Math.round(g.x + C - w / 2), z = Math.round(g.z + C - d / 2); if (x !== this.ghost.x || z !== this.ghost.z) { this.ghost.x = x; this.ghost.z = z; this.onGhostMove(); } }
   rotateGhost() { if (!this.ghost) return; this.ghost.r = (this.ghost.r + 1) % 4; this.rebuildGhost(); this.onGhostMove(); }
   rebuildGhost() {
-    if (this.ghostObj) this.scene.remove(this.ghostObj); const g = this.ghost!; const [w, d] = G.dims(g.b, g.r); const root = new THREE.Group();
-    const m = buildModel(g.b, 1, this.look); m.group.rotation.y = (-g.r * Math.PI) / 2; m.group.traverse((o) => { const mm = o as THREE.Mesh; if (mm.isMesh) mm.castShadow = false; }); root.add(m.group);
-    const foot = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MATS.ghostOk); foot.rotation.x = -Math.PI / 2; foot.position.y = 0.06; foot.name = 'foot'; root.add(foot); this.ghostObj = root; this.scene.add(root); this.syncGhost();
+    if (this.ghostObj) this.scene.remove(this.ghostObj); const g = this.ghost!; const [w, d] = G.dims(g.b, g.r); const root = new THREE.Group(); const lvl = g.move ? this.views.get(g.move)?.lvl || 1 : 1;
+    const m = buildModel(g.b, lvl, this.look); m.group.rotation.y = (-g.r * Math.PI) / 2; m.group.traverse((o) => { const mm = o as THREE.Mesh; if (mm.isMesh) { mm.castShadow = false; mm.receiveShadow = false; mm.material = HOLO.ok; } }); this.ghostH = m.height;
+    const lift = new THREE.Group(); lift.name = 'lift'; lift.add(m.group); root.add(lift);
+    const foot = new THREE.Mesh(new THREE.PlaneGeometry(w, d), MATS.ghostOk); foot.rotation.x = -Math.PI / 2; foot.position.y = 0.07; foot.name = 'foot'; foot.renderOrder = 4; root.add(foot);
+    const fr = frameOf(w, d, 0.13, HOLO.edgeOk); fr.name = 'frame'; fr.position.y = 0.09; root.add(fr);
+    const arrows = new THREE.Group(); arrows.name = 'arrows'; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const h = new THREE.Group(); const a = new THREE.Mesh(CHEVRON, HOLO.arrow); a.rotation.x = -Math.PI / 2; a.renderOrder = 6; h.add(a); h.rotation.y = Math.atan2(-dz, dx); const bx = dx * (w / 2 + 0.35), bz = dz * (d / 2 + 0.35); h.position.set(bx, 0.1, bz); h.userData = { bx, bz, dx, dz }; arrows.add(h); } root.add(arrows);
+    this.ghostObj = root; this.ghostOkShown = null; this.scene.add(root); this.syncGhost();
   }
-  syncGhost() { const g = this.ghost; if (!g || !this.ghostObj) return; const [w, d] = G.dims(g.b, g.r); this.ghostObj.position.set(g.x + w / 2 - C, 0.05, g.z + d / 2 - C); (this.ghostObj.getObjectByName('foot') as THREE.Mesh).material = g.ok ? MATS.ghostOk : MATS.ghostBad; }
+  syncGhost() { const g = this.ghost; if (!g || !this.ghostObj) return; const [w, d] = G.dims(g.b, g.r); this.ghostObj.position.set(g.x + w / 2 - C, 0.05, g.z + d / 2 - C); if (this.ghostOkShown === g.ok) return; this.ghostOkShown = g.ok;
+    (this.ghostObj.getObjectByName('foot') as THREE.Mesh).material = g.ok ? MATS.ghostOk : MATS.ghostBad; this.ghostObj.getObjectByName('frame')!.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = g.ok ? HOLO.edgeOk : HOLO.edgeBad; });
+    this.ghostObj.getObjectByName('lift')!.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = g.ok ? HOLO.ok : HOLO.bad; }); }
+  // red outlines on whatever stands in the preview's way
+  showBlockers(rects: [number, number, number, number][]) { if (!this.blockers.parent) this.scene.add(this.blockers); for (const c of [...this.blockers.children]) this.blockers.remove(c);
+    for (const [x, z, w, d] of rects) { const g = frameOf(w, d, 0.16, HOLO.edgeBad); const pl = new THREE.Mesh(new THREE.PlaneGeometry(w, d), HOLO.block); pl.rotation.x = -Math.PI / 2; pl.renderOrder = 4; g.add(pl); g.position.set(x + w / 2 - C, 0.1, z + d / 2 - C); this.blockers.add(g); } }
+  // where the preview's floating buttons go: just above its top, on screen
+  ghostScreen() { if (!this.ghostObj) return null; const p = this.ghostObj.position.clone(); p.y = this.ghostH + 0.45; return this.project(p); }
+  private animGhost(t: number) { const o = this.ghostObj; if (!o) return; (o.getObjectByName('lift') as THREE.Object3D).position.y = 0.18 + Math.sin(t * 3) * 0.07; const k = (1 + Math.sin(t * 4.5)) * 0.09;
+    for (const h of (o.getObjectByName('arrows') as THREE.Object3D).children) { const u = h.userData; h.position.x = u.bx + u.dx * k; h.position.z = u.bz + u.dz * k; } MATS.ghostOk.opacity = 0.32 + Math.sin(t * 3) * 0.1; MATS.ghostBad.opacity = 0.4 + Math.sin(t * 5) * 0.12; }
   // ---------------- the supply capsule: it drops under a parachute onto a free spot of the Earth base; tap to open ----------------
   capsule: { g: THREE.Group; chute: THREE.Group; pick: THREE.Mesh; beacon: THREE.Mesh; t: number } | null = null;
   setCapsule(s: State, on: boolean) {
@@ -217,7 +238,7 @@ export class World {
   // draw the current view now (for snapshots: the WebGL buffer is readable until the browser composites)
   renderNow() { const m = this.mode; const v: any = m === 'orbit' ? this.orbit : m === 'galaxy' ? this.galaxy : m === 'space' ? this.space : m === 'stars' ? this.starMap : m === 'battle' ? this.battle : m === 'system' ? this.system : null; if (v) this.renderer.render(v.scene, v.camera); else this.renderer.render(this.scene, this.camera); }
   frame(s: State, dt: number, working: (id: string) => boolean) {
-    this.t += dt; const t = this.t;
+    this.t += dt; const t = this.t; this.animGhost(t);
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
     if (this.mode === 'galaxy' && this.galaxy) { this.galaxy.frame(dt); this.renderer.render(this.galaxy.scene, this.galaxy.camera); return; }
     if (this.mode === 'space' && this.space) { this.space.frame(dt); this.renderer.render(this.space.scene, this.space.camera); return; }

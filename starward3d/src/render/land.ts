@@ -28,7 +28,7 @@ export interface LandLook { id: string; fog: string; fogNear: number; fogFar: nu
 export class LandLayer {
   group = new THREE.Group(); mode = false; sel: [number, number] | null = null;
   private P: number; private cv = document.createElement('canvas'); private tex: THREE.CanvasTexture; private plane: THREE.Mesh;
-  private edge: THREE.Mesh | null = null; private grid: THREE.LineSegments | null = null; private gridOn = false; private selFrame: THREE.Mesh;
+  private edge: THREE.Mesh | null = null; private grid: THREE.Mesh | null = null; private gridOn = false; private gridCv: HTMLCanvasElement | null = null; private gridTex: THREE.CanvasTexture | null = null; private kGrid = ''; private own: Uint8Array | null = null; private occ: Set<number> = new Set(); private selFrame: THREE.Mesh;
   private props = new THREE.Group(); private marks = new THREE.Group(); private work = new THREE.Group(); private decks = new THREE.Group();
   private kTex = ''; private kEdge = ''; private kProps = ''; private kWork = ''; private kMarks = ''; private kDeck = '';
   private rovers: { g: THREE.Group; beam: THREE.Mesh; cx: number; cz: number; ph: number }[] = []; private drones: { g: THREE.Group; cx: number; cz: number; ph: number; ring: THREE.Mesh }[] = [];
@@ -49,7 +49,18 @@ export class LandLayer {
     for (let k = 0; k < (quality === 'high' ? 16 : 9); k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, color: mix(look.fog, look.ground[1] || look.base, 0.6), transparent: true, opacity: 0, depthWrite: false })); sp.position.set((Math.random() - 0.5) * 90, 1.5 + Math.random() * 4, (Math.random() - 0.5) * 90); const sz = 16 + Math.random() * 18; sp.scale.set(sz, sz * 0.35, 1); sp.visible = false; this.clouds.push(sp); this.group.add(sp); }
     scene.add(this.group); }
   dispose() { this.scene.remove(this.group); this.tex.dispose(); }
-  showGrid(v: boolean) { this.gridOn = v; if (this.grid) this.grid.visible = v; }
+  showGrid(v: boolean) { this.gridOn = v; if (v) this.paintGrid(); if (this.grid) this.grid.visible = v; }
+  // the placement grid: every cell you own outlined, plot boundaries (every 6 cells) bolder, cells already taken tinted
+  // red, so where a building can go is plain at a glance. Painted once per change into one texture over the land.
+  private static PX = 16;
+  private paintGrid() { const own = this.own; if (!own) return; const P = LandLayer.PX, N = GRID * P; let h = 2166136261; for (const c of this.occ) { h ^= c; h = Math.imul(h, 16777619); } let ho = 0; for (let i = 0; i < own.length; i++) if (own[i]) ho = (ho * 31 + i) | 0; const key = this.occ.size + ':' + (h >>> 0) + ':' + ho;
+    if (!this.gridCv) { this.gridCv = document.createElement('canvas'); this.gridCv.width = this.gridCv.height = N; this.gridTex = new THREE.CanvasTexture(this.gridCv); this.gridTex.colorSpace = THREE.SRGBColorSpace; this.gridTex.anisotropy = 8;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(GRID, GRID), new THREE.MeshBasicMaterial({ map: this.gridTex, transparent: true, depthWrite: false, toneMapped: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.05; m.renderOrder = 3; m.visible = this.gridOn; this.grid = m; this.group.add(m); }
+    if (key === this.kGrid) return; this.kGrid = key; const g = this.gridCv.getContext('2d')!; g.clearRect(0, 0, N, N); const at = (x: number, z: number) => x >= 0 && z >= 0 && x < GRID && z < GRID && own[z * GRID + x] > 0;
+    for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; const taken = this.occ.has(z * GRID + x); g.fillStyle = taken ? 'rgba(255, 92, 110, 0.34)' : 'rgba(255, 255, 255, 0.035)'; g.fillRect(x * P, z * P, P, P); }
+    g.lineWidth = 1.25; g.strokeStyle = 'rgba(235, 248, 255, 0.26)'; g.beginPath(); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; g.rect(x * P + 0.75, z * P + 0.75, P - 1.5, P - 1.5); } g.stroke();
+    g.lineWidth = 2.2; g.strokeStyle = 'rgba(255, 244, 210, 0.5)'; g.beginPath(); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; if (x % CHUNK === 0 || !at(x - 1, z)) { g.moveTo(x * P, z * P); g.lineTo(x * P, (z + 1) * P); } if (z % CHUNK === 0 || !at(x, z - 1)) { g.moveTo(x * P, z * P); g.lineTo((x + 1) * P, z * P); } if (!at(x + 1, z)) { g.moveTo((x + 1) * P, z * P); g.lineTo((x + 1) * P, (z + 1) * P); } if (!at(x, z + 1)) { g.moveTo(x * P, (z + 1) * P); g.lineTo((x + 1) * P, (z + 1) * P); } } g.stroke();
+    this.gridTex!.needsUpdate = true; }
   setMode(on: boolean) { this.mode = on; this.marks.visible = on; this.kTex = ''; if (!on) this.sel = null; this.selFrame.visible = on && !!this.sel; }
   select(cx: number, cz: number) { this.sel = [cx, cz]; this.selFrame.position.set((cx + 0.5) * CHUNK - C, 0.09, (cz + 0.5) * CHUNK - C); this.selFrame.visible = this.mode; }
   // ---------------- rebuild what changed ----------------
@@ -58,22 +69,21 @@ export class LandLayer {
     const own = new Uint8Array(GRID * GRID); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (x >= A.lo && z >= A.lo && x < A.hi && z < A.hi) own[z * GRID + x] = 1; else if (B.claims && B.claims[Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK)]) own[z * GRID + x] = 2; }
     const kE = A.lo + ':' + A.hi + '|' + claims; if (kE !== this.kEdge) { this.kEdge = kE; this.buildEdge(own); if (this.look.deck) this.buildDecks(s, base); else this.buildRoads(own); }
     const fk = (B.falls || []).map((f) => f.t + (f.found ? 'f' : '')).join(','); const kT = kE + '|' + surv + '|' + site + '|' + hl + '|' + rr + '|' + this.mode + '|' + fk; this.syncFalls(s, base, fk); if (kT !== this.kTex) { this.kTex = kT; this.drawTex(s, base, own); }
-    const occ = new Set<number>(); for (const it of B.items) { const [w, d] = dims(it.b, it.r); for (let z = it.z; z < it.z + d; z++) for (let x = it.x; x < it.x + w; x++) occ.add(z * GRID + x); }
+    const occ = new Set<number>(); for (const it of B.items) { const [w, d] = dims(it.b, it.r); for (let z = it.z; z < it.z + d; z++) for (let x = it.x; x < it.x + w; x++) occ.add(z * GRID + x); } this.own = own; this.occ = occ; if (this.gridOn) this.paintGrid();
     const kP = surv + '|' + site + '|' + B.items.map((i) => i.x + ',' + i.z + ',' + i.r + i.b).join(';'); if (kP !== this.kProps) { this.kProps = kP; this.buildProps(s, base, occ); }
     const kM = kT; if (kM !== this.kMarks) { this.kMarks = kM; this.buildMarks(s, base); }
     const jobs = s.jobs.filter((j) => (j.kind === 'prospect' || j.kind === 'claim') && j.base === base); const kW = jobs.map((j) => j.id).join(); if (kW !== this.kWork) { this.kWork = kW; this.buildWork(jobs); }
     const st = LD.stormAt(s, base); this.stormTo = st ? Math.min(1, 0.35 + st.k * 0.22) : 0; }
   // the boundary of the land you own, and the placement grid over it
   private buildEdge(own: Uint8Array) {
-    if (this.edge) { this.group.remove(this.edge); this.edge.geometry.dispose(); } if (this.grid) { this.group.remove(this.grid); this.grid.geometry.dispose(); }
+    if (this.edge) { this.group.remove(this.edge); this.edge.geometry.dispose(); }
     const at = (x: number, z: number) => x >= 0 && z >= 0 && x < GRID && z < GRID && own[z * GRID + x] > 0; const P: number[] = []; const w = 0.22;
     const quad = (x0: number, z0: number, x1: number, z1: number) => { x0 -= C; x1 -= C; z0 -= C; z1 -= C; P.push(x0, 0, z0, x0, 0, z1, x1, 0, z1, x0, 0, z0, x1, 0, z1, x1, 0, z0); };
-    const L: number[] = []; const seen = new Set<string>(); const line = (x0: number, z0: number, x1: number, z1: number) => { const k = x0 + ',' + z0 + ',' + x1 + ',' + z1; if (seen.has(k)) return; seen.add(k); L.push(x0 - C, 0.035, z0 - C, x1 - C, 0.035, z1 - C); };
     for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue;
       if (!at(x, z - 1)) quad(x, z - w, x + 1, z); if (!at(x, z + 1)) quad(x, z + 1, x + 1, z + 1 + w); if (!at(x - 1, z)) quad(x - w, z, x, z + 1); if (!at(x + 1, z)) quad(x + 1, z, x + 1 + w, z + 1);
-      line(x, z, x + 1, z); line(x, z, x, z + 1); line(x, z + 1, x + 1, z + 1); line(x + 1, z, x + 1, z + 1); }
+ }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); this.edge = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: '#f4e7b8', transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide })); this.edge.position.y = 0.045; this.edge.renderOrder = 2; this.group.add(this.edge);
-    const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(L, 3)); this.grid = new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.22 })); this.grid.visible = this.gridOn; this.group.add(this.grid); }
+ }
   // the ground layer: graded plots, deposit stains, and the Land-mode overlay
   private drawTex(s: State, base: string, own: Uint8Array) {
     const P = this.P, S = GRID * P, g = this.cv.getContext('2d')!; g.clearRect(0, 0, S, S); const D = LD.deposits(s, base);
