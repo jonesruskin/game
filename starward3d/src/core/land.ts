@@ -15,6 +15,7 @@ import { relayLevel, terraSpeed, COLONY } from './solar';
 import { sp } from './space';
 import { rng, hash, round2, ladder } from './util';
 import { isExo, planetOf, ist } from './stars';
+import { charter, landDiscount } from './war';
 export const NCH = GRID / CHUNK; // plots per side
 // ---------------- the landing site ----------------
 export const siteList = (s: State, base: string): Site[] => { const B = s.bases[base]; if (!B) return []; return sitesFor(B.body, isExo(base) ? planetOf(base)?.pl.type : undefined); };
@@ -61,7 +62,8 @@ export const ownedChunk = (s: State, base: string, cx: number, cz: number) => co
 // orbital hints: 0 none, 1 ice and ore, 2 everything (Earth's satellites, a world's relays, a developed star colony)
 export function hintLevel(s: State, base: string) { if (base === 'earth') return (sp(s).sats || []).length >= 3 ? 2 : (sp(s).sats || []).length ? 1 : 0; if (isExo(base)) { const C = ist(s).colonies[base]; return C ? (C.lvl >= 6 ? 2 : C.lvl >= 3 ? 1 : 0) : 0; } const r = relayLevel(s, base); return r >= 3 ? 2 : r >= 1 ? 1 : 0; }
 // rovers reach this many plots beyond owned land
-export const roverRange = (s: State, base: string) => 2 + hintLevel(s, base);
+export const roverRange = (s: State, base: string) => 2 + hintLevel(s, base) + (charter(s, 'land2') ? 1 : 0);
+export const maxRovers = (s: State) => (charter(s, 'rover') ? 3 : 2);
 function distToOwned(s: State, base: string, cx: number, cz: number) { let best = 99; for (let z = 0; z < NCH; z++) for (let x = 0; x < NCH; x++) if (ownedChunk(s, base, x, z)) best = Math.min(best, Math.max(Math.abs(x - cx), Math.abs(z - cz))); return best; }
 // deposits visible in a plot (surveyed), or hinted from orbit
 export function plotInfo(s: State, base: string, cx: number, cz: number) { const D = deposits(s, base); const found: Record<string, number> = {};
@@ -74,14 +76,14 @@ export const surveyCost = (s: State, base: string) => { const e = era(s, base); 
 export const surveyTime = (s: State, base: string) => Math.round(ladder(3 + era(s, base) * 0.35 + Math.min(5, nSurveyed(s, base) * 0.06)));
 export function canSurvey(s: State, base: string, cx: number, cz: number): Check { if (!s.bases[base] || cx < 0 || cz < 0 || cx >= NCH || cz >= NCH) return { ok: false, why: 'Off the map' };
   if (surveyed(s, base, cx, cz)) return { ok: false, why: 'Surveyed', done: true }; if (s.jobs.some((j) => j.kind === 'prospect' && j.base === base && j.key === cx + ',' + cz)) return { ok: false, why: 'Rover on its way', busy: true };
-  if (s.jobs.filter((j) => j.kind === 'prospect').length >= 2) return { ok: false, why: 'Both rovers are out', busy: true }; if (distToOwned(s, base, cx, cz) > roverRange(s, base)) return { ok: false, why: 'Too far for the rovers: claim land closer first', locked: true };
+  if (s.jobs.filter((j) => j.kind === 'prospect').length >= maxRovers(s)) return { ok: false, why: 'Every rover is out', busy: true }; if (distToOwned(s, base, cx, cz) > roverRange(s, base)) return { ok: false, why: 'Too far for the rovers: claim land closer first', locked: true };
   const cost = surveyCost(s, base); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: surveyTime(s, base) }; }
 export function startSurvey(s: State, base: string, cx: number, cz: number, t = Date.now()) { const c = canSurvey(s, base, cx, cz); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'prospect', base, key: cx + ',' + cz, start: t, end: t + c.time! * 1000 }); return c; }
 // ---------------- claiming land ----------------
 const nClaims = (s: State, base: string) => Object.keys(s.bases[base]?.claims || {}).length;
-export const claimCost = (s: State, base: string) => { const e = era(s, base), k = 1 + nClaims(s, base) * 0.12; return { credits: capClamp(round2(520 * Math.pow(1.5, e) * k), e, 'credits'), metal: capClamp(round2(420 * Math.pow(1.5, e) * k), e, 'metal') }; };
+export const claimCost = (s: State, base: string) => { const e = era(s, base), k = (1 + nClaims(s, base) * 0.12) * (1 - landDiscount(s)); return { credits: capClamp(round2(520 * Math.pow(1.5, e) * k), e, 'credits'), metal: capClamp(round2(420 * Math.pow(1.5, e) * k), e, 'metal') }; };
 export const claimTime = (s: State, base: string) => Math.round(ladder(4.5 + era(s, base) * 0.4 + Math.min(8, nClaims(s, base) * 0.2)));
-export const claimDraw = (s: State, base: string) => Math.round(2 + era(s, base) * 0.6); // energy each claimed plot draws
+export const claimDraw = (s: State, base: string) => Math.round((2 + era(s, base) * 0.6) * (charter(s, 'land3') ? 0.75 : 1)); // energy each claimed plot draws
 export function canClaim(s: State, base: string, cx: number, cz: number): Check { if (!s.bases[base] || cx < 0 || cz < 0 || cx >= NCH || cz >= NCH) return { ok: false, why: 'Off the map' };
   if (ownedChunk(s, base, cx, cz)) return { ok: false, why: 'Yours', done: true };
   if (!surveyed(s, base, cx, cz)) return { ok: false, why: 'Survey it first', locked: true };

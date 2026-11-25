@@ -11,7 +11,7 @@ import { ist, dist } from './stars';
 import { known } from './aliens';
 import { fitMax } from '../data/buildings';
 import { lvlOf } from './econ';
-import { layoutOf, aiDeploys } from './war';
+import { layoutOf, aiDeploys, charter } from './war';
 import { run, BattleInput, Fighter } from './battle';
 export interface Conflict { ships: Record<string, number>; def: Record<string, number>; raids: any[]; log: any[]; hives: Record<string, any>; next: number; fleetAt: string; raidsSeen: number; blockade: Record<string, number>; }
 export interface Stack { k: string; n: number; dmg: number; pend: number; }
@@ -93,7 +93,7 @@ export function makeRaid(s: State, t: number) { const W = war(s); const T = targ
   const raid = { id: uid(s), target: tg.key, name: tg.name, comp: { drone: Math.round(45 * S), warrior: Math.round(6 * S), brood: Math.round(0.6 * S) }, eta: t + 8 * 3600e3, seed: (t / 1000) >>> 0 }; W.raids.push(raid); W.raidsSeen++; return raid; }
 // a raid on Earth is a landing: the Swarm's ground troops attack your real base, and the War Games engine fights it out
 // against your turrets, lasers, missiles, shields, EMP towers and walls (orbital defences thin the landing first)
-export function groundArmy(s: State, raid: any): Fighter[] { const W = war(s); const k = 1 - Math.min(0.6, defLevel(s, 'earth') * 0.06); const n = Math.max(4, Math.round((5 + Math.min(W.raidsSeen, 24) * 0.35) * k)); const lvl = Math.min(30, 6 + Math.round(W.raidsSeen * 0.8));
+export function groundArmy(s: State, raid: any): Fighter[] { const W = war(s); const k = 1 - Math.min(0.6, defLevel(s, 'earth') * 0.06); const n = Math.max(4, Math.round((5 + Math.min(W.raidsSeen, 24) * 0.35) * k * (charter(s, 'guard') ? 0.85 : 1))); const lvl = Math.min(30, 6 + Math.round(W.raidsSeen * 0.8));
   return Array.from({ length: n }, (_, i) => ({ sp: i % 5 === 4 ? 'krbrood' : i % 3 === 2 ? 'krwarrior' : 'krdrone', lvl })); }
 function resolveGround(s: State, raid: any) { const W = war(s); const layout = layoutOf(s); const army = groundArmy(s, raid); const input: BattleInput = { layout, army, deploys: aiDeploys(layout, army, raid.seed), seed: raid.seed }; const r = run(input);
   const rep: any = { t: raid.eta, kind: 'landing', name: raid.name, win: r.stars <= 1, stars: r.stars, pct: r.pct, ground: input };

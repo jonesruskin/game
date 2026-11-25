@@ -1,4 +1,4 @@
-// The War Games battle engine. A deterministic simulation on the base grid: fixed 0.1 s ticks, a seeded random
+// The Orbital Trials battle engine. A deterministic simulation on the base grid: fixed 0.1 s ticks, a seeded random
 // generator, integer-free but trig-free arithmetic (only + − × ÷ and √), and a fixed iteration order. A battle is
 // fully described by its input (the defender's layout, the attacking squad, the deployments and a seed), so a replay is
 // a few hundred bytes and the server can re-run any battle to check the result instead of trusting the client.
@@ -10,7 +10,16 @@ import { SPECIES } from '../data/species';
 import { RARITY_ORDER } from '../data/rarities';
 import { ROLE_OF, ROLES, Role, R_POWER, levelK, BOT_HP, BOT_DPS, escorts, DRONE, DEF, DefDef, DEF_K, buildingHp, TICK, MAX_TICKS } from '../data/war';
 export interface LItem { id: string; b: string; lvl: number; x: number; z: number; r: number; boost?: number; }
-export interface Layout { items: LItem[]; lo: number; hi: number; }
+// lo/hi: the core square around Mission Control; n: the field's size (52 when absent, as in older replays); land: the
+// claimed plots (6 × 6 cells, by their corner) that are part of the base too. Robots land anywhere outside the base.
+export interface Layout { items: LItem[]; lo: number; hi: number; n?: number; land?: number[][]; }
+export const PLOT = 6;
+export const fieldSize = (L: Layout) => L.n || GRID;
+// which cells belong to the base (the core square and every claimed plot)
+export function ownedMask(L: Layout) { const n = fieldSize(L), m = new Uint8Array(n * n); const mark = (x0: number, z0: number, x1: number, z1: number) => { for (let x = Math.max(0, x0); x < Math.min(n, x1); x++) for (let z = Math.max(0, z0); z < Math.min(n, z1); z++) m[x * n + z] = 1; };
+  mark(L.lo, L.lo, L.hi, L.hi); for (const p of L.land || []) mark(p[0], p[1], p[0] + PLOT, p[1] + PLOT); return m; }
+// the base's bounding box (where the AI lands its squads)
+export function ownedBox(L: Layout) { let x0 = L.lo, z0 = L.lo, x1 = L.hi, z1 = L.hi; for (const p of L.land || []) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0] + PLOT); z1 = Math.max(z1, p[1] + PLOT); } return { x0, z0, x1, z1 }; }
 export interface Fighter { sp: string; lvl: number; }
 export interface Deploy { t: number; i: number; x: number; z: number; }
 export interface BattleInput { layout: Layout; army: Fighter[]; deploys: Deploy[]; seed: number; end?: number; }
@@ -18,10 +27,10 @@ export interface BUnit { id: number; bot: number; drone: boolean; sp: string; ro
   prefers: 'defence' | 'any'; target: number; wall: number; ally: number; stun: number; alive: boolean; fx: number; fz: number; atk: boolean; }
 export interface BBld { i: number; id: string; b: string; lvl: number; x0: number; z0: number; w: number; d: number; cx: number; cz: number; hp: number; max: number; wall: boolean; def: DefDef | null; dk: number; cd: number; tgt: number; pool: number; poolMax: number; lastHit: number; alive: boolean; ax: number; az: number; }
 export type BEvent = { k: 'shot'; b: number; u: number; x: number; z: number; splash?: number } | { k: 'pulse'; b: number } | { k: 'down'; b: number } | { k: 'die'; u: number } | { k: 'deploy'; i: number; x: number; z: number } | { k: 'hit'; u: number; b: number; x: number; z: number };
-export interface Battle { input: BattleInput; tick: number; units: BUnit[]; blds: BBld[]; ev: BEvent[]; destroyed: number; total: number; hqDown: boolean; over: boolean; used: boolean[]; live: boolean;
+export interface Battle { input: BattleInput; n: number; own: Uint8Array | null; tick: number; units: BUnit[]; blds: BBld[]; ev: BEvent[]; destroyed: number; total: number; hqDown: boolean; over: boolean; used: boolean[]; live: boolean;
   occ: Int16Array; fields: Map<number, Float32Array>; nextId: number; defAlive: number; }
 export interface BattleResult { stars: number; pct: number; hq: boolean; ticks: number; used: number; }
-const N = GRID, INF = 1e9, WALL_COST = 8;
+const INF = 1e9, WALL_COST = 8;
 const DRONE_OFF: [number, number][] = [[0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7], [0.5, 0.5], [-0.5, -0.5]];
 const dimsOf = (b: string, r: number): [number, number] => { const [w, d] = BUILDINGS[b].fp; return r % 2 ? [d, w] : [w, d]; };
 export const rIdxOf = (sp: string) => Math.max(0, RARITY_ORDER.indexOf(SPECIES[sp].rarity));
@@ -29,14 +38,15 @@ export const roleOf = (sp: string): Role => ROLE_OF[SPECIES[sp].el[0]] || 'strik
 // how strong a robot is in the War Games (for squad picking and matchmaking)
 export const botPower = (f: Fighter) => R_POWER[rIdxOf(f.sp)] * levelK(f.lvl) * (1 + escorts(rIdxOf(f.sp)) * 0.3);
 export function newBattle(input: BattleInput, live = false): Battle {
-  const blds: BBld[] = []; const occ = new Int16Array(N * N).fill(-1); let total = 0;
+  const N = fieldSize(input.layout); const blds: BBld[] = []; const occ = new Int16Array(N * N).fill(-1); let total = 0;
   for (const it of input.layout.items) { if (!BUILDINGS[it.b] || it.lvl <= 0) continue; const [w, d] = dimsOf(it.b, it.r); const i = blds.length; const def = DEF[it.b] || null; const hp = buildingHp(it.b, w, d, it.lvl); const dk = Math.pow(DEF_K, it.lvl - 1) * (1 + (it.boost || 0));
     blds.push({ i, id: it.id, b: it.b, lvl: it.lvl, x0: it.x, z0: it.z, w, d, cx: it.x + w / 2, cz: it.z + d / 2, hp, max: hp, wall: it.b === 'wall', def, dk, cd: 0, tgt: -1, pool: def && def.shield ? def.shield * dk : 0, poolMax: def && def.shield ? def.shield * dk : 0, lastHit: -999, alive: true, ax: 0, az: 1 });
     for (let x = it.x; x < it.x + w; x++) for (let z = it.z; z < it.z + d; z++) if (x >= 0 && z >= 0 && x < N && z < N) occ[x * N + z] = i; if (it.b !== 'wall') total++; }
-  return { input, tick: 0, units: [], blds, ev: [], destroyed: 0, total, hqDown: false, over: false, used: input.army.map(() => false), live, occ, fields: new Map(), nextId: 1, defAlive: blds.filter((b) => b.def).length };
+  return { input, n: N, own: input.layout.land || input.layout.n ? ownedMask(input.layout) : null, tick: 0, units: [], blds, ev: [], destroyed: 0, total, hqDown: false, over: false, used: input.army.map(() => false), live, occ, fields: new Map(), nextId: 1, defAlive: blds.filter((b) => b.def).length };
 }
-// robots land anywhere outside the defender's buildable square
-export const canDeployAt = (B: Battle, x: number, z: number) => { const L = B.input.layout; if (x < 0 || z < 0 || x >= N || z >= N) return false; return !(x >= L.lo - 0.5 && x < L.hi + 0.5 && z >= L.lo - 0.5 && z < L.hi + 0.5); };
+// robots land anywhere outside the base, at least half a cell from it (older layouts: outside the square)
+export const canDeployAt = (B: Battle, x: number, z: number) => { const L = B.input.layout, N = B.n; if (x < 0 || z < 0 || x >= N || z >= N) return false; if (!B.own) return !(x >= L.lo - 0.5 && x < L.hi + 0.5 && z >= L.lo - 0.5 && z < L.hi + 0.5);
+  for (const cx of [Math.floor(x - 0.5), Math.floor(x + 0.5)]) for (const cz of [Math.floor(z - 0.5), Math.floor(z + 0.5)]) if (cx >= 0 && cz >= 0 && cx < N && cz < N && B.own[cx * N + cz]) return false; return true; };
 function spawn(B: Battle, i: number, x: number, z: number) {
   const f = B.input.army[i]; if (!f || B.used[i] || !SPECIES[f.sp]) return; B.used[i] = true; const ri = rIdxOf(f.sp), P = R_POWER[ri] * levelK(f.lvl), role = roleOf(f.sp), R = ROLES[role];
   const mk = (drone: boolean, ox: number, oz: number): BUnit => ({ id: B.nextId++, bot: i, drone, sp: f.sp, role: drone ? 'striker' : role, x: x + ox, z: z + oz, hp: 0, max: 0, dps: 0, speed: 0, range: 0, splash: 0, air: false, heal: 0, wallK: 1, prefers: 'any', target: -1, wall: -1, ally: -1, stun: 0, alive: true, fx: 0, fz: 1, atk: false });
@@ -48,7 +58,7 @@ function spawn(B: Battle, i: number, x: number, z: number) {
 const rectDist = (b: BBld, x: number, z: number) => { const dx = Math.max(b.x0 - x, 0, x - (b.x0 + b.w)), dz = Math.max(b.z0 - z, 0, z - (b.z0 + b.d)); return Math.sqrt(dx * dx + dz * dz); };
 // a cost field toward one building: Dijkstra over the grid; other buildings block, walls can be broken (at a cost)
 function field(B: Battle, ti: number): Float32Array {
-  let f = B.fields.get(ti); if (f) return f; f = new Float32Array(N * N).fill(INF); const t = B.blds[ti]; const heap: number[] = []; const hp = (c: number) => { heap.push(c); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (f![heap[p]] <= f![heap[i]]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const N = B.n; let f = B.fields.get(ti); if (f) return f; f = new Float32Array(N * N).fill(INF); const t = B.blds[ti]; const heap: number[] = []; const hp = (c: number) => { heap.push(c); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (f![heap[p]] <= f![heap[i]]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
   const pop = () => { const top = heap[0], last = heap.pop()!; if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && f![heap[l]] < f![heap[m]]) m = l; if (r < heap.length && f![heap[r]] < f![heap[m]]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
   for (let x = t.x0; x < t.x0 + t.w; x++) for (let z = t.z0; z < t.z0 + t.d; z++) if (x >= 0 && z >= 0 && x < N && z < N) { f[x * N + z] = 0; hp(x * N + z); }
   const done = new Uint8Array(N * N);
@@ -67,7 +77,7 @@ function damage(B: Battle, b: BBld, dmg: number) {
 function hurt(B: Battle, u: BUnit, dmg: number) { if (!u.alive) return; u.hp -= dmg; if (u.hp <= 0) { u.alive = false; B.ev.push({ k: 'die', u: u.id }); } }
 const moveToward = (u: BUnit, tx: number, tz: number) => { const dx = tx - u.x, dz = tz - u.z, d = Math.sqrt(dx * dx + dz * dz); if (d < 1e-6) return; const s = Math.min(d, u.speed * TICK); u.x += (dx / d) * s; u.z += (dz / d) * s; u.fx = dx / d; u.fz = dz / d; };
 export function step(B: Battle) {
-  if (B.over) return; B.ev = []; for (const d of B.input.deploys) if (d.t === B.tick) spawn(B, d.i, d.x, d.z);
+  if (B.over) return; const N = B.n; B.ev = []; for (const d of B.input.deploys) if (d.t === B.tick) spawn(B, d.i, d.x, d.z);
   // defences
   for (const b of B.blds) { if (!b.alive || !b.def) continue; const D = b.def;
     if (D.shield) { if (B.tick - b.lastHit > 30) b.pool = Math.min(b.poolMax, b.pool + b.poolMax * 0.04 * TICK); continue; }

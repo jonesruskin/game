@@ -1,10 +1,10 @@
-// The War Games arena in 3D: the Defence Council's holographic copy of a commander's base (dark floor, cyan grid, the
-// buildable square outlined in red: robots land outside it), the real building models, robots with their escort drones
+// The Orbital Trials arena in 3D: the Defence Council's holographic copy of a commander's whole base (dark floor, cyan
+// grid, the base's land tinted and outlined in red: robots land outside it), the real building models, robots with their escort drones
 // (positions interpolated between engine ticks), turret heads tracking targets, tracers, laser beams, missile arcs,
 // EMP rings, shield domes that flare as they soak damage, rubble and health bars. It only draws: the battle engine
 // decides everything, which is why a replay looks exactly like the fight.
 import * as THREE from 'three';
-import { Battle, BBld, BUnit, step, newBattle, BattleInput } from '../core/battle';
+import { Battle, BBld, BUnit, step, newBattle, BattleInput, ownedMask, ownedBox, fieldSize } from '../core/battle';
 import { buildModel, droneModel, Look, Model } from './models';
 import { buildBot, BotModel } from './botmodels';
 import { BATTLE_GRID as GRID } from '../data/buildings';
@@ -12,7 +12,7 @@ import { TICK } from '../data/war';
 import { ELEMENTS } from '../data/elements';
 import { SPECIES } from '../data/species';
 import { clamp } from '../core/util';
-const C = GRID / 2;
+let C = GRID / 2; // half the current field (each base brings its own size)
 interface BV { m: Model; root: THREE.Group; bar: THREE.Group; fill: THREE.Mesh; dome?: THREE.Mesh; rubble?: THREE.Object3D; h: number; }
 interface UV { o: THREE.Object3D; bot?: BotModel; px: number; pz: number; bar?: THREE.Group; fill?: THREE.Mesh; hover: number; }
 interface FX { o: THREE.Object3D; t: number; life: number; up?: (k: number, o: THREE.Object3D) => void; }
@@ -25,18 +25,27 @@ export class BattleView {
   constructor(private renderer: THREE.WebGLRenderer, private quality: 'high' | 'low') {
     this.scene.background = new THREE.Color('#050b18'); this.scene.fog = new THREE.Fog('#050b18', 70, 170);
     this.scene.add(new THREE.HemisphereLight('#bcd8ff', '#1a2440', 1.1)); const sun = new THREE.DirectionalLight('#ffffff', 1.8); sun.position.set(-30, 50, 25); this.scene.add(sun);
-    // the holo-floor: a dark plate, a cyan grid and a faint glow at the edge
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(GRID + 30, GRID + 30), new THREE.MeshStandardMaterial({ color: '#0a1830', roughness: 0.6, metalness: 0.3 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.02; this.scene.add(floor);
-    const pts: number[] = []; for (let i = 0; i <= GRID; i += 2) { pts.push(i - C, 0, -C, i - C, 0, C, -C, 0, i - C, C, 0, i - C); } const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); this.scene.add(new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: '#2f7fd0', transparent: true, opacity: 0.35 })));
-    const edge = new THREE.Mesh(new THREE.RingGeometry(GRID * 0.705, GRID * 0.72, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: '#6ee7ff', transparent: true, opacity: 0.5, side: THREE.DoubleSide })); edge.rotation.x = -Math.PI / 2; edge.position.y = 0.01; this.scene.add(edge, this.zone);
+    this.scene.add(this.zone, this.floorG);
   }
+  // the holo-floor for a field of n cells: a dark plate, a cyan grid and a faint glow at the edge
+  private floorG = new THREE.Group(); private floorN = 0;
+  private floor(n: number) { if (n === this.floorN) return; this.floorN = n; for (const c of [...this.floorG.children]) { this.floorG.remove(c); (c as THREE.Mesh).geometry?.dispose(); } const h = n / 2;
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(n + 30, n + 30), new THREE.MeshStandardMaterial({ color: '#0a1830', roughness: 0.6, metalness: 0.3 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.02; this.floorG.add(floor);
+    const pts: number[] = []; for (let i = 0; i <= n; i += 2) { pts.push(i - h, 0, -h, i - h, 0, h, -h, 0, i - h, h, 0, i - h); } const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); this.floorG.add(new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: '#2f7fd0', transparent: true, opacity: 0.35 })));
+    const edge = new THREE.Mesh(new THREE.RingGeometry(n * 0.705, n * 0.72, 4, 1, Math.PI / 4), new THREE.MeshBasicMaterial({ color: '#6ee7ff', transparent: true, opacity: 0.5, side: THREE.DoubleSide })); edge.rotation.x = -Math.PI / 2; edge.position.y = 0.01; this.floorG.add(edge); }
   resize(w: number, h: number) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
   // load a battle (live or replay) and build its scene
-  load(input: BattleInput, look: Look, live: boolean) { this.clear(); const B = newBattle(input, live); this.B = B; this.live = live; this.acc = 0; this.speed = 1; this.paused = false;
-    const L = input.layout; const side = L.hi - L.lo, mid = (L.lo + L.hi) / 2 - C; this.cam.x = this.cam.tx = mid + 2.5; this.cam.z = this.cam.tz = mid + 2.5; this.cam.dist = this.cam.tdist = 15 + side * 0.78; // nudged toward the near corner: the deploy cards cover the bottom of the screen
-    // the no-landing square: robots must be deployed outside it
-    const red = new THREE.Mesh(new THREE.PlaneGeometry(side + 1, side + 1), new THREE.MeshBasicMaterial({ color: '#ff4d6d', transparent: true, opacity: 0.07, depthWrite: false })); red.rotation.x = -Math.PI / 2; red.position.set(mid, 0.01, mid); this.zone.add(red);
-    const rim = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(side + 1, side + 1)), new THREE.LineBasicMaterial({ color: '#ff6b7a', transparent: true, opacity: 0.8 })); rim.rotation.x = -Math.PI / 2; rim.position.set(mid, 0.03, mid); this.zone.add(rim);
+  private fired = false;
+  load(input: BattleInput, look: Look, live: boolean) { this.clear(); const B = newBattle(input, live); this.B = B; this.live = live; this.fired = false; this.acc = 0; this.speed = 1; this.paused = false;
+    const L = input.layout, n = fieldSize(L); C = n / 2; this.floor(n); const bx = ownedBox(L); const side = Math.max(bx.x1 - bx.x0, bx.z1 - bx.z0), mx = (bx.x0 + bx.x1) / 2 - C, mz = (bx.z0 + bx.z1) / 2 - C;
+    this.cam.x = this.cam.tx = mx + 2.5; this.cam.z = this.cam.tz = mz + 2.5; this.cam.dist = this.cam.tdist = clamp(15 + side * 0.78, 20, 120); // nudged toward the near corner: the deploy cards cover the bottom of the screen
+    // the base's land, tinted red and outlined: robots must land outside it (half a cell clear)
+    const own = ownedMask(L); const at = (x: number, z: number) => x >= 0 && z >= 0 && x < n && z < n && own[x * n + z] > 0; const fill: number[] = [], rim: number[] = []; const q = (x0: number, z0: number, x1: number, z1: number, out: number[], y: number) => { x0 -= C; x1 -= C; z0 -= C; z1 -= C; out.push(x0, y, z0, x0, y, z1, x1, y, z1, x0, y, z0, x1, y, z1, x1, y, z0); };
+    for (let x = 0; x < n; x++) for (let z = 0; z < n; z++) { if (!at(x, z)) continue; q(x, z, x + 1, z + 1, fill, 0.01); const w = 0.12;
+      if (!at(x, z - 1)) q(x - (at(x - 1, z) ? 0 : 0.5), z - 0.5 - w / 2, x + 1 + (at(x + 1, z) ? 0 : 0.5), z - 0.5 + w / 2, rim, 0.03); if (!at(x, z + 1)) q(x - (at(x - 1, z) ? 0 : 0.5), z + 1.5 - w / 2, x + 1 + (at(x + 1, z) ? 0 : 0.5), z + 1.5 + w / 2, rim, 0.03);
+      if (!at(x - 1, z)) q(x - 0.5 - w / 2, z - (at(x, z - 1) ? 0 : 0.5), x - 0.5 + w / 2, z + 1 + (at(x, z + 1) ? 0 : 0.5), rim, 0.03); if (!at(x + 1, z)) q(x + 1.5 - w / 2, z - (at(x, z - 1) ? 0 : 0.5), x + 1.5 + w / 2, z + 1 + (at(x, z + 1) ? 0 : 0.5), rim, 0.03); }
+    const mk = (P: number[], col: string, op: number) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide })); };
+    this.zone.add(mk(fill, '#ff4d6d', 0.07), mk(rim, '#ff6b7a', 0.75));
     for (const b of B.blds) { const m = buildModel(b.b, b.lvl, look); const it = input.layout.items.find((i) => i.id === b.id)!; m.group.rotation.y = (-it.r * Math.PI) / 2; const root = new THREE.Group(); root.add(m.group); root.position.set(b.cx - C, 0, b.cz - C); this.scene.add(root);
       const bar = new THREE.Group(); bar.add(new THREE.Mesh(barGeo, barBg)); const fill = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: '#7cf29a', depthTest: false })); fill.position.z = 0.001; bar.add(fill); bar.scale.set(Math.min(2.2, b.w * 0.8), 1, 1); bar.position.set(b.cx - C, m.height + 0.5, b.cz - C); bar.visible = false; bar.renderOrder = 10; fill.renderOrder = 11; this.scene.add(bar);
       const v: BV = { m, root, bar, fill, h: m.height }; if (b.def && b.def.shield) { const dome = new THREE.Mesh(new THREE.SphereGeometry(b.def.shieldR!, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#7fe4ff', transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); dome.position.set(b.cx - C, 0, b.cz - C); this.scene.add(dome); v.dome = dome; }
@@ -46,12 +55,13 @@ export class BattleView {
   // ---------------- input helpers ----------------
   groundAt(x: number, y: number, w: number, h: number) { const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((x / w) * 2 - 1, -(y / h) * 2 + 1), this.camera); const p = new THREE.Vector3(); return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p) ? { x: p.x + C, z: p.z + C } : null; }
   drag(dx: number, dy: number) { const s = this.cam.dist * 0.0022, cy = Math.cos(this.cam.yaw), sy = Math.sin(this.cam.yaw); this.cam.tx = clamp(this.cam.tx - (dx * cy + dy * sy * 1.3) * s, -C - 6, C + 6); this.cam.tz = clamp(this.cam.tz - (-dx * sy + dy * cy * 1.3) * s, -C - 6, C + 6); }
-  zoom(k: number) { this.cam.tdist = clamp(this.cam.tdist * k, 14, 95); }
+  zoom(k: number) { this.cam.tdist = clamp(this.cam.tdist * k, 14, 130); }
   project(x: number, y: number, z: number, w: number, h: number) { const v = new THREE.Vector3(x - C, y, z - C).project(this.camera); return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h }; }
   flash(x: number, z: number, ok: boolean) { const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: ok ? '#7cf29a' : '#ff4d6d', transparent: true, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(x - C, 0.05, z - C); this.addFx(m, 0.5, (k, o) => { o.scale.setScalar(0.3 + k * 1.2); ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 1 - k; }); }
   // ---------------- the loop ----------------
   frame(dt: number) {
-    this.t += dt; const B = this.B; if (B && !this.paused && !B.over) { this.acc += dt * this.speed; let n = 0; while (this.acc >= TICK && !B.over && n < 8) { for (const u of B.units) { const v = this.uv.get(u.id); if (v) { v.px = u.x; v.pz = u.z; } } step(B); this.events(B); this.acc -= TICK; n++; } if (B.over) this.onOver(); this.onTick(); }
+    this.t += dt; const B = this.B; if (B && !this.paused && !B.over) { this.acc += dt * this.speed; let n = 0; while (this.acc >= TICK && !B.over && n < 8) { for (const u of B.units) { const v = this.uv.get(u.id); if (v) { v.px = u.x; v.pz = u.z; } } step(B); this.events(B); this.acc -= TICK; n++; } this.onTick(); }
+    if (B && B.over && !this.fired) { this.fired = true; this.onOver(); } // once, however it ended (the clock, a wipe-out or the End battle button)
     const a = B ? clamp(this.acc / TICK) : 0; if (B) this.sync(B, a);
     for (let i = this.fx.length - 1; i >= 0; i--) { const f = this.fx[i]; f.t += dt; const k = f.t / f.life; if (k >= 1) { this.scene.remove(f.o); this.fx.splice(i, 1); continue; } f.up?.(k, f.o); }
     const c = this.cam, kk = 0.14; c.x += (c.tx - c.x) * kk; c.z += (c.tz - c.z) * kk; c.dist += (c.tdist - c.dist) * kk; c.yaw += (c.tyaw - c.yaw) * kk; const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(56, 32, clamp((c.dist - 14) / 81))); const nar = this.camera.aspect < 0.8 ? Math.min(2.2, 0.85 / this.camera.aspect) : 1, d = c.dist * nar; // portrait screens see less sideways: pull back

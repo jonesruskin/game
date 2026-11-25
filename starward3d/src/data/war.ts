@@ -49,6 +49,16 @@ export const LEAGUES: League[] = [
   { name: 'Lunar', min: 0, col: '#9aa7b8', dm: 5, cellsH: 1 }, { name: 'Martian', min: 400, col: '#cd7f32', dm: 10, cellsH: 2 }, { name: 'Asteroid', min: 800, col: '#c0c8d4', dm: 20, cellsH: 3 },
   { name: 'Jovian', min: 1400, col: '#ffd36a', dm: 35, cellsH: 5 }, { name: 'Saturnian', min: 2000, col: '#7fe4ff', dm: 55, cellsH: 7 }, { name: 'Heliopause', min: 2600, col: '#b892ff', dm: 80, cellsH: 10 }, { name: 'Interstellar', min: 3200, col: '#ff8be8', dm: 120, cellsH: 14 },
 ];
+// the Council's charters: granted for good by the best circle ever reached, and they shape the rest of the game
+export interface Charter { id: string; circle: number; name: string; glyph: string; desc: string; }
+export const CHARTERS: Charter[] = [
+  { id: 'land1', circle: 1, name: 'Land Charter I', glyph: '🚩', desc: 'Claiming land costs 10% less on every world.' },
+  { id: 'rover', circle: 2, name: 'Survey Charter', glyph: '🚙', desc: 'A third rover for surveys.' },
+  { id: 'land2', circle: 3, name: 'Land Charter II', glyph: '🚩', desc: 'Claims cost 20% less, and the rovers reach one plot further.' },
+  { id: 'guard', circle: 4, name: 'Swarm Guard', glyph: '🛡', desc: 'Swarm landings on Earth come down with 15% fewer troops.' },
+  { id: 'land3', circle: 5, name: 'Land Charter III', glyph: '🚩', desc: 'Claims cost 30% less, and claimed land draws 25% less energy.' },
+  { id: 'seat', circle: 6, name: 'Council Seat', glyph: '🏛', desc: 'Trial grants are 25% bigger.' },
+];
 export const leagueOf = (t: number) => { let L = LEAGUES[0]; for (const x of LEAGUES) if (t >= x.min) L = x; return L; };
 // trophies: a win is worth more against a stronger commander, a loss costs less against one
 export const trophyGain = (stars: number, mine: number, theirs: number) => { const d = Math.max(-200, Math.min(200, theirs - mine)); if (stars <= 0) return -Math.max(4, Math.round(14 - d / 25)); return Math.max(4, Math.round([0, 18, 26, 34][stars] + d / 20)); };

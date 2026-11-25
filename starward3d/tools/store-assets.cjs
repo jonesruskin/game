@@ -67,10 +67,10 @@ function view([name, land]) {
     a.changed(); a.ui.land.open(); const best = free.map(([x, z]) => [x, z, Object.keys(LD.plotInfo(s, 'moon', x, z).found).length]).sort((p, q) => q[2] - p[2])[0]; if (best) a.ui.land.tapCell(best[0] * 6 + 3, best[1] * 6 + 3); cam(4, 8, 104, Math.PI / 4); }
   if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
 }
-function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, m = (Lr.lo + Lr.hi) / 2, N = 52;
-  // land just outside the red square, on whichever edges of the field have room
-  const edges = [Lr.lo - 1.1, Lr.hi + 1.1].filter((v) => v > 0.1 && v < N - 0.1); if (!edges.length) return;
-  for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const e = edges[i % edges.length], off = ((i % 5) - 2) * 1.8; if (Math.floor(i / 2) % 2) a.world.onBattleTap(e, m + off); else a.world.onBattleTap(m + off, e); } }
+function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, N = B.n; let x0 = Lr.lo, z0 = Lr.lo, x1 = Lr.hi, z1 = Lr.hi; for (const p of Lr.land || []) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0] + 6); z1 = Math.max(z1, p[1] + 6); }
+  // land just outside the base, on the near edges (the camera looks from the +x +z corner)
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const off = ((i % 5) - 2) * 1.8; if (Math.floor(i / 2) % 2) a.world.onBattleTap(Math.min(N - 0.3, x1 + 1.1), mz + off); else a.world.onBattleTap(mx + off, Math.min(N - 0.3, z1 + 1.1)); } }
 async function boot(b, w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
   await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`);

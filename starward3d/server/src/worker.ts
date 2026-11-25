@@ -3,7 +3,7 @@
 // submit attacks. With VERIFY = "on" the server re-runs every battle with the game's own deterministic engine (the same
 // file the client runs) and records that result, so a tampered client cannot invent a win. Defenders get a log of the
 // attacks on them with full replays. Every query is bounded by an index, so the D1 free tier's daily row limits go far.
-import { run, canDeployAt, newBattle, BattleInput, Layout, Fighter, Deploy } from '../../src/core/battle';
+import { run, canDeployAt, newBattle, BattleInput, Layout, Fighter, Deploy, PLOT } from '../../src/core/battle';
 import { BUILDINGS, BATTLE_GRID as GRID, allowedCount, areaSide } from '../../src/data/buildings';
 import { SPECIES } from '../../src/data/species';
 import { trophyGain, SORTIES, SORTIE_EVERY, MAX_TICKS, squadSize } from '../../src/data/war';
@@ -28,13 +28,18 @@ async function auth(req: Request, env: Env) { const h = req.headers.get('authori
 function sortiesNow(p: Json, now: number) { let n = p.sorties, at = p.sortie_at; if (n < SORTIES) { if (!at) at = now + SORTIE_EVERY; while (n < SORTIES && now >= at) { n++; at += SORTIE_EVERY; } if (n >= SORTIES) at = 0; } return { n, at }; }
 // ---------------- validation: only layouts a real player could have built ----------------
 export function validLayout(L: any): Layout | null {
-  if (!L || !Array.isArray(L.items) || L.items.length > 400) return null; const hqIt = L.items.find((i: any) => i && i.b === 'hq'); const hq = hqIt ? int(hqIt.lvl) : 1; if (!(hq >= 1 && hq <= BUILDINGS.hq.max)) return null;
-  const side = areaSide('earth', hq); const lo = Math.floor((GRID - side) / 2), hi = lo + side; const occ = new Uint8Array(GRID * GRID); const count: Record<string, number> = {}; const items = [];
+  if (!L || !Array.isArray(L.items) || L.items.length > 600) return null; const hqIt = L.items.find((i: any) => i && i.b === 'hq'); const hq = hqIt ? int(hqIt.lvl) : 1; if (!(hq >= 1 && hq <= BUILDINGS.hq.max)) return null;
+  const side = areaSide('earth', hq); const whole = L.n !== undefined; const n = whole ? int(L.n) : GRID; if (!(n >= 32 && n <= 120)) return null;
+  let lo = Math.floor((GRID - side) / 2), hi = lo + side; if (whole) { lo = int(L.lo); hi = int(L.hi); if (hi - lo !== side || lo < 2 || hi > n - 2) return null; }
+  // the base: the core square plus claimed plots (6 x 6), all inside the field with room to land
+  const own = new Uint8Array(n * n); const mark = (x0: number, z0: number, x1: number, z1: number) => { for (let x = x0; x < x1; x++) for (let z = z0; z < z1; z++) own[x * n + z] = 1; }; mark(lo, lo, hi, hi); const land: number[][] = [];
+  if (whole) { if (L.land !== undefined && !Array.isArray(L.land)) return null; for (const p of L.land || []) { if (!Array.isArray(p) || land.length >= 260) return null; const px = int(p[0]), pz = int(p[1]); if (!(px >= 1 && pz >= 1 && px + PLOT <= n - 1 && pz + PLOT <= n - 1)) return null; mark(px, pz, px + PLOT, pz + PLOT); land.push([px, pz]); } }
+  const occ = new Uint8Array(n * n); const count: Record<string, number> = {}; const items = [];
   for (const it of L.items) { const d = it && BUILDINGS[it.b]; if (!d || !d.bases.includes('earth')) return null; const lvl = int(it.lvl), x = int(it.x), z = int(it.z), r = int(it.r); if (!(lvl >= 1 && lvl <= d.max) || !(r >= 0 && r <= 3)) return null;
-    const [w0, d0] = d.fp; const [w, dd] = r % 2 ? [d0, w0] : [w0, d0]; if (!(x >= lo && z >= lo && x + w <= hi && z + dd <= hi)) return null; for (let a = x; a < x + w; a++) for (let b = z; b < z + dd; b++) { if (occ[a * GRID + b]) return null; occ[a * GRID + b] = 1; }
+    const [w0, d0] = d.fp; const [w, dd] = r % 2 ? [d0, w0] : [w0, d0]; if (!(x >= 0 && z >= 0 && x + w <= n && z + dd <= n)) return null; for (let a = x; a < x + w; a++) for (let b = z; b < z + dd; b++) { if (!own[a * n + b] || occ[a * n + b]) return null; occ[a * n + b] = 1; }
     count[it.b] = (count[it.b] || 0) + 1; if (count[it.b] > Math.max(1, allowedCount(d, hq))) return null; const boost = typeof it.boost === 'number' ? Math.max(0, Math.min(3, it.boost)) : 0;
     items.push({ id: String(it.id).slice(0, 16), b: it.b, lvl, x, z, r, ...(boost ? { boost } : {}) }); }
-  return { lo, hi, items };
+  return whole ? { lo, hi, n, land, items } : { lo, hi, items };
 }
 export function validArmy(A: any): Fighter[] | null { if (!Array.isArray(A) || !A.length || A.length > MAX_SQUAD) return null; const out: Fighter[] = []; for (const f of A) { const lvl = int(f && f.lvl); if (!f || !SPECIES[f.sp] || !(lvl >= 1 && lvl <= 30)) return null; out.push({ sp: f.sp, lvl }); } return out; }
 export function validDeploys(D: any, army: Fighter[], layout: Layout): Deploy[] | null { if (!Array.isArray(D) || D.length > army.length) return null; const seen = new Set<number>(); const B = newBattle({ layout, army, deploys: [], seed: 0 }); const out: Deploy[] = [];

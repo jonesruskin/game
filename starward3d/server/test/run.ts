@@ -24,6 +24,13 @@ const army = [{ sp: 'thunderhead', lvl: 14 }, { sp: 'prism', lvl: 14 }, { sp: 'u
   const L = academyLayout(6, 44, 0.7); const bad1 = { ...L, items: [...L.items, { ...L.items[0], id: 'dup' }] }; ok((await call('PUT', '/v1/snapshot', { layout: bad1 }, A)).status === 400, 'overlap refused');
   const bad2 = { ...L, items: L.items.map((i, k) => (k === 1 ? { ...i, x: 0, z: 0 } : i)) }; ok((await call('PUT', '/v1/snapshot', { layout: bad2 }, A)).status === 400, 'outside the square refused');
   const bad3 = { ...L, items: [...L.items, ...Array.from({ length: 6 }, (_, k) => ({ id: 't' + k, b: 'turret', lvl: 1, x: L.lo + k * 2, z: L.hi - 2, r: 0 }))] }; ok((await call('PUT', '/v1/snapshot', { layout: bad3 }, A)).status === 400, 'over the count limit refused');
+  // whole bases: claimed plots are part of the base, buildings off the base or plots off the field are refused
+  const big = academyLayout(14, 77, 0.9); ok(!!big.land && big.land.length > 0 && big.items.some((i) => big.land!.some(([px, pz]) => i.x >= px && i.x < px + 6 && i.z >= pz && i.z < pz + 6)), `an Academy base spreads over ${big.land!.length} claimed plots`);
+  ok((await call('PUT', '/v1/snapshot', { layout: big }, A)).status === 200, 'a whole base with claimed plots is accepted');
+  const offLand = { ...big, items: big.items.map((i, k) => (k === 1 ? { ...i, x: 1, z: 1 } : i)) }; ok((await call('PUT', '/v1/snapshot', { layout: offLand }, A)).status === 400, 'a building off the base is refused');
+  const offField = { ...big, land: [...big.land!, [big.n! - 3, 2]] }; ok((await call('PUT', '/v1/snapshot', { layout: offField }, A)).status === 400, 'a plot off the field is refused');
+  { const t0 = performance.now(); const r = run({ layout: big, army: Array.from({ length: 12 }, (_, k) => ({ sp: army[k % army.length].sp, lvl: 20 })), deploys: aiDeploys(big, Array.from({ length: 12 }, (_, k) => ({ sp: army[k % army.length].sp, lvl: 20 })), 9), seed: 9 }); const ms = performance.now() - t0; console.log(`  big base battle: ${r.stars} stars ${r.pct}% in ${ms.toFixed(0)} ms (field ${big.n})`); ok(ms < 2000, 'a big-base battle simulates quickly'); }
+  await call('PUT', '/v1/snapshot', { layout: academyLayout(6, 33, 0.7), look: { primary: '#c0392b', accent: '#ffffff' }, power: 100 }, A);
   // matchmaking and a verified attack
   const op = await call('GET', '/v1/opponents', undefined, A); ok(op.status === 200 && op.body.opponents.length === 2 && op.body.opponents.every((o: any) => o.match && o.layout.items.length > 10), 'opponents: the two other commanders');
   const target = op.body.opponents.find((o: any) => o.name === 'Okafor Ridge'); const deploys = aiDeploys(target.layout, army, 5);

@@ -22,6 +22,7 @@ import { LifeUI } from './life';
 import { StyleUI } from './style';
 import { LandUI } from './land';
 import * as LD from '../core/land';
+import * as W from '../core/war';
 import * as STY from '../core/style';
 import * as MER from '../core/meridian';
 import { isExo } from '../core/stars';
@@ -76,7 +77,7 @@ export class UI {
     const s = this.s, st = G.currentStep(s); const el = $('#obj'); if (!st) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const done = G.stepDone(s, st, this.R); const ch = CHAPTERS.find((c) => c.id === st.ch);
     el.classList.toggle('done', done); el.innerHTML = `<div class="t">${esc(ch ? ch.name : 'Objective')}</div><p>${esc(st.text)}</p><div class="rw">Reward: ${costHTML(st.reward)}</div>${done ? '<button class="btn gold claim" data-a="claim">✓ Claim reward</button>' : this.hint(st)}`;
   }
-  private hint(st: any) { if (st.kind === 'build' || st.kind === 'hq') { const b = st.kind === 'hq' ? 'hq' : st.b; const it = this.s.bases.earth.items.find((i) => i.b === b); return it ? `<div class="go" data-a="goto" data-id="${it.id}">Show me →</div>` : `<div class="go" data-a="shopFor" data-b="${b}">Open the build menu →</div>`; } if (st.kind === 'tech') return '<div class="go" data-a="research">Open research →</div>'; if (st.kind === 'surveys' || st.kind === 'claims') return '<div class="go" data-a="land">Open the land map →</div>'; return ''; }
+  private hint(st: any) { if (st.kind === 'build' || st.kind === 'hq') { const b = st.kind === 'hq' ? 'hq' : st.b; const it = this.s.bases.earth.items.find((i) => i.b === b); return it ? `<div class="go" data-a="goto" data-id="${it.id}">Show me →</div>` : `<div class="go" data-a="shopFor" data-b="${b}">Open the build menu →</div>`; } if (st.kind === 'tech') return '<div class="go" data-a="research">Open research →</div>'; if (st.kind === 'surveys' || st.kind === 'claims') return '<div class="go" data-a="land">Open the land map →</div>'; if ((st.kind === 'trials' || st.kind === 'circle') && W.unlocked(this.s)) return '<div class="go" data-a="war">Open the Orbital Trials →</div>'; return ''; }
   // ---------------- bubbles over buildings ----------------
   frameBubbles() {
     { const W = this.app.world, fx = $('#stormfx') as HTMLElement | null; if (fx) { const k = W.mode === 'base' && W.land ? W.land.storm * (W.land.mode ? 0.3 : 1) : 0; const o = k > 0.01 ? (k * 0.62).toFixed(3) : '0'; if (fx.style.opacity !== o) { fx.style.opacity = o; if (k > 0.01) fx.style.setProperty('--dust', W.land.dustCol); } } }

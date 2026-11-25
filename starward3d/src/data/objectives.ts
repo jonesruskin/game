@@ -24,6 +24,8 @@ export const CHAPTERS: Chapter[] = [
       { id: 'ld2', text: 'Claim a plot of land next to the spaceport', kind: 'claims', n: 1, reward: { metal: 2000, credits: 1500 } },
       { id: 'o8', text: 'Research Multistage Rockets', kind: 'tech', id2: 'multistage', reward: { science: 300, credits: 1200 } },
       { id: 'o8b', text: 'Upgrade Mission Control to level 3', kind: 'hq', lvl: 3, reward: { credits: 1500, metal: 1500 } },
+      { id: 'tr1', text: 'Build the Tactics Centre (Build → Defence): your seat on the Defence Council', kind: 'build', b: 'warroom', lvl: 1, reward: { credits: 2500, metal: 2500, dm: 10 } },
+      { id: 'tr2', text: 'Win an Orbital Trial (⚔ Trials on the right)', kind: 'trials', n: 1, reward: { cells: 300, dm: 15 } },
       { id: 'o9', text: 'Build the Vehicle Assembly building', kind: 'build', b: 'vab', lvl: 1, reward: { metal: 2000, dm: 10 } },
       { id: 'o10', text: 'Upgrade Mission Control to level 4', kind: 'hq', lvl: 4, reward: { credits: 3000, metal: 2000, dm: 10 } },
       { id: 'o11', text: 'Research Orbital Mechanics', kind: 'tech', id2: 'orbital', reward: { science: 800, dm: 15 } },
@@ -38,6 +40,7 @@ export const CHAPTERS: Chapter[] = [
       { id: 'p6', text: 'Build the Tracking Station', kind: 'build', b: 'tracking', lvl: 1, reward: { science: 2000 } },
       { id: 'p7', text: 'Build the Astronaut Academy', kind: 'build', b: 'academy', lvl: 1, reward: { credits: 10000, dm: 10 } },
       { id: 'p8', text: 'Send a crew into orbit', kind: 'flag', flag: 'crewOrbit', reward: { dm: 30, credits: 20000 } },
+      { id: 'tr3', text: 'Reach the Martian circle in the Orbital Trials: Land Charter I (claims 10% cheaper)', kind: 'circle', n: 1, reward: { dm: 30, metal: 30000 } },
     ],
   },
   {
