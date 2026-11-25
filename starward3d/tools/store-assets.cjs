@@ -45,6 +45,7 @@ function view([name, land]) {
   const a = window.__app, w = a.world; try { a.ui.closeModal(); a.ui.closeOver(); } catch (e) {} a.queue.length = 0;
   const cam = (x, z, dist, yaw) => Object.assign(w.cam, { x, z, tx: x, tz: z, dist, tdist: dist, yaw, tyaw: yaw });
   if (name === 'earth') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(land ? -3 : 0, land ? 4 : 2, land ? 40 : 52, Math.PI / 4); }
+  if (name === 'earthLow') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-7, -7, 50, Math.PI / 4); }
   if (name === 'earthClose') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-1, 3, 24, Math.PI / 4 + 0.5); }
   if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
   if (name === 'system') { a.toBase(); a.openMap(); }
@@ -53,7 +54,10 @@ function view([name, land]) {
   if (name === 'life') { a.ui.life.sel = 'floaters'; a.ui.life.rung = -1; a.ui.openOver('life'); }
   if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
 }
-function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, m = (Lr.lo + Lr.hi) / 2; for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const off = ((i % 3) - 1) * 1.5; if (i % 2) a.world.onBattleTap(Lr.lo - 2.5, m + off); else a.world.onBattleTap(m + off, Lr.lo - 2.5); } }
+function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, m = (Lr.lo + Lr.hi) / 2, N = 52;
+  // land just outside the red square, on whichever edges of the field have room
+  const edges = [Lr.lo - 1.1, Lr.hi + 1.1].filter((v) => v > 0.1 && v < N - 0.1); if (!edges.length) return;
+  for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const e = edges[i % edges.length], off = ((i % 5) - 2) * 1.8; if (Math.floor(i / 2) % 2) a.world.onBattleTap(e, m + off); else a.world.onBattleTap(m + off, e); } }
 async function boot(b, w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
   await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`);
@@ -99,9 +103,10 @@ async function video(b, w, h, coverPng) {
   if (!process.argv.includes('--video-only')) {
     await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'), 'earth');
     await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'), 'earth');
-    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earth');
+    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earthLow');
     await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'), 'earthClose');
     console.log('  ✔ covers + thumbnail');
+    if (process.argv.includes('--fix')) { await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earthLow'); await shot(b, 1920, 1080, path.join(OUT, 'screenshot-4.png'), 'battle'); console.log('  ✔ square cover + battle screenshot'); await b.close(); srv.close(); return; }
     const shots = [['earth', 'the spaceport'], ['mars', 'a terraformed Mars colony'], ['life', 'the Life Ladder'], ['battle', 'a War Games raid'], ['galaxy', 'the Local Group']];
     for (let i = 0; i < shots.length; i++) await shot(b, 1920, 1080, path.join(OUT, `screenshot-${i + 1}.png`), shots[i][0]);
     console.log('  ✔ screenshots: ' + shots.map((x) => x[1]).join(', '));
