@@ -189,7 +189,17 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   greenhouse: {
     name: 'Greenhouse', fp: [4, 3], bases: COL, max: 20, cat: 'core', count: [1, 1, 2, 2, 2, 3, 3, 3, 4, 4], req: { tech: 'spaceAgriculture' }, jobs: [4, 1.06],
     cost: { credits: [90000, 1.77], metal: [70000, 1.77] }, time: [11, 1.95], grow: [1.5, 1.2], draw: [8, 1.14],
-    desc: 'Hydroponic racks under LED light. A colony that feeds itself grows: more colonists every hour.',
+    desc: 'Hydroponic racks under LED light: fresh food for the colony, oxygen for the air, and more colonists every hour.',
+  },
+  algae: {
+    name: 'Algae Vats', fp: [3, 3], bases: COL, max: 20, cat: 'core', count: [1, 1, 2, 2, 2, 3, 3, 3, 3, 4], req: { tech: 'closedLoop' }, jobs: [2, 1.06],
+    cost: { credits: [30000, 1.74], metal: [24000, 1.74] }, time: [9, 1.95], draw: [5, 1.14],
+    desc: 'Tall tanks of spirulina under grow-lights: not delicious, but protein and oxygen from almost nothing. The first food a new colony makes for itself.',
+  },
+  deepfarm: {
+    name: 'Deep Farm', fp: [4, 4], bases: GROUND, max: 20, cat: 'core', count: [0, 1, 1, 1, 2, 2, 2, 3, 3, 3], req: { tech: 'spaceAgriculture' }, jobs: [6, 1.06],
+    cost: { credits: [110000, 1.77], metal: [80000, 1.77] }, time: [11.5, 1.95], draw: [12, 1.14],
+    desc: 'Fields of wheat, rice and soy in caverns your robots dug under the surface, lit by LED suns: the larder of the underground habitats. Needs a Geo or Kinetic robot to dig.',
   },
   reactor: {
     name: 'Colony Reactor', fp: [3, 3], bases: COL, max: 25, cat: 'power', count: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], req: { tech: 'marsDirect' }, jobs: [3, 1.05],

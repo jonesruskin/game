@@ -224,6 +224,23 @@ function greenhouse(L: number, look: Look): Model {
   for (let i = 0; i < n; i++) { const z = -0.9 + i * 0.9; k.add(new THREE.CylinderGeometry(0.4, 0.4, 3.2, 12, 1, false, 0, Math.PI), '#bfe6ff', 0, 0.12, z, { rz: Math.PI / 2, ry: Math.PI / 2, glass: true }); k.box(3.1, 0.12, 0.7, '#5b3a22', 0, 0.12, z); for (let x = -1.3; x <= 1.3; x += 0.32) k.sphere(0.12, x % 0.64 ? '#4fcf5a' : '#7cf29a', x, 0.3, z, { w: 6, h: 4 }); k.box(3.15, 0.04, 0.05, '#ff9be8', 0, 0.5, z, { glow: true }); }
   return { group: k.build('greenhouse'), height: 0.9 };
 }
+// spirulina tanks under grow-lights: tall glowing-green cylinders, a pump house and pipes
+function algae(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L); pad(k, 3, 3, REG); const n = Math.min(4, 2 + Math.floor(t / 2)); const pos: [number, number][] = [[-0.7, -0.6], [0.7, -0.6], [-0.7, 0.7], [0.7, 0.7]];
+  for (let i = 0; i < n; i++) { const [x, z] = pos[i], h = 1.0 + t * 0.08; k.cyl(0.42, 0.42, 0.1, 14, '#c9ced5', x, 0.1, z); k.cyl(0.36, 0.36, h, 14, '#4fdc6a', x, 0.2, z, { glow: true }); k.cyl(0.4, 0.4, h + 0.02, 14, '#bfe6ff', x, 0.19, z, { glass: true }); k.cyl(0.42, 0.42, 0.08, 14, '#c9ced5', x, 0.2 + h, z); }
+  k.box(0.5, 0.45, 0.5, '#d9dde2', 0, 0.1, 0); k.box(0.52, 0.05, 0.52, look.accent, 0, 0.55, 0); k.box(1.4, 0.06, 0.06, '#9aa3ad', 0, 0.5, -0.6); k.box(1.4, 0.06, 0.06, '#9aa3ad', 0, 0.5, 0.7); k.box(0.06, 0.06, 1.3, '#9aa3ad', 0, 0.45, 0.05);
+  const g = k.build('algae'); const bub = new THREE.Group(); const bm = new THREE.MeshBasicMaterial({ color: '#d8ffe0', transparent: true, opacity: 0.6, depthWrite: false });
+  for (let i = 0; i < n * 3; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), bm); const [x, z] = pos[i % n]; b.position.set(x + ((i * 37) % 7 - 3) * 0.05, 0.3, z + ((i * 53) % 7 - 3) * 0.05); b.userData.ph = i * 0.37; bub.add(b); } g.add(bub);
+  const top = 1.0 + t * 0.08; return { group: g, height: top + 0.35, anim: (tt) => { for (const b of bub.children) b.position.y = 0.3 + ((tt * 0.35 + b.userData.ph) % 1) * top; } };
+}
+// fields under the surface: skylights glowing with LED sunlight over rows of green, a ramp down and air vents
+function deepfarm(L: number, look: Look): Model {
+  const k = new Kit(), t = tierOf(L), A = look.accent; pad(k, 4, 4, '#8a8b8f'); k.box(3.5, 0.18, 3.1, '#9a9b9f', 0, 0.08, -0.25);
+  const rows = 2 + Math.min(2, Math.floor(t / 2)); for (let i = 0; i < rows; i++) { const z = -1.3 + i * (2.2 / Math.max(1, rows - 1)); k.box(3.0, 0.03, 0.42, '#fff2c0', 0, 0.26, z, { glow: true }); k.box(3.04, 0.05, 0.5, '#bfe6ff', 0, 0.27, z, { glass: true }); for (let x = -1.35; x <= 1.36; x += 0.3) k.box(0.18, 0.04, 0.3, i % 2 ? '#7cf29a' : '#4fcf5a', x, 0.29, z); }
+  k.box(0.9, 0.08, 0.9, '#6b6f75', 1.2, 0.08, 1.45, { rx: -0.18 }); k.box(0.92, 0.35, 0.1, '#d9dde2', 1.2, 0.08, 1.0); k.box(0.94, 0.05, 0.12, A, 1.2, 0.43, 1.0);
+  for (const x of [-1.4, -0.9]) { k.cyl(0.1, 0.12, 0.6 + t * 0.05, 8, '#c9ced5', x, 0.08, 1.45); k.cyl(0.12, 0.12, 0.05, 8, '#3b4350', x, 0.68 + t * 0.05, 1.45); }
+  return { group: k.build('deepfarm'), height: 0.9 };
+}
 function reactor(L: number, look: Look): Model {
   const k = new Kit(), t = tierOf(L); pad(k, 3, 3, REG); k.add(new THREE.SphereGeometry(1.0, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), '#8f9094', 0, 0.08, 0, { sy: 0.45 }); k.cyl(0.35, 0.4, 0.7 + t * 0.08, 10, '#e6e9ee', 0, 0.4, 0); k.cyl(0.37, 0.37, 0.06, 10, '#7fe4ff', 0, 0.9, 0, { glow: true });
   for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; k.box(0.5, 0.04, 0.9, '#9aa3ad', Math.cos(a) * 1.1, 0.2, Math.sin(a) * 1.1, { ry: -a }); } // radiator fins
@@ -386,7 +403,7 @@ export function buildModel(b: string, L: number, look: Look): Model {
     case 'hub': return hub(L, look); case 'regolith': return regolith(L, look); case 'ice': return ice(L, look); case 'he3x': return he3x(L, look); case 'lsolar': return lsolar(L); case 'dome': return dome(L, look); case 'burrow': return burrow(L, look);
     case 'warroom': return warroom(L, look); case 'turret': return turret(L, look); case 'laser': return laserBattery(L, look); case 'missile': return missileSilo(L, look); case 'shield': return shieldGen(L, look); case 'emp': return empTower(L, look); case 'wall': return wall(L);
     case 'skimmer': return skimmer(L, look); case 'resort': return resort(L, look); case 'terraformer': return terraformer(L, look); case 'beltControl': return beltControl(L, look); case 'methane': return methane(L, look);
-    case 'llab': return llab(L, look); case 'greenhouse': return greenhouse(L, look); case 'reactor': return reactor(L, look); case 'massDriver': return massDriver(L, look); case 'fusion': return fusionPlant(L, look);
+    case 'llab': return llab(L, look); case 'greenhouse': return greenhouse(L, look); case 'algae': return algae(L, look); case 'deepfarm': return deepfarm(L, look); case 'reactor': return reactor(L, look); case 'massDriver': return massDriver(L, look); case 'fusion': return fusionPlant(L, look);
   }
   return generic(b, look);
 }

@@ -85,7 +85,7 @@ completers.fuse = (s, j): Note => { giveCore(s, j.sp, 'fusion'); return { kind: 
 export function onBuilt(s: State, b: string) { if (b === 'workshop' && !s.flags.starters) { s.flags.starters = 1; for (const sp of STARTERS) giveCore(s, sp, 'gift'); events.push({ kind: 'starters' }); } }
 boostHooks.push((s) => boostMap(s));
 builtHooks.push(onBuilt);
-buildChecks.push((s, base, b) => (b === 'burrow' && !rb(s).list.some((r) => SPECIES[r.sp].el.some((e) => e === 'geo' || e === 'kinetic')) ? { ok: false, why: 'Your robots dig the tunnels: you need a Geo or Kinetic robot', locked: true } : null));
+buildChecks.push((s, base, b) => ((b === 'burrow' || b === 'deepfarm') && !rb(s).list.some((r) => SPECIES[r.sp].el.some((e) => e === 'geo' || e === 'kinetic')) ? { ok: false, why: 'Your robots dig the tunnels: you need a Geo or Kinetic robot', locked: true } : null));
 stepChecks.robots = (s, st) => rb(s).list.length >= st.n;
 stepChecks.dex = (s, st) => dexCount(s) >= st.n;
 stepChecks.operators = (s, st) => rb(s).list.filter((r) => r.post).length >= st.n;

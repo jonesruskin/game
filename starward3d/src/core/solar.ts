@@ -46,11 +46,13 @@ export const baseFounders: ((s: State, base: string) => void)[] = [];
 // worlds whose open air people can breathe without terraforming (the kindest exoplanets)
 export const airHooks: ((s: State, base: string) => boolean)[] = [];
 export function foundColony(s: State, id: string) { const C = COLONY[id]; if (!C || s.bases[id]) return; let n = 0; const items: Item[] = C.start.map(([b, x, z]) => ({ id: id[0] + 'c' + (n++), b, x, z, r: 0, lvl: 1, held: 0 })); s.bases[id] = { body: id, name: C.name, items, pop: C.pop }; sol(s).surveyed[id] = 1; for (const f of baseFounders) f(s, id); }
-// life support: colonists need water (ice mines, oceans) and air (the hub, greenhouses, domes, a breathable sky)
+// life support: colonists need water (ice mines, oceans), air (the hub, greenhouses, domes, a breathable sky) and food
+// (farms, or supply runs from Earth: see core/food)
+export const foodHook: { fed: (s: State, base: string) => number } = { fed: () => 1 };
 export function lifeSupport(s: State, base: string) {
-  const B = s.bases[base]; if (!B || base === 'earth') return { water: Infinity, air: Infinity, ls: 1, pop: 0 }; let water = 0, air = 0;
-  for (const it of B.items) { if (it.lvl <= 0) continue; if (it.b === 'ice') water += 45 * Math.pow(1.22, it.lvl - 1); if (it.b === 'hub') air += 30 * Math.pow(1.2, it.lvl - 1); if (it.b === 'greenhouse') air += 50 * Math.pow(1.22, it.lvl - 1); if (it.b === 'dome') air += 15 * Math.pow(1.2, it.lvl - 1); if (it.b === 'methane') water += 20 * Math.pow(1.2, it.lvl - 1); if (it.b === 'skimmer') water += 40 * Math.pow(1.22, it.lvl - 1); }
-  const T = terraState(s, base); if (T) { water *= 1 + (T.water || 0) / 10; air *= 1 + (T.o2 || 0) / 4; if (breathable(T)) air = Infinity; } if (airHooks.some((h) => h(s, base))) air = Infinity; const pop = B.pop || 0; const ls = pop <= 0 ? 1 : Math.min(1, water / pop, air / pop); return { water, air, ls, pop };
+  const B = s.bases[base]; if (!B || base === 'earth') return { water: Infinity, air: Infinity, ls: 1, pop: 0, fed: 1 }; let water = 0, air = 0;
+  for (const it of B.items) { if (it.lvl <= 0) continue; if (it.b === 'ice') water += 45 * Math.pow(1.22, it.lvl - 1); if (it.b === 'hub') air += 30 * Math.pow(1.2, it.lvl - 1); if (it.b === 'greenhouse') air += 50 * Math.pow(1.22, it.lvl - 1); if (it.b === 'algae') air += 12 * Math.pow(1.2, it.lvl - 1); if (it.b === 'dome') air += 15 * Math.pow(1.2, it.lvl - 1); if (it.b === 'methane') water += 20 * Math.pow(1.2, it.lvl - 1); if (it.b === 'skimmer') water += 40 * Math.pow(1.22, it.lvl - 1); }
+  const T = terraState(s, base); if (T) { water *= 1 + (T.water || 0) / 10; air *= 1 + (T.o2 || 0) / 4; if (breathable(T)) air = Infinity; } if (airHooks.some((h) => h(s, base))) air = Infinity; const pop = B.pop || 0; const fed = foodHook.fed(s, base); const ls = pop <= 0 ? 1 : Math.min(1, water / pop, air / pop, fed); return { water, air, ls, pop, fed };
 }
 // ---------------- voyages ----------------
 export const siteLevel = (s: State, id: string) => sol(s).sites[id] || 0;

@@ -15,7 +15,7 @@ export const RUNGS: Rung[] = [
   { name: 'Ascended', num: 'VIII', col: '#ff6bd6', scale: '∞', desc: 'Beyond matter and beyond the galaxy: what gods would be, if gods were real.' },
 ];
 // what a fully studied lifeform gives the empire for ever
-export interface Gift { mult?: Record<string, number>; grow?: number; house?: number; flag?: string; researchTime?: number; buildTime?: number; }
+export interface Gift { mult?: Record<string, number>; grow?: number; food?: number; house?: number; flag?: string; researchTime?: number; buildTime?: number; }
 // where and how a handcrafted lifeform is found
 export interface Find { colony?: string; site?: string; tech: string; dyson?: number; voyages?: number; outbreak?: boolean; }
 export interface LifeDef { name: string; rung: number; home: string; art: string; col: string; size: string; science: string; lore: string; gift: Gift; giftText: string; cost: number; find: Find; hint: string; }
@@ -39,7 +39,7 @@ export const LIFE: Record<string, LifeDef> = {
   ventweavers: { name: 'Europan Vent-Weavers', rung: 1, home: 'Europa, 100 km down on the ocean floor', art: 'vents', col: '#5fe0c8', size: '3 m', cost: 8e6,
     science: 'Europa hides more water than all Earth\'s oceans under its ice, warmed by Jupiter\'s tides. On Earth, life thrives around deep-sea hydrothermal vents with no sunlight at all, living on chemical energy. NASA\'s Europa Clipper is surveying the moon now.',
     lore: 'Pale filaments, woven by trillions of cells into curtains around the black-smoker chimneys, glowing faintly where the hot water meets the cold. Each curtain is one colony, and they trade chemicals like a city trades goods.',
-    gift: { grow: 0.25 }, giftText: 'Chemosynthetic food vats: colonists grow 25% faster', find: { site: 'europa', tech: 'xenobiology' }, hint: 'Send the Europa Deep Probe under the ice' },
+    gift: { food: 0.25 }, giftText: 'Chemosynthetic food vats: colony food +25%', find: { site: 'europa', tech: 'xenobiology' }, hint: 'Send the Europa Deep Probe under the ice' },
   lithophages: { name: 'Lithophage Reefs', rung: 1, home: 'The asteroid belt, inside the mining claims', art: 'litho', col: '#c9a0ff', size: '40 cm', cost: 5e6,
     science: 'On Earth, lithotrophic microbes live kilometres down in solid rock, eating minerals and hydrogen from radioactive decay. Panspermia, the idea that life rides between worlds inside rocks, is taken seriously: Martian meteorites have reached Earth.',
     lore: 'Crystal-shelled colonies that arrived in the belt inside a comet four billion years ago. They eat iron and nickel and grow along the ore seams. Our mines woke them, and they like what we dig.',
@@ -73,6 +73,6 @@ export const EXO_GIFTS: { gift: Gift; text: string }[] = [
   { gift: { mult: { science: 0.02 } }, text: 'Gene bank: science +2%' },
   { gift: { mult: { credits: 0.02 } }, text: 'Bio-patents: credits +2%' },
   { gift: { mult: { fuel: 0.02 } }, text: 'Bio-fuels: fuel +2%' },
-  { gift: { grow: 0.05 }, text: 'Hardy crops: colonists grow 5% faster' },
+  { gift: { food: 0.05 }, text: 'Hardy crops: colony food +5%' },
   { gift: { mult: { rare: 0.02 } }, text: 'Bio-assay: rare elements +2%' },
 ];
