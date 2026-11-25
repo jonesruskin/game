@@ -36,6 +36,7 @@ export class LandLayer {
   private dust: THREE.Points; private dustV: Float32Array; private stormTo = 0; storm = 0; private clouds: THREE.Sprite[] = [];
   sun: { light: THREE.DirectionalLight; base: number } | null = null; // dimmed in a storm
   get dustCol() { return mix(this.look.fog, this.look.ground[1] || this.look.base, 0.55); }
+  height: (x: number, z: number) => number = () => 0; // the terrain under a world point (roads follow it out of the base)
   constructor(private scene: THREE.Scene, private look: LandLook, private quality: 'high' | 'low') {
     this.P = quality === 'high' ? 8 : 5; this.cv.width = this.cv.height = GRID * this.P; this.tex = new THREE.CanvasTexture(this.cv); this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.anisotropy = 4;
     this.plane = new THREE.Mesh(new THREE.PlaneGeometry(GRID, GRID), new THREE.MeshStandardMaterial({ map: this.tex, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 })); this.plane.rotation.x = -Math.PI / 2; this.plane.position.y = 0.025; this.plane.receiveShadow = true; this.plane.renderOrder = 1; this.group.add(this.plane);
@@ -55,7 +56,7 @@ export class LandLayer {
   sync(s: State, base: string) {
     const B = s.bases[base]; if (!B) return; const A = area(s, base); const claims = Object.keys(B.claims || {}).sort().join(';'), surv = Object.keys(B.surveyed || {}).sort().join(';'), site = LD.siteOf(s, base)?.id || '', hl = LD.hintLevel(s, base), rr = LD.roverRange(s, base);
     const own = new Uint8Array(GRID * GRID); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (x >= A.lo && z >= A.lo && x < A.hi && z < A.hi) own[z * GRID + x] = 1; else if (B.claims && B.claims[Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK)]) own[z * GRID + x] = 2; }
-    const kE = A.lo + ':' + A.hi + '|' + claims; if (kE !== this.kEdge) { this.kEdge = kE; this.buildEdge(own); if (this.look.deck) this.buildDecks(s, base); }
+    const kE = A.lo + ':' + A.hi + '|' + claims; if (kE !== this.kEdge) { this.kEdge = kE; this.buildEdge(own); if (this.look.deck) this.buildDecks(s, base); else this.buildRoads(own); }
     const kT = kE + '|' + surv + '|' + site + '|' + hl + '|' + rr + '|' + this.mode; if (kT !== this.kTex) { this.kTex = kT; this.drawTex(s, base, own); }
     const occ = new Set<number>(); for (const it of B.items) { const [w, d] = dims(it.b, it.r); for (let z = it.z; z < it.z + d; z++) for (let x = it.x; x < it.x + w; x++) occ.add(z * GRID + x); }
     const kP = surv + '|' + site + '|' + B.items.map((i) => i.x + ',' + i.z + ',' + i.r + i.b).join(';'); if (kP !== this.kProps) { this.kProps = kP; this.buildProps(s, base, occ); }
@@ -137,8 +138,57 @@ export class LandLayer {
       k.box(CHUNK - 0.04, 1.2, CHUNK - 0.04, this.look.base, x, -1.2, z); k.box(CHUNK - 1.2, 0.9, CHUNK - 1.2, '#8f8a7e', x, -2.1, z); k.sphere(2.3, '#f3f1ea', x, -5.2, z, { sy: 0.55, w: 16, h: 10 }); k.box(0.12, 2.6, 0.12, '#b9b2a0', x, -4.4, z);
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { if (has(cx + dx, cz + dz)) continue; const ex = x + dx * (CHUNK / 2 - 0.1), ez = z + dz * (CHUNK / 2 - 0.1); k.box(dx ? 0.08 : CHUNK, 0.08, dz ? 0.08 : CHUNK, '#f4f1e8', ex, 0.86, ez); for (let p = -2; p <= 2; p++) k.box(0.06, 0.9, 0.06, '#f4f1e8', ex + (dx ? 0 : p * 1.4), 0, ez + (dz ? 0 : p * 1.4)); } }
     this.decks.add(k.build('decks')); }
+  // ---------------- roads and traffic ----------------
+  // A ring road runs just outside the land you hold (it moves out as you claim plots); on Earth a highway comes in from
+  // inland and trucks bring the supplies, elsewhere a graded track leads to a landing pad where supply landers set down.
+  private roads = new THREE.Group(); private ring: { pts: THREE.Vector3[]; len: number[]; total: number } | null = null; private hwy: { pts: THREE.Vector3[]; len: number[]; total: number } | null = null;
+  private trucks: { g: THREE.Group; path: 'ring' | 'hwy'; s: number; v: number; side: number; dir: number }[] = []; private lander: { g: THREE.Group; flame: THREE.Object3D; x: number; z: number; y0: number } | null = null;
+  private roadTex(earth: boolean) { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d')!;
+    if (earth) { g.fillStyle = '#3b3f45'; g.fillRect(0, 0, 64, 128); for (let i = 0; i < 300; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.05)'; g.fillRect(Math.random() * 64, Math.random() * 128, 1.5, 1.5); } g.fillStyle = '#e9e4d6'; g.fillRect(3, 0, 3, 128); g.fillRect(58, 0, 3, 128); g.fillStyle = '#ffd36a'; g.fillRect(30, 10, 4, 52); }
+    else { const base = new THREE.Color(this.look.base).multiplyScalar(0.82); g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 64, 128); for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.07)'; g.fillRect(Math.random() * 64, Math.random() * 128, 2, 2); } g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(14, 0, 6, 128); g.fillRect(44, 0, 6, 128); }
+    const t = new THREE.CanvasTexture(c); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
+  // the outer boundary of the land you hold, as one closed loop pushed half a cell outward
+  private ringOf(own: Uint8Array) { const at = (x: number, z: number) => x >= 0 && z >= 0 && x < GRID && z < GRID && own[z * GRID + x] > 0; type E = { x0: number; z0: number; x1: number; z1: number; nx: number; nz: number }; const out = new Map<string, E[]>(); const all: E[] = [];
+    const add = (e: E) => { const k = e.x0 + ',' + e.z0; (out.get(k) || out.set(k, []).get(k)!).push(e); all.push(e); };
+    for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; if (!at(x, z - 1)) add({ x0: x, z0: z, x1: x + 1, z1: z, nx: 0, nz: -1 }); if (!at(x + 1, z)) add({ x0: x + 1, z0: z, x1: x + 1, z1: z + 1, nx: 1, nz: 0 }); if (!at(x, z + 1)) add({ x0: x + 1, z0: z + 1, x1: x, z1: z + 1, nx: 0, nz: 1 }); if (!at(x - 1, z)) add({ x0: x, z0: z + 1, x1: x, z1: z, nx: -1, nz: 0 }); }
+    const used = new Set<E>(); let best: E[] = [];
+    for (const e0 of all) { if (used.has(e0)) continue; const loop: E[] = []; let e: E | undefined = e0; while (e && !used.has(e)) { used.add(e); loop.push(e); const cur: E = e; const cand: E[] = (out.get(cur.x1 + ',' + cur.z1) || []).filter((q) => !used.has(q)); e = cand.find((q) => q.nx === cur.nx && q.nz === cur.nz) || cand[0]; } if (loop.length > best.length) best = loop; }
+    if (best.length < 4) return null; const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < best.length; i++) { const a = best[i], b = best[(i + 1) % best.length]; if (a.nx === b.nx && a.nz === b.nz) continue; pts.push(new THREE.Vector3(a.x1 + 0.5 * (a.nx + b.nx) - C, 0, a.z1 + 0.5 * (a.nz + b.nz) - C)); }
+    return pts.length >= 3 ? pts : null; }
+  private path(pts: THREE.Vector3[], closed: boolean) { const P = closed ? [...pts, pts[0]] : pts; const len = [0]; for (let i = 1; i < P.length; i++) len.push(len[i - 1] + P[i].distanceTo(P[i - 1])); return { pts: P, len, total: len[len.length - 1] }; }
+  private ribbon(P: { pts: THREE.Vector3[]; len: number[] }, w: number, tex: THREE.Texture, y: number, follow: boolean) { const pos: number[] = [], uv: number[] = [], idx: number[] = []; const n = P.pts.length;
+    for (let i = 0; i < n; i++) { const a = P.pts[Math.max(0, i - 1)], b = P.pts[Math.min(n - 1, i + 1)]; let dx = b.x - a.x, dz = b.z - a.z; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L; const px = -dz * w / 2, pz = dx * w / 2; const p = P.pts[i]; const h = follow ? this.height(p.x, p.z) : 0;
+      pos.push(p.x + px, h + y, p.z + pz, p.x - px, h + y, p.z - pz); uv.push(0, P.len[i] / 2, 1, P.len[i] / 2); if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -4, side: THREE.DoubleSide })); m.receiveShadow = true; m.renderOrder = 1; return m; }
+  private at(P: { pts: THREE.Vector3[]; len: number[]; total: number }, s: number, out: THREE.Vector3) { s = ((s % P.total) + P.total) % P.total; let i = 1; while (i < P.len.length - 1 && P.len[i] < s) i++; const a = P.pts[i - 1], b = P.pts[i], f = (s - P.len[i - 1]) / Math.max(1e-6, P.len[i] - P.len[i - 1]); out.copy(a).lerp(b, f); return Math.atan2(b.x - a.x, b.z - a.z); }
+  private truck(earth: boolean, k: number) { const kk = new Kit(); const cols = ['#e8eef5', '#2f6fd0', '#c0392b', '#f5c542', '#1f9d6b'];
+    if (earth) { kk.box(0.34, 0.3, 0.3, cols[k % cols.length], 0, 0.1, 0.36); kk.box(0.36, 0.36, 0.78, '#dfe5ec', 0, 0.1, -0.2); kk.box(0.3, 0.12, 0.02, '#9fd0ff', 0, 0.28, 0.52, { glass: true }); for (const z of [0.36, -0.05, -0.45]) for (const x of [-0.17, 0.17]) kk.cyl(0.07, 0.07, 0.06, 8, '#20242a', x, 0.03, z, { rz: Math.PI / 2 }); kk.box(0.06, 0.04, 0.02, '#fff6c8', -0.11, 0.18, 0.52, { glow: true }); kk.box(0.06, 0.04, 0.02, '#fff6c8', 0.11, 0.18, 0.52, { glow: true }); }
+    else { kk.box(0.46, 0.18, 0.7, '#eef1f5', 0, 0.12, 0); kk.box(0.4, 0.2, 0.36, '#f5c542', 0, 0.3, -0.1); kk.box(0.36, 0.1, 0.18, '#9fd0ff', 0, 0.32, 0.22, { glass: true }); for (const z of [0.24, -0.24]) for (const x of [-0.25, 0.25]) kk.cyl(0.1, 0.1, 0.08, 8, '#2b2f36', x, 0.06, z, { rz: Math.PI / 2 }); kk.sphere(0.04, '#6ee7ff', 0, 0.44, 0.1, { glow: true }); }
+    return kk.build('truck'); }
+  private buildRoads(own: Uint8Array) {
+    for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.trucks = []; this.lander = null; if (!this.roads.parent) this.group.add(this.roads);
+    const pts = this.ringOf(own); if (!pts) return; const earth = this.look.id === 'earth'; const tex = this.roadTex(earth); this.ring = this.path(pts, true); this.roads.add(this.ribbon(this.ring, earth ? 0.92 : 0.85, tex, 0.04, false));
+    // where the outside world comes in: the middle of the ring's eastern side
+    let e = pts[0]; for (const p of pts) if (p.x > e.x + 1e-6 || (Math.abs(p.x - e.x) < 1e-6 && Math.abs(p.z) < Math.abs(e.z))) e = p; let zs: number[] = pts.filter((p) => Math.abs(p.x - e.x) < 1e-6).map((p) => p.z).sort((a, b) => a - b); const ez = zs.length >= 2 ? (zs[0] + zs[zs.length - 1]) / 2 : e.z;
+    const far = earth ? 300 : 9; const hp: THREE.Vector3[] = []; for (let d = 0; d <= far; d += d < 20 ? 1 : 3) hp.push(new THREE.Vector3(e.x + d, 0, ez)); this.hwy = this.path(hp, false); this.roads.add(this.ribbon(this.hwy, earth ? 1.5 : 0.85, earth ? this.roadTex(true) : tex, 0.05, true));
+    const nT = earth ? 7 : 3; for (let k = 0; k < nT; k++) { const g = this.truck(earth, k); this.roads.add(g); const hw = earth && k < 4; this.trucks.push({ g, path: hw ? 'hwy' : 'ring', s: hw ? (k / 4) * this.hwy.total : (k / nT) * this.ring.total, v: hw ? 3.2 + (k % 2) * 0.6 : 1.6 + k * 0.2, side: hw ? (k % 2 ? 0.36 : -0.36) : 0.22, dir: hw ? (k % 2 ? 1 : -1) : 1 }); }
+    if (!earth) { // the landing pad at the end of the track, and a supply lander that comes and goes
+      const px = e.x + far + 2.2, pz = ez; const kp = new Kit(); kp.cyl(1.9, 2.0, 0.12, 24, '#8d939b', px, this.height(px, pz), pz); kp.cyl(1.4, 1.4, 0.13, 24, '#5d636b', px, this.height(px, pz), pz); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; kp.sphere(0.07, '#ffd36a', px + Math.cos(a) * 1.8, this.height(px, pz) + 0.16, pz + Math.sin(a) * 1.8, { glow: true }); } this.roads.add(kp.build('pad'));
+      const kl = new Kit(); kl.cyl(0.42, 0.55, 0.9, 10, '#eef1f5', 0, 0.35, 0); kl.add(new THREE.ConeGeometry(0.42, 0.5, 10), '#d9dde3', 0, 1.5, 0); kl.box(0.5, 0.18, 0.5, '#f5c542', 0, 0.55, 0); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; kl.cyl(0.03, 0.03, 0.55, 4, '#8d939b', Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45, { rz: Math.cos(a) * 0.4, rx: -Math.sin(a) * 0.4 }); }
+      const lg = kl.build('lander'); const fl = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, toneMapped: false })); fl.rotation.x = Math.PI; fl.position.y = 0.0; lg.add(fl); this.roads.add(lg); this.lander = { g: lg, flame: fl, x: px, z: pz, y0: this.height(px, pz) + 0.14 }; } }
+  private tmp = new THREE.Vector3();
+  private traffic(t: number, dt: number) {
+    for (const k of this.trucks) { const P = k.path === 'hwy' ? this.hwy : this.ring; if (!P) continue; k.s += k.v * dt * k.dir; if (k.path === 'hwy') { if (k.s > P.total) { k.s = P.total; k.dir = -1; k.side = 0.36; } if (k.s < 0) { k.s = 0; k.dir = 1; k.side = -0.36; } }
+      const a = this.at(P, k.s, this.tmp); const yaw = k.dir > 0 ? a : a + Math.PI; const nx = Math.cos(a), nz = -Math.sin(a); const x = this.tmp.x + nx * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1), z = this.tmp.z + nz * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1);
+      k.g.position.set(x, (k.path === 'hwy' ? this.height(x, z) : 0) + 0.06, z); k.g.rotation.y = yaw; k.g.visible = !(k.path === 'hwy' && k.s > P.total * 0.92); }
+    const L = this.lander; if (L) { const T = 46, f = (t % T) / T; let y = L.y0, fl = 0; if (f < 0.25) { y = L.y0 + Math.pow(1 - f / 0.25, 2) * 40; fl = 1; } else if (f < 0.65) { y = L.y0; } else if (f < 0.9) { y = L.y0 + Math.pow((f - 0.65) / 0.25, 2) * 40; fl = 1; } else y = L.y0 + 60;
+      L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.9; L.flame.visible = fl > 0; L.flame.scale.set(1, 0.8 + Math.random() * 0.5, 1); }
+  }
   // ---------------- every frame ----------------
   frame(t: number, dt: number, cx: number, cz: number, fog: THREE.Fog | null) {
+    this.traffic(t, dt);
     for (const r of this.rovers) { const f = ((t / 46 + r.ph) % 1) * 3, row = Math.floor(f), u = f - row; const along = row % 2 ? 1 - u : u; const x = r.cx * CHUNK + 0.8 + along * (CHUNK - 1.6), z = r.cz * CHUNK + 1 + row * 2 + (u > 0.92 ? (u - 0.92) / 0.08 * 2 : 0);
       r.g.position.set(x - C, Math.abs(Math.sin(t * 9 + r.ph)) * 0.015, Math.min(z, r.cz * CHUNK + 5.2) - C); r.g.rotation.y = u > 0.92 ? -Math.PI / 2 : row % 2 ? Math.PI : 0; (r.beam.material as THREE.MeshBasicMaterial).opacity = 0.14 + Math.sin(t * 3 + r.ph) * 0.08; }
     for (const d of this.drones) { const a = t * 0.9 + d.ph; d.g.position.set((d.cx + 0.5) * CHUNK - C + Math.cos(a) * 1.8, 1.6 + Math.sin(t * 2.4 + d.ph) * 0.2, (d.cz + 0.5) * CHUNK - C + Math.sin(a) * 1.8); d.g.rotation.y = -a; (d.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + Math.sin(t * 3 + d.ph) * 0.3; }
