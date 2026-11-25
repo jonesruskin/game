@@ -38,7 +38,7 @@ export class Coach {
     if (st === 'build') return rect('#nav [data-a="shop"]');
     if (st === 'card') return this.ui.tab !== 'science' ? rect('#over [data-a="tab"][data-t="science"]') : rect('#over [data-a="buy"][data-b="research"]');
     return rect('#placeOk'); }
-  frame() { if (!this.on) return; if (document.getElementById('introCard') && performance.now() - this.t0 < 2700) return; /* the one-line intro first, then the hand */ if (this.s.stats.sessions > 1 && this.s.obj.i > 0) { this.s.tut = COACH_DONE; return; } this.advance(); if (!this.on) return;
+  frame() { if (!this.on) { if (this.el) { this.el.remove(); this.ring?.remove(); this.el = this.ring = null; } return; } if (document.getElementById('introCard') && performance.now() - this.t0 < 2700) return; /* the one-line intro first, then the hand */ if (this.s.stats.sessions > 1 && this.s.obj.i > 0) { this.s.tut = COACH_DONE; return; } this.advance(); if (!this.on) return;
     if (!this.el) { this.el = document.createElement('div'); this.el.id = 'coach'; this.el.innerHTML = `<div class="hand">${HAND}</div><div class="cap"><b></b><button data-a="coachSkip">Skip</button></div>`; document.body.appendChild(this.el); this.ring = document.createElement('div'); this.ring.id = 'coachRing'; document.body.appendChild(this.ring); }
     const modal = !$('#modal').classList.contains('hidden'); const t = modal ? null : this.target(); const st = this.step; const cap = this.step === 'card' && this.ui.tab !== 'science' ? 'Open Science' : CAP[st];
     const b = this.el.querySelector('.cap b') as HTMLElement; if (b.textContent !== cap) b.textContent = cap; const ring = this.ring!; this.el.classList.toggle('nohand', !t); ring.style.display = t ? 'block' : 'none';

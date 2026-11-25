@@ -5,7 +5,7 @@ import { ri } from './icons';
 import { $, $$, esc, fmt, fmtTime, clamp } from '../core/util';
 import * as G from '../core/game';
 import { rates, kardashev, K_MILESTONES, kTitle, bStats, collectsOf, Rates } from '../core/econ';
-import { BUILDINGS, CATS, allowedCount, holdHours, kindOf } from '../data/buildings';
+import { BUILDINGS, CATS, allowedCount, allowedLevel, holdHours, kindOf, crewsFromHq, areaSide } from '../data/buildings';
 import { TECH, BRANCHES, techCost } from '../data/research';
 import { RES } from '../data/resources';
 import { CHAPTERS } from '../data/objectives';
@@ -96,6 +96,17 @@ export class UI {
       const x = R.item[it.id], held = it.held || 0; if (x && held >= Math.max(1, x.hold * 0.03)) { const full = held >= x.hold * 0.98; put('c' + it.id, top, `<span class="bi" style="color:${RES[x.r].color}">${ri(x.r)}</span>${fmt(held)}`, full ? 'full' : '', 'collect', it.id); } }
     for (const [k, el] of this.bubbles) if (!seen.has(k)) { el.remove(); this.bubbles.delete(k); }
   }
+  // a finished upgrade: a gold badge rises from the building
+  levelPop(x: number, y: number, lvl: number) { const el = document.createElement('div'); el.className = 'lvlpop'; el.innerHTML = `<i>LEVEL</i><b>${lvl}</b>`; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 1900); }
+  // Mission Control rises: everything the new level opens, with pictures
+  hqUnlockHTML(L: number) { const A = this.app, look = A.world.look; const earth = Object.entries(BUILDINGS).filter(([, d]) => d.bases.includes('earth') && d.cat !== 'decor');
+    const fresh = earth.filter(([, d]) => d.req && d.req.hq === L); const more = earth.filter(([, d]) => !d.unique && allowedCount(d, L) > allowedCount(d, L - 1) && !(d.req && d.req.hq === L));
+    const drones = crewsFromHq(L) - crewsFromHq(L - 1), land = areaSide('earth', L) - areaSide('earth', L - 1), cap = allowedLevel({ max: 99 } as any, L);
+    const tile = (b: string, sub: string) => `<div class="unl1"><img src="${A.studio.building(b, 1, look)}" alt=""><b>${esc(BUILDINGS[b].name)}</b><i>${sub}</i></div>`;
+    return `<div class="ox muted" style="letter-spacing:.2em">MISSION CONTROL</div><div class="big">LEVEL ${L}</div><p class="desc">Your programme just grew. Here is what opens up:</p>
+      <div class="unlocks">${fresh.map(([b]) => tile(b, 'NEW')).join('')}${more.slice(0, 6).map(([b, d]) => tile(b, `+${allowedCount(d, L) - allowedCount(d, L - 1)} more`)).join('')}</div>
+      <div class="unlock-meta">${drones > 0 ? `<span>${ri('crews')} +${drones} construction drone${drones > 1 ? 's' : ''}</span>` : ''}${land > 0 ? `<span>🧭 +${land} cells of core land</span>` : ''}<span>⬆ buildings up to level ${cap}</span></div>
+      <button class="btn gold" data-a="closeModal">Let's build</button>`; }
   popText(x: number, y: number, txt: string, color = '#fff') { const el = document.createElement('div'); el.className = 'pop'; el.innerHTML = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.color = color; document.body.appendChild(el); setTimeout(() => el.remove(), 1100); }
   // ---------------- building panel ----------------
   select(id: string | null) { this.sel = id; this.app.world.select(id); this.renderPanel(); }

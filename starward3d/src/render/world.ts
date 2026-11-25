@@ -26,7 +26,7 @@ import { sp } from '../core/space';
 import { rocketModel, RocketModel } from './rocket';
 import type { Design } from '../data/rockets';
 import type { Space } from '../core/space';
-interface View { key: string; root: THREE.Group; model: Model; pick: THREE.Mesh; scaf?: THREE.Group; }
+interface View { key: string; root: THREE.Group; model: Model; pick: THREE.Mesh; scaf?: THREE.Group; lvl?: number; pop?: number; }
 interface Drone { g: THREE.Group; job: string; ph: number; spark: THREE.Mesh; }
 export interface Ghost { b: string; r: number; x: number; z: number; move?: string; ok: boolean; }
 const C = GRID / 2;
@@ -167,7 +167,7 @@ export class World {
     this.env.setSats(this.baseId === 'earth' ? (sp(s).sats || []).length : relayLevel(s, this.baseId) * 2);
     const lookKey = JSON.stringify(this.look); const seen = new Set<string>();
     for (const it of B.items) { seen.add(it.id); const job = G.jobOf(s, it.id); const key = `${it.b}|${it.lvl}|${it.r}|${job ? 1 : 0}|${lookKey}`; let v = this.views.get(it.id);
-      if (!v || v.key !== key) { if (v) this.scene.remove(v.root); v = this.makeView(it.id, it.b, it.lvl, it.r, !!job, key); this.views.set(it.id, v); }
+      if (!v || v.key !== key) { const was = v ? v.lvl || 0 : -1; if (v) this.scene.remove(v.root); v = this.makeView(it.id, it.b, it.lvl, it.r, !!job, key); v.lvl = it.lvl; this.views.set(it.id, v); if (was >= 0 && it.lvl > was) this.levelUp(v); }
       const [w, d] = G.dims(it.b, it.r); v.root.position.set(it.x + w / 2 - C, 0, it.z + d / 2 - C); v.root.visible = !(this.ghost && this.ghost.move === it.id); }
     for (const [id, v] of this.views) if (!seen.has(id)) { this.scene.remove(v.root); this.views.delete(id); }
     const RR = rb(s); const wk = B.items.map((i) => i.id + i.lvl).join() + '|' + RR.list.map((r) => r.id + r.lvl + (r.post ? r.post.item : '')).join(); if (wk !== this.walkKey) { this.walkKey = wk; this.walkers!.sync(s, this.baseId, RR.list); }
@@ -182,6 +182,9 @@ export class World {
     let scaf; if (building) { scaf = scaffold(w, d, Math.max(1, m.height * 0.8)); root.add(scaf); if (lvl === 0) m.group.scale.y = 0.3; }
     this.scene.add(root); return { key, root, model: m, pick, scaf };
   }
+  // a finished upgrade: the building bounces, a ring of light rolls out across the ground
+  private levelUp(v: View) { v.pop = this.t; const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 48), new THREE.MeshBasicMaterial({ color: '#ffd36a', transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false })); ring.rotation.x = -Math.PI / 2; ring.position.copy(v.root.position).setY(0.12); this.scene.add(ring); this.rings.push({ m: ring, t: 0 }); }
+  private rings: { m: THREE.Mesh; t: number }[] = [];
   centerOf(id: string) { const v = this.views.get(id); return v ? v.root.position.clone() : null; }
   topOf(id: string) { const v = this.views.get(id); if (!v) return null; const p = v.root.position.clone(); p.y = v.model.height + 0.4; return p; }
   select(id: string | null) { this.selected = id; const v = id ? this.views.get(id) : null; if (!v) { this.selRing.visible = false; return; } const box = new THREE.Box3().setFromObject(v.pick); const s = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.62; this.selRing.scale.setScalar(s); this.selRing.position.set(v.root.position.x, 0.08, v.root.position.z); this.selRing.visible = true; }
@@ -222,7 +225,8 @@ export class World {
     if (this.mode === 'battle' && this.battle) { this.battle.frame(dt); this.renderer.render(this.battle.scene, this.battle.camera); return; }
     if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
     this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.land.frame(t, dt, this.cam.x, this.cam.z, this.scene.fog as THREE.Fog); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt); if (this.mer && this.mer.visible) { this.mer.children[0].rotation.y = t * 0.8; this.mer.children[0].rotation.x = t * 0.3; for (const c of this.mer.children) if (c.userData.ring) c.rotation.z = t * (0.4 + c.userData.ring * 0.15) * (c.userData.ring % 2 ? 1 : -1); this.mer.position.y += Math.sin(t * 1.5) * 0.002; }
-    for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
+    for (const r of [...this.rings]) { r.t += dt; const k = r.t / 1.1; r.m.scale.setScalar(1 + k * 9); (r.m.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - k); if (k >= 1) { this.scene.remove(r.m); r.m.geometry.dispose(); this.rings.splice(this.rings.indexOf(r), 1); } }
+    for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.pop !== undefined) { const k = (t - v.pop) / 0.7; if (k >= 1) { v.pop = undefined; v.root.scale.setScalar(1); } else { const e = Math.sin(k * Math.PI) * (1 - k); v.root.scale.set(1 - e * 0.18, 1 + e * 0.45, 1 - e * 0.18); } } if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;
       d.spark.position.set(0, -0.25 - Math.random() * 0.1, 0); d.spark.visible = Math.sin(t * 23 + d.ph) > 0.2; }
     if (this.selRing.visible) (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 4) * 0.3;

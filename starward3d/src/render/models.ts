@@ -522,7 +522,8 @@ export const TIER_METAL = ['#8a929c', '#c98a4a', '#dfe6ee', '#ffcb3c', '#a6f2ff'
 export const TIER_NAME = ['Steel', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Prismatic'];
 function dress(m: Model, b: string, L: number, look: Look): Model {
   const d = BUILDINGS[b]; if (!d || d.max <= 1 || b === 'wall') return m; const t = tierOf(L), sub = (Math.max(1, L) - 1) % 4, [w, dp] = d.fp, col = TIER_METAL[t - 1];
-  const grow = 1 + 0.006 * (Math.max(1, L) - 1); m.group.scale.set(1 + 0.0015 * (L - 1), grow, 1 + 0.0015 * (L - 1)); m.height *= grow;
+  // every level shows: taller within the tier (the tier's own model takes over at each new tier), and a new piece in the yard
+  const grow = 1 + 0.07 * sub + 0.006 * (Math.max(1, L) - 1); m.group.scale.set(1 + 0.012 * sub + 0.0015 * (L - 1), grow, 1 + 0.012 * sub + 0.0015 * (L - 1)); m.height *= grow;
   const k = new Kit(), hw = w / 2 - 0.03, hd = dp / 2 - 0.03, G = { glow: true };
   k.box(w - 0.02, 0.04, 0.05, col, 0, 0.1, hd, G); k.box(w - 0.02, 0.04, 0.05, col, 0, 0.1, -hd, G); k.box(0.05, 0.04, dp - 0.02, col, hw, 0.1, 0, G); k.box(0.05, 0.04, dp - 0.02, col, -hw, 0.1, 0, G);
   // the tier pylon, back-left corner, with one glowing ring for each level within the tier
@@ -532,6 +533,11 @@ function dress(m: Model, b: string, L: number, look: Look): Model {
   if (t >= 3) k.add(new THREE.SphereGeometry(0.2, 10, 5, 0, Math.PI * 2, 0, Math.PI / 3), '#dfe6ee', px, top - 0.15, pz, { glow: true, rx: Math.PI - 0.6 });
   if (t >= 4) { k.cyl(0.0, 0.06, 0.5, 6, col, px, top + 0.1, pz, G); top += 0.55; }
   for (const [cx, cz, need] of [[hw - 0.16, -hd + 0.16, 3], [-hw + 0.16, hd - 0.16, 4], [hw - 0.16, hd - 0.16, 4]] as [number, number, number][]) if (t >= need) { k.box(0.05, 0.42, 0.05, '#3b4350', cx, 0.1, cz, G); k.sphere(0.06, shade(col, 0.3), cx, 0.56, cz, G); }
+  // the yard: level 2 of a tier brings cargo containers, level 3 storage tanks with pipes, level 4 a mast with a dish and a beacon
+  const yx = hw - 0.3, yz = hd - 0.3, sm = Math.min(w, dp) >= 3 ? 1 : 0.7;
+  if (sub >= 1) { k.box(0.42 * sm, 0.22 * sm, 0.26 * sm, look.accent, yx - 0.05, 0.1, yz, {}); k.box(0.42 * sm, 0.22 * sm, 0.26 * sm, shade(look.primary, -0.25), yx - 0.05, 0.1 + 0.22 * sm, yz, {}); k.box(0.3 * sm, 0.2 * sm, 0.24 * sm, '#e8a33c', yx - 0.08, 0.1, yz - 0.3 * sm, {}); }
+  if (sub >= 2) { for (const dz of [0, -0.32 * sm]) { k.cyl(0.13 * sm, 0.13 * sm, 0.5 * sm, 10, '#dfe5ec', -hw + 0.3, 0.1, hd - 0.3 + dz, {}); k.sphere(0.13 * sm, '#dfe5ec', -hw + 0.3, 0.1 + 0.5 * sm, hd - 0.3 + dz, { theta: Math.PI / 2 }); } k.box(0.04, 0.04, 0.5 * sm, '#9aa3ad', -hw + 0.3, 0.45 * sm, hd - 0.46 * sm, {}); k.box(0.3 * sm, 0.03, 0.03, col, -hw + 0.3, 0.12, hd - 0.3, G); }
+  if (sub >= 3) { const mx = hw - 0.22, mz = -hd + 0.5; k.box(0.06, 1.0 * sm, 0.06, '#c9d1dc', mx, 0.1, mz, {}); k.add(new THREE.SphereGeometry(0.2 * sm, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.2), '#eef2f6', mx, 0.1 + 1.0 * sm, mz, { rx: -1.0 }); k.sphere(0.05, '#ff5a5a', mx, 0.16 + 1.0 * sm, mz, G); }
   const dg = k.build('rank'); m.group.add(dg); dg.scale.set(1 / m.group.scale.x, 1 / grow, 1 / m.group.scale.z);
   if (t >= 5) { const halo = new THREE.Group(); const hm = new THREE.MeshBasicMaterial({ color: col, toneMapped: false }); const r1 = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 6, 24), hm); r1.rotation.x = Math.PI / 2; halo.add(r1);
     if (t >= 6) { const r2 = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.02, 6, 24), new THREE.MeshBasicMaterial({ color: '#9ff3ff', toneMapped: false })); halo.add(r2); const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false })); halo.add(gem); }
