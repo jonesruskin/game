@@ -1,12 +1,12 @@
-# Starward 3D War Games server (Cloudflare Worker + D1). See README.md for the five deploy steps.
-name = "starward-war-games"
+# Helioscend Orbital Trials server (Cloudflare Worker + D1). See README.md for the five deploy steps.
+name = "helioscend-trials"
 main = "src/worker.ts"
 compatibility_date = "2026-11-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "starward_war"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"   # printed by: wrangler d1 create starward_war
+database_name = "helioscend_trials"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"   # printed by: wrangler d1 create helioscend_trials
 
 [vars]
 # "on": the server re-runs every submitted battle with the game's own engine and records its result (needs Workers Paid:

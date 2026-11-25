@@ -1,4 +1,4 @@
-# Starward 3D for Google Play and the App Store
+# Helioscend for Google Play and the App Store
 The mobile build is the same game compiled with the `mobile` platform adapter (`src/platform/mobile.ts`), kept separate from the CrazyGames and web builds. It is wrapped in a native shell with [Capacitor](https://capacitorjs.com/).
 
 ## Build the web assets

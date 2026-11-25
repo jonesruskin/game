@@ -49,10 +49,10 @@ export function designStats(d: Design): DesignStats {
 }
 // starting designs, unlocked as their parts are researched (players copy and edit them)
 export const PRESETS: Design[] = [
-  { id: 'kestrel', name: 'Kestrel', stages: [{ eng: 'solid', tank: 'S' }], boost: { n: 0, tank: 'S' }, top: 'probe', legs: false },
+  { id: 'kestrel', name: 'Wren', stages: [{ eng: 'solid', tank: 'S' }], boost: { n: 0, tank: 'S' }, top: 'probe', legs: false },
   { id: 'swift', name: 'Swift', stages: [{ eng: 'kerolox', tank: 'M' }, { eng: 'kerolox', tank: 'S' }], boost: { n: 0, tank: 'S' }, top: 'probe', legs: false },
-  { id: 'meridian', name: 'Meridian', stages: [{ eng: 'kerolox', tank: 'L' }, { eng: 'kerolox', tank: 'M' }], boost: { n: 2, tank: 'M' }, top: 'fairing', legs: false },
-  { id: 'meridianCrew', name: 'Meridian Crew', stages: [{ eng: 'kerolox', tank: 'L' }, { eng: 'kerolox', tank: 'M' }], boost: { n: 2, tank: 'M' }, top: 'capsule', legs: false },
+  { id: 'meridian', name: 'Aova', stages: [{ eng: 'kerolox', tank: 'L' }, { eng: 'kerolox', tank: 'M' }], boost: { n: 2, tank: 'M' }, top: 'fairing', legs: false },
+  { id: 'meridianCrew', name: 'Aova Crew', stages: [{ eng: 'kerolox', tank: 'L' }, { eng: 'kerolox', tank: 'M' }], boost: { n: 2, tank: 'M' }, top: 'capsule', legs: false },
   { id: 'colossus', name: 'Colossus', stages: [{ eng: 'hydrolox', tank: 'XL' }, { eng: 'hydrolox', tank: 'L' }], boost: { n: 4, tank: 'L' }, top: 'fairing', legs: false },
   { id: 'colossusLunar', name: 'Colossus Lunar', stages: [{ eng: 'hydrolox', tank: 'XL' }, { eng: 'hydrolox', tank: 'L' }], boost: { n: 4, tank: 'L' }, top: 'lander', legs: false },
   { id: 'leviathan', name: 'Leviathan', stages: [{ eng: 'methalox', tank: 'XXL' }, { eng: 'methalox', tank: 'XL' }], boost: { n: 4, tank: 'XL' }, top: 'fairing', legs: true },

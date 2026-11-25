@@ -101,7 +101,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'ch7', name: 'Chapter 7 · First Light', intro: 'The nearest star is 4.2 light-years away: 40 trillion kilometres. Light itself takes four years. We are going anyway.',
     steps: [
       { id: 'v1', text: 'Research Laser Light Sails', kind: 'tech', id2: 'laserSails', reward: { science: 20000000, dm: 40 } },
-      { id: 'v2', text: 'Build the Starshot Laser Array (tap the Sun on the Star Map)', kind: 'mega', mega: 'laser', n: 1, reward: { rare: 20000, dm: 40 } },
+      { id: 'v2', text: 'Build the Lightsail Laser Array (tap the Sun on the Star Map)', kind: 'mega', mega: 'laser', n: 1, reward: { rare: 20000, dm: 40 } },
       { id: 'v3', text: 'Survey Proxima Centauri with a light sail', kind: 'starSurvey', star: 'proxima', reward: { credits: 60000000, dm: 40 } },
       { id: 'v8', text: 'Survey Epsilon Eridani, the source of the signal', kind: 'starSurvey', star: 'epseri', reward: { dm: 100, science: 60000000 } },
       { id: 'u9', text: 'Give Mars liquid oceans (terraforming stage 5)', kind: 'terra', body: 'mars', n: 5, reward: { dm: 200, credits: 50000000 } },
@@ -119,7 +119,7 @@ export const CHAPTERS: Chapter[] = [
       { id: 'w2', text: 'Develop a star colony to level 5', kind: 'starLvl', lvl: 5, reward: { dm: 80, rare: 60000 } },
       { id: 'w2b', text: 'Find complex life on another world (Life screen)', kind: 'rung', n: 2, reward: { dm: 100, xeno: 3000 } },
       { id: 'w3', text: 'Build the Casimir Foundry on Earth', kind: 'build', b: 'casimir', lvl: 1, reward: { exotic: 200, dm: 60 } },
-      { id: 'w4', text: 'Build a Pathfinder ramjet', kind: 'drive', ship: 'ramjet', reward: { dm: 80, he3: 40000 } },
+      { id: 'w4', text: 'Build a Driftrunner ramjet', kind: 'drive', ship: 'ramjet', reward: { dm: 80, he3: 40000 } },
       { id: 'w5', text: 'Raise the Dyson Swarm to stage 4', kind: 'mega', mega: 'dyson', n: 4, reward: { dm: 100, science: 150000000 } },
     ],
   },
@@ -164,13 +164,13 @@ export const CHAPTERS: Chapter[] = [
     ],
   },
   {
-    id: 'ch12', name: 'Chapter 12 · The Brood Queen', intro: 'Three hives stand between us and Kapteyn\'s Star. Beyond them waits the mind of the Swarm.',
+    id: 'ch12', name: 'Chapter 12 · The Swarm Matriarch', intro: 'Three hives stand between us and Kapteyn\'s Star. Beyond them waits the mind of the Swarm.',
     steps: [
       { id: 'za1', text: 'Destroy the hive at Luyten 726-8', kind: 'hive', hive: 'uvceti', reward: { dm: 250, credits: 8000000000 } },
       { id: 'za2', text: 'Build a fleet of 150 warships', kind: 'warships', n: 150, reward: { dm: 200, metal: 8000000000 } },
       { id: 'za3', text: 'Destroy the hive at Lacaille 9352', kind: 'hive', hive: 'lacaille', reward: { dm: 300, exotic: 5000 } },
       { id: 'za4', text: 'Research Carrier Warfare', kind: 'tech', id2: 'carrierWarfare', reward: { dm: 200, science: 1000000000 } },
-      { id: 'za5', text: 'Kill the Brood Queen at Kapteyn\'s Star', kind: 'hive', hive: 'kapteyn', reward: { dm: 1000, credits: 30000000000 } },
+      { id: 'za5', text: 'Kill the Swarm Matriarch at Kapteyn\'s Star', kind: 'hive', hive: 'kapteyn', reward: { dm: 1000, credits: 30000000000 } },
     ],
   },
   {
@@ -191,7 +191,7 @@ export const CHAPTERS: Chapter[] = [
       { id: 'c1', text: 'Build the first shell of a Matrioshka Brain', kind: 'mega', mega: 'matrioshka', n: 1, reward: { dm: 300, science: 10000000000 } },
       { id: 'c2', text: 'Reach the Small Magellanic Cloud', kind: 'galaxy', gal: 'smc', reward: { dm: 400, xeno: 200000 } },
       { id: 'c3', text: 'Cross to Andromeda', kind: 'galaxy', gal: 'andromeda', reward: { dm: 600, credits: 100000000000 } },
-      { id: 'c4', text: 'Raise a Ringworld', kind: 'mega', mega: 'ringworld', n: 1, reward: { dm: 500, metal: 200000000000 } },
+      { id: 'c4', text: 'Raise a Ring Habitat', kind: 'mega', mega: 'ringworld', n: 1, reward: { dm: 500, metal: 200000000000 } },
       { id: 'c5', text: 'Survey the Triangulum galaxy', kind: 'galaxy', gal: 'triangulum', reward: { dm: 600, rare: 100000000 } },
       { id: 'c5b', text: 'Reach seven rungs of the Life Ladder', kind: 'rungs', n: 7, reward: { dm: 500, xeno: 300000 } },
       { id: 'c6', text: 'Find the Far Shore', kind: 'galaxy', gal: 'farshore', reward: { dm: 2000 } },

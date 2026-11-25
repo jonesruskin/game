@@ -19,7 +19,7 @@ export interface War { trophies: number; best: number; sorties: number; sortieAt
 export const war = (s: State): War => { const a = s as any; if (!a.war) a.war = { trophies: 0, best: 0, sorties: SORTIES, sortieAt: 0, firstWin: '', season: weekOf(), seasonPay: null, hist: [], log: [], drill: '', opps: [], set: 0, n: 0, net: null, snapAt: 0 }; return a.war; };
 export const warroomLvl = (s: State) => lvlOf(s, 'earth', 'warroom');
 export const unlocked = (s: State) => warroomLvl(s) > 0;
-// the strike squad: your strongest robots, one per War Room slot
+// the strike squad: your strongest robots, one per Tactics Centre slot
 export function squad(s: State): Fighter[] { const n = squadSize(warroomLvl(s)); return [...RB.rb(s).list].map((r) => ({ sp: r.sp, lvl: r.lvl })).sort((a, b) => botPower(b) - botPower(a)).slice(0, n); }
 export const squadPower = (army: Fighter[]) => army.reduce((a, f) => a + botPower(f), 0);
 // a snapshot of your Earth base for others to attack (robot operators on defences make them stronger)
@@ -78,7 +78,7 @@ export function academySquad(s: State, seed: number): Fighter[] { const mine = s
   const ri = mine.length ? Math.round(mine.reduce((a, f) => a + rIdxOf(f.sp), 0) / mine.length) : Math.min(2, Math.floor(hqLevel(s) / 4)); const lvl = mine.length ? Math.round(mine.reduce((a, f) => a + f.lvl, 0) / mine.length) : 1 + hqLevel(s) * 2;
   const pool = RB.pool(Math.max(0, Math.min(4, ri))); return Array.from({ length: n }, () => ({ sp: pool[Math.floor(R() * pool.length)], lvl: Math.max(1, Math.min(30, lvl + Math.floor(R() * 3) - 1)) })); }
 // ---------------- the result of an attack ----------------
-export function canAttack(s: State) { if (!unlocked(s)) return { ok: false, why: 'Build the War Room (Mission Control level 3)' }; if (war(s).sorties <= 0) return { ok: false, why: 'No sorties left: one returns every 8 hours' }; if (!squad(s).length) return { ok: false, why: 'You need robots to form a strike squad' }; return { ok: true }; }
+export function canAttack(s: State) { if (!unlocked(s)) return { ok: false, why: 'Build the Tactics Centre (Mission Control level 3)' }; if (war(s).sorties <= 0) return { ok: false, why: 'No sorties left: one returns every 8 hours' }; if (!squad(s).length) return { ok: false, why: 'You need robots to form a strike squad' }; return { ok: true }; }
 export function beginSortie(s: State, opp: Opp): BattleInput | null { if (!canAttack(s).ok) return null; const W = war(s); W.sorties--; if (!W.sortieAt) W.sortieAt = Date.now() + SORTIE_EVERY; W.n++; return { layout: JSON.parse(JSON.stringify(opp.layout)), army: squad(s), deploys: [], seed: hash(`${s.created}:${W.n}`) }; }
 export function settle(s: State, opp: Opp, input: BattleInput, r: BattleResult, now = Date.now()) {
   const W = war(s); const dT = trophyGain(r.stars, W.trophies, opp.trophies); W.trophies = Math.max(0, W.trophies + dT); W.best = Math.max(W.best, W.trophies);

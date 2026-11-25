@@ -35,9 +35,9 @@ export const BUILDINGS: Record<string, BuildingDef> = {
   },
   // ---- the Defence Council: War Games and the defences they test (Earth, from Mission Control 3) ----
   warroom: {
-    name: 'War Room', fp: [3, 3], bases: ['earth'], unique: true, max: 15, cat: 'defense', req: { hq: 3 },
+    name: 'Tactics Centre', fp: [3, 3], bases: ['earth'], unique: true, max: 15, cat: 'defense', req: { hq: 3 },
     cost: { credits: [3000, 1.8], metal: [2500, 1.8] }, time: [10, 1.95], draw: [4, 1.12],
-    desc: 'Your seat on the Defence Council. Daily War Games against other commanders\' bases (holographic, nothing is ever destroyed); every second level adds a robot to your strike squad.',
+    desc: 'Your seat on the Defence Council. Daily Orbital Trials against other commanders\' bases (holographic, nothing is ever destroyed); every second level adds a robot to your strike squad.',
   },
   turret: {
     name: 'Point-Defence Turret', fp: [2, 2], bases: ['earth'], max: 20, cat: 'defense', count: [0, 0, 2, 2, 3, 3, 4, 4, 5, 5], req: { hq: 3 },
@@ -288,7 +288,7 @@ const decor = (name: string, fp: [number, number], credits: number, count: numbe
 Object.assign(BUILDINGS, {
   walkway: decor('Walkway', [1, 1], 200, [20, 30, 40, 55, 70, 85, 100, 120, 140, 160], 'A paved tile for paths and plazas between the domes.'),
   lamp: decor('Lumen Post', [1, 1], 1500, [2, 4, 6, 8, 10, 12, 14, 16, 18, 20], 'A tall lamp with a warm glow for the night shift.'),
-  flag: decor('Colony Flag', [1, 1], 3000, [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], 'Flies your banner. Change it in the Style Locker.'),
+  flag: decor('Colony Flag', [1, 1], 3000, [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], 'Flies your banner. Change it in the Style Studio.'),
   holotree: decor('Holo Tree', [1, 1], 6000, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'A tree grown from engineered moss and fibre optics, glowing in your colours.', { hq: 2 }),
   rockgarden: decor('Regolith Garden', [2, 2], 15000, [0, 1, 1, 2, 2, 2, 3, 3, 3, 4], 'Raked dust and stones brought home from other worlds. Calming, apparently.', { hq: 3 }),
   dishes: decor('Dish Array', [2, 2], 30000, [0, 0, 1, 1, 2, 2, 2, 3, 3, 3], 'A row of small radio dishes listening to the sky, mostly for show.', { hq: 4 }),

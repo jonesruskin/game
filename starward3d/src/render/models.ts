@@ -310,7 +310,7 @@ function reactor(L: number, look: Look): Model {
 }
 // ---- the Defence Council ----
 const ARMOR = (t: number) => ['#9aa3ad', '#8f99a6', '#7d8a99', '#5f6f82', '#4a5a70', '#3a4a66'][t - 1];
-// the War Room: a low bunker, a glowing holotable seen through the roof light, an aerial and the Council's flag
+// the Tactics Centre: a low bunker, a glowing holotable seen through the roof light, an aerial and the Council's flag
 function warroom(L: number, look: Look): Model {
   const k = new Kit(), t = tierOf(L), lf = 1 + (Math.max(1, L) - 1) / 4, P = look.primary, A = look.accent; pad(k, 3, 3);
   k.box(2.5, 0.75 + lf * 0.06, 2.3, shade(P, -0.08), 0, 0.1, 0); k.box(2.56, 0.08, 2.36, A, 0, 0.85 + lf * 0.06, 0); k.box(1.1, 0.06, 1.0, '#7fe4ff', -0.3, 0.9 + lf * 0.06, 0.1, { glow: true });

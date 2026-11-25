@@ -18,11 +18,11 @@ export const ELEMENTS: Record<string, Element> = {
   chrono:  { name: 'Chrono',  color: '#c9a2ff', glow: '#eedcff', glyph: '⧗', strong: ['neural', 'volt'], blurb: 'Clocks running a little sideways.' },
   neural:  { name: 'Neural',  color: '#ff6fd8', glow: '#ffc4f0', glyph: '✺', strong: ['kinetic', 'gravity'], blurb: 'Artificial minds. They learn from everything.' },
   // relic elements (the Precursor Vault)
-  relic:   { name: 'Relic',   color: '#d8b46a', glow: '#fff0c4', glyph: '⌬', relic: true, strong: [], blurb: 'Precursor make, older than our species.' },
+  relic:   { name: 'Relic',   color: '#d8b46a', glow: '#fff0c4', glyph: '⌬', relic: true, strong: [], blurb: 'Ancient make, older than our species.' },
   aurora:  { name: 'Aurora',  color: '#6fffc8', glow: '#d6fff0', glyph: '❈', relic: true, strong: [], blurb: 'Beauty as a power source.' },
   arcana:  { name: 'Arcana',  color: '#8a5cff', glow: '#d7c6ff', glyph: '✧', relic: true, strong: [], blurb: 'Technology indistinguishable from magic.' },
   entropy: { name: 'Entropy', color: '#ff3d6e', glow: '#ffb3c6', glyph: '✹', relic: true, strong: [], blurb: 'Chaos, harnessed.' },
-  joy:     { name: 'Joy',     color: '#ffd24a', glow: '#fff2b8', glyph: '☺', relic: true, strong: [], blurb: 'Precursor machines made to be happy.' },
+  joy:     { name: 'Joy',     color: '#ffd24a', glow: '#fff2b8', glyph: '☺', relic: true, strong: [], blurb: 'Ancient machines made to be happy.' },
   reverie: { name: 'Reverie', color: '#7aa8ff', glow: '#d2e2ff', glyph: '☾', relic: true, strong: [], blurb: 'They dream in mathematics.' },
   soul:    { name: 'Soul',    color: '#f2f2ff', glow: '#ffffff', glyph: '❂', relic: true, strong: [], blurb: 'Something in them is alive.' },
 };

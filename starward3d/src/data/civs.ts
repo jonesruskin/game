@@ -23,7 +23,7 @@ export const CIVS: Record<string, Civ> = {
   krthul: { name: 'Kr\'thul Swarm', tier: 4, star: 'kapteyn', base: -60, temper: 'Hostile, consuming', col: '#ff6b6b', art: 'insect', hostile: true, origin: 'From Gaia-Enceladus, a dwarf galaxy the Milky Way swallowed ten billion years ago, riding in with stars like Kapteyn\'s',
     lore: 'A hive of trillions of insectoid drones and a few vast queens. They strip worlds to the bedrock and move on. They have noticed the relay at Epsilon Eridani, and through it, us.', likes: 'tribute, weakness', dislikes: 'everything else',
     trade: null, gifts: 'metal' },
-  hollow: { name: 'The Hollow', tier: 5, star: 'epseri', base: 0, temper: 'Extinct', col: '#c9b6ff', art: 'hollow', extinct: true, origin: 'The precursors who built the relay, gone for a million years',
+  hollow: { name: 'The Hollow', tier: 5, star: 'epseri', base: 0, temper: 'Extinct', col: '#c9b6ff', art: 'hollow', extinct: true, origin: 'The ancients who built the relay, gone for a million years',
     lore: 'Builders of the relays, lighthouses on the paths between stars. They vanished a million years ago. Their ruins remain, and the machines in them still work.', likes: '', dislikes: '', trade: null },
 };
 export const CIV_ORDER = ['veyari', 'lumen', 'synod', 'mycelar', 'oshoru', 'krthul', 'hollow'];
@@ -48,7 +48,7 @@ export const XENOTECH: Record<string, XenoDef> = {
   sporeMedicine: { sp: 'mycelar', name: 'Spore Medicine', rel: 60, xeno: 7000, eff: { flag: 'spores' }, desc: 'Antibiotics, immune boosters and healing moulds. Colony housing +20%.' },
   deepSong: { sp: 'oshoru', name: 'Deep Song', rel: 50, xeno: 5000, eff: { mult: { science: 0.08 } }, desc: 'The Oshoru remember everything in song. Their memory-craft improves ours. Science +8%.' },
   relicCores: { sp: 'hollow', name: 'Hollow Relic Cores', rel: 0, xeno: 12000, eff: { flag: 'relicCores' }, desc: 'Power cores from the ruins, still humming after a million years. Exotic matter production doubled.' },
-  precursorMaps: { sp: 'hollow', name: 'Precursor Star Charts', rel: 0, xeno: 6000, eff: { flag: 'precursorMaps' }, desc: 'The Hollow mapped every star within a thousand light-years. Reveals the planets of every system on the map.' },
+  precursorMaps: { sp: 'hollow', name: 'Ancient Star Charts', rel: 0, xeno: 6000, eff: { flag: 'precursorMaps' }, desc: 'The Hollow mapped every star within a thousand light-years. Reveals the planets of every system on the map.' },
 };
 // requests a civilisation may make (scaled to your economy when generated)
 export const REQUESTS: { k: string; res?: string; text: string; hours?: number }[] = [

@@ -3,7 +3,7 @@
 @font-face{font-family:'Oxanium';src:url(../src/ui/fonts/Oxanium-700.woff2) format('woff2');font-weight:700}@font-face{font-family:'Barlow';src:url(../src/ui/fonts/Barlow-600.woff2) format('woff2');font-weight:600}</style></head>
 <body><canvas id="c"></canvas>
 <script type="module">
-// STARWARD 3D cover / thumbnail compositor. The store tool renders the real game (a staged showcase colony, HUD hidden)
+// HELIOSCEND cover / thumbnail compositor. The store tool renders the real game (a staged showcase colony, HUD hidden)
 // and passes the shot in as ?bg=; this page frames it and adds the title.   covers.html?w=1920&h=1080&text=1&bg=...
 const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H = +q.get('h') || 1080, TEXT = q.get('text') !== '0';
 const land = W / H > 1.3, port = H / W > 1.2, S = Math.min(W, H);
@@ -18,16 +18,15 @@ if (TEXT) {
   const gr = land ? g.createLinearGradient(0, 0, W * 0.62, 0) : g.createLinearGradient(0, 0, 0, H * 0.5);
   gr.addColorStop(0, 'rgba(3,8,20,0.88)'); gr.addColorStop(0.55, 'rgba(3,8,20,0.45)'); gr.addColorStop(1, 'rgba(3,8,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   const x = land ? W * 0.06 : W / 2, align = land ? 'left' : 'center'; g.textAlign = align; g.textBaseline = 'alphabetic';
-  const fs = land ? S * 0.16 : S * 0.17; let y = land ? H * 0.4 : H * (port ? 0.13 : 0.17);
-  g.font = `700 ${fs}px Oxanium`; const title = 'STARWARD';
+  // the title: HELIOSCEND, fitted to the space (a long word), with a thin sunrise arc rising behind the O
+  const title = 'HELIOSCEND'; let fs = land ? S * 0.14 : S * 0.15; let y = land ? H * 0.4 : H * (port ? 0.13 : 0.17); const maxW = land ? W * 0.5 : W * 0.88;
+  g.font = `700 ${fs}px Oxanium`; while (g.measureText(title).width > maxW) { fs *= 0.95; g.font = `700 ${fs}px Oxanium`; }
+  const tw = g.measureText(title).width, left = land ? x : x - tw / 2; const ox = left + g.measureText('HELI').width + g.measureText('O').width / 2;
+  g.save(); g.strokeStyle = 'rgba(255,200,90,0.85)'; g.lineWidth = Math.max(2, fs * 0.04); g.shadowColor = 'rgba(255,170,60,0.8)'; g.shadowBlur = S * 0.03; g.beginPath(); g.arc(ox, y - fs * 0.36, fs * 0.62, Math.PI * 1.08, Math.PI * 1.92); g.stroke(); g.restore();
   const tg = g.createLinearGradient(0, y - fs, 0, y); tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, '#9fe9ff');
   g.save(); g.shadowColor = 'rgba(80,200,255,0.8)'; g.shadowBlur = S * 0.04; g.fillStyle = tg; g.fillText(title, x, y); g.restore();
-  // the 3D badge
-  const tw = g.measureText(title).width; const bx = land ? x + tw + S * 0.02 : x + tw / 2 - fs * 0.62, by = y - fs * 0.78, bw = fs * 0.78, bh = fs * 0.62;
-  if (land) { g.save(); g.fillStyle = '#ffd36a'; g.shadowColor = 'rgba(255,190,60,0.7)'; g.shadowBlur = S * 0.03; g.beginPath(); g.roundRect(bx, by, bw, bh, bh * 0.22); g.fill(); g.restore(); g.fillStyle = '#1a1206'; g.font = `700 ${bh * 0.72}px Oxanium`; g.textAlign = 'center'; g.fillText('3D', bx + bw / 2, by + bh * 0.76); g.textAlign = align; }
-  else { y += fs * 0.62; g.save(); g.fillStyle = '#ffd36a'; g.shadowColor = 'rgba(255,190,60,0.7)'; g.shadowBlur = S * 0.03; g.beginPath(); g.roundRect(x - bw / 2, y - bh * 0.78, bw, bh, bh * 0.22); g.fill(); g.restore(); g.fillStyle = '#1a1206'; g.font = `700 ${bh * 0.72}px Oxanium`; g.fillText('3D', x, y - bh * 0.02); }
   const ts = land ? S * 0.042 : S * 0.05; g.font = `600 ${ts}px Barlow`; g.fillStyle = 'rgba(233,244,255,0.92)';
-  const lines = land ? ['From one launch pad to the stars.', 'Real worlds. Alien life. Daily War Games.'] : ['From one launch pad', 'to the stars.'];
+  const lines = land ? ['From one launch pad to the stars.', 'Real worlds. Alien life. Daily Orbital Trials.'] : ['From one launch pad', 'to the stars.'];
   lines.forEach((l, i) => g.fillText(l, x, y + ts * 1.9 + i * ts * 1.3));
 }
 window.coverReady = true;

@@ -1,4 +1,4 @@
-// Starward 3D store assets, rendered from the real built game (dist/web), so run `npm run build` first:
+// Helioscend store assets, rendered from the real built game (dist/web), so run `npm run build` first:
 //   covers (CrazyGames 1920x1080 / 800x1200 / 800x800), a text-free 1024x1024 thumbnail, five screenshots,
 //   and silent preview videos (1920x1080 + 1080x1620, 18 s, the cover as the first second).
 // A showcase programme is staged inside the game (a grown Earth spaceport with decorations, a terraformed Mars colony,

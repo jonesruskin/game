@@ -72,7 +72,7 @@ function procedural() {
     const id = 'ssc' + (1000 + k * 7 + Math.floor(R() * 7)); const n = cls === 'D' ? 1 : Math.floor(R() * 4); const planets: Planet[] = [];
     for (let q = 0; q < n; q++) { const ty = cls === 'D' ? 'dwarf' : types[Math.floor(R() * types.length)]; const hab = ty === 'temperate' ? 0.45 + R() * 0.45 : ty === 'ocean' ? 0.4 + R() * 0.4 : ty === 'desert' ? 0.25 + R() * 0.3 : ty === 'ice' ? 0.15 + R() * 0.3 : ty === 'super' ? 0.1 + R() * 0.35 : 0;
       const res: Record<string, number> = {}; if (R() < 0.08 && !PTYPE[ty].giant) res.exotic = 1; planets.push({ name: `SSC ${id.slice(3)} ${'bcdefg'[q]}`, type: ty, hab: Math.round(hab * 100) / 100, note: '', res }); }
-    out[id] = { name: `SSC ${id.slice(3)}`, ra, dec, d: Math.round(d * 10) / 10, cls, planets, proc: true, fact: 'Catalogued by the Starward Stellar Survey.' };
+    out[id] = { name: `SSC ${id.slice(3)}`, ra, dec, d: Math.round(d * 10) / 10, cls, planets, proc: true, fact: 'Catalogued by the Helioscend Stellar Survey.' };
   }
   return out;
 }
@@ -84,7 +84,7 @@ export const STAR_IDS = Object.keys(STARS).filter((k) => k !== 'sol');
 // hpl: hours of travel per light-year. Arks carry settlers; scouts survey; warp needs exotic matter.
 export const DRIVES: Record<string, DriveDef> = {
   ark: { name: 'Exodus Ark', role: 'Sleeper colony ship', hpl: 36, yard: 7, req: ['sleeperShips'], settlers: true, cost: { credits: 3e7, metal: 2.5e7, he3: 6000, rare: 8000 }, time: 345600, col: '#ffd166', desc: 'Ten thousand colonists asleep in cryo-pods, a fusion engine, and a voyage measured in generations for the ship, days for you.' },
-  ramjet: { name: 'Pathfinder', role: 'Bussard ramjet', hpl: 6, yard: 8, req: ['ramjets'], settlers: true, cost: { credits: 6e7, metal: 4e7, he3: 12000, rare: 15000 }, time: 518400, col: '#6ee7ff', desc: 'A magnetic scoop thousands of kilometres wide gathers interstellar hydrogen as fuel. A tenth of light speed and climbing.' },
+  ramjet: { name: 'Driftrunner', role: 'Bussard ramjet', hpl: 6, yard: 8, req: ['ramjets'], settlers: true, cost: { credits: 6e7, metal: 4e7, he3: 12000, rare: 15000 }, time: 518400, col: '#6ee7ff', desc: 'A magnetic scoop thousands of kilometres wide gathers interstellar hydrogen as fuel. A tenth of light speed and climbing.' },
   warp: { name: 'Herald', role: 'Alcubierre warp ship', hpl: 0.6, yard: 10, req: ['warpDrive'], settlers: true, cost: { credits: 1.5e8, metal: 8e7, exotic: 400, rare: 30000 }, time: 777600, col: '#ff6bd6', desc: 'Space contracts ahead and expands behind; the ship never moves locally at all. Held open by exotic matter.' },
 };
 export const DRIVE_ORDER = ['ark', 'ramjet', 'warp'];
@@ -101,7 +101,7 @@ export const COLONY_BASE: Record<string, number> = { credits: 60000, metal: 7000
 export const COLONY_MAX = 15;
 // ---- megastructures ----
 export const MEGA: Record<string, MegaDef> = {
-  laser: { name: 'Starshot Laser Array', req: 'laserSails', stages: 5, days: 3, cost: { credits: 2e7, metal: 1.5e7, rare: 6000 }, growth: 1.7, desc: 'A hundred gigawatts of phased lasers on the Moon\'s far side. It pushes gram-scale light sails to a fifth of light speed: survey a star in days. Each stage widens its reach.', effect: 'Survey range' },
+  laser: { name: 'Lightsail Laser Array', req: 'laserSails', stages: 5, days: 3, cost: { credits: 2e7, metal: 1.5e7, rare: 6000 }, growth: 1.7, desc: 'A hundred gigawatts of phased lasers on the Moon\'s far side. It pushes gram-scale light sails to a fifth of light speed: survey a star in days. Each stage widens its reach.', effect: 'Survey range' },
   dyson: { name: 'Dyson Swarm', req: 'dysonSwarm', stages: 10, days: 4, cost: { credits: 5e7, metal: 6e7, rare: 15000 }, growth: 1.55, gen: 6000, prod: { credits: 400000, science: 40000 }, desc: 'Millions of solar collectors circling the Sun, built from Mercury. Each stage captures more of the Sun\'s output, and power becomes almost free.', effect: 'Energy, credits and science per stage' },
   gate: { name: 'Sol Wormhole Gate', req: 'wormholeGates', stages: 1, days: 6, cost: { credits: 2e8, metal: 1e8, exotic: 1500 }, growth: 1, desc: 'A throat of exotic matter held open in Sol\'s outer system. Pair it with gates at your star colonies and voyages between them take minutes.', effect: 'Opens the gate network' },
 };

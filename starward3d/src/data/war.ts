@@ -46,8 +46,8 @@ export const SORTIES = 3, SORTIE_EVERY = 8 * 3600e3;
 // leagues by trophies, with a weekly season reward
 export interface League { name: string; min: number; col: string; dm: number; cellsH: number; }
 export const LEAGUES: League[] = [
-  { name: 'Cadet', min: 0, col: '#9aa7b8', dm: 5, cellsH: 1 }, { name: 'Bronze', min: 400, col: '#cd7f32', dm: 10, cellsH: 2 }, { name: 'Silver', min: 800, col: '#c0c8d4', dm: 20, cellsH: 3 },
-  { name: 'Gold', min: 1400, col: '#ffd36a', dm: 35, cellsH: 5 }, { name: 'Platinum', min: 2000, col: '#7fe4ff', dm: 55, cellsH: 7 }, { name: 'Diamond', min: 2600, col: '#b892ff', dm: 80, cellsH: 10 }, { name: 'Stellar', min: 3200, col: '#ff8be8', dm: 120, cellsH: 14 },
+  { name: 'Lunar', min: 0, col: '#9aa7b8', dm: 5, cellsH: 1 }, { name: 'Martian', min: 400, col: '#cd7f32', dm: 10, cellsH: 2 }, { name: 'Asteroid', min: 800, col: '#c0c8d4', dm: 20, cellsH: 3 },
+  { name: 'Jovian', min: 1400, col: '#ffd36a', dm: 35, cellsH: 5 }, { name: 'Saturnian', min: 2000, col: '#7fe4ff', dm: 55, cellsH: 7 }, { name: 'Heliopause', min: 2600, col: '#b892ff', dm: 80, cellsH: 10 }, { name: 'Interstellar', min: 3200, col: '#ff8be8', dm: 120, cellsH: 14 },
 ];
 export const leagueOf = (t: number) => { let L = LEAGUES[0]; for (const x of LEAGUES) if (t >= x.min) L = x; return L; };
 // trophies: a win is worth more against a stronger commander, a loss costs less against one

@@ -1,6 +1,6 @@
 // Build every target (or the ones named): node tools/build.mjs [crazygames] [web] [mobile]
-//   crazygames → dist/crazygames/ + dist/starward3d-crazygames.zip   (CrazyGames SDK v3 injected)
-//   web        → dist/web/        + dist/starward3d-web.zip          (itch.io / own site)
+//   crazygames → dist/crazygames/ + dist/helioscend-crazygames.zip   (CrazyGames SDK v3 injected)
+//   web        → dist/web/        + dist/helioscend-web.zip          (itch.io / own site)
 //   mobile     → dist/mobile/     (web assets for the Capacitor shell: see mobile/README.md)
 import fs from 'node:fs'; import path from 'node:path'; import zlib from 'node:zlib'; import { execSync } from 'node:child_process';
 import { build } from 'vite';
@@ -23,6 +23,6 @@ function zip(dir, outFile) {
 for (const t of targets) {
   await build({ root, mode: t, logLevel: 'warn' });
   const out = path.join(root, 'dist', t); const files = walk(out); const size = files.reduce((a, f) => a + fs.statSync(path.join(out, f)).size, 0);
-  if (t !== 'mobile') { const zf = path.join(root, 'dist', `starward3d-${t}.zip`); zip(out, zf); console.log(`✔ ${t.padEnd(11)} ${files.length} files, ${(size / 1024).toFixed(0)} KB → ${path.relative(root, zf)} (${(fs.statSync(zf).size / 1024).toFixed(0)} KB zipped)`); }
+  if (t !== 'mobile') { const zf = path.join(root, 'dist', `helioscend-${t}.zip`); zip(out, zf); console.log(`✔ ${t.padEnd(11)} ${files.length} files, ${(size / 1024).toFixed(0)} KB → ${path.relative(root, zf)} (${(fs.statSync(zf).size / 1024).toFixed(0)} KB zipped)`); }
   else console.log(`✔ ${t.padEnd(11)} ${files.length} files, ${(size / 1024).toFixed(0)} KB → dist/mobile/ (wrap with Capacitor)`);
 }

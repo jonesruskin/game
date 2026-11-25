@@ -50,7 +50,7 @@ const MISSIONS: MDef[] = [
   { id: 'fuse', kind: 'fusions', n: () => 1, text: () => 'Fuse two robots', need: (s) => has(s, 'fusionlab') },
   { id: 'drop', kind: 'drops', n: () => 1, text: () => 'Open a supply capsule' },
   { id: 'voyage', kind: 'voyages', n: () => 1, text: () => 'Send a ship on a voyage', need: (s) => Object.values(sol(s).ships).some((n) => n > 0) },
-  { id: 'war', kind: 'warWins', n: () => 2, text: (n) => `Win ${n} War Games`, need: (s) => has(s, 'warroom') },
+  { id: 'war', kind: 'warWins', n: () => 2, text: (n) => `Win ${n} Orbital Trials`, need: (s) => has(s, 'warroom') },
 ];
 const MREWARD = (s: State, i: number): Record<string, number> => (i === 0 ? pick(income(s, 1), 'credits') : i === 1 ? pick(income(s, 1), 'cells') : { dm: 5 });
 export function refreshMissions(s: State, now = Date.now()) { const D = daily(s), today = dateKey(now); if (D.mDate === today) return false;
@@ -90,7 +90,7 @@ export const ACHS: Ach[] = [
   { id: 'scholar', name: 'Scholar', tiers: [5, 20, 50, 100], stat: (s) => Object.keys(s.tech).length, unit: 'technologies' },
   { id: 'rocketeer', name: 'Rocketeer', tiers: [1, 10, 50, 250], stat: (s) => s.stats.launches || 0, unit: 'launches' },
   { id: 'crew', name: 'Robot Wrangler', tiers: [3, 10, 25, 50], stat: (s) => RB.rb(s).list.length, unit: 'robots' },
-  { id: 'dex', name: 'Botdex Keeper', tiers: [5, 20, 50, 100], stat: (s) => RB.dexCount(s), unit: 'species discovered' },
+  { id: 'dex', name: 'Robot Registry Keeper', tiers: [5, 20, 50, 100], stat: (s) => RB.dexCount(s), unit: 'species discovered' },
   { id: 'fuser', name: 'Fusion Pioneer', tiers: [1, 10, 50, 250], stat: (s) => s.stats.fusions || 0, unit: 'fusions' },
   { id: 'settler', name: 'Settler', tiers: [1, 2, 4, 6], stat: (s) => Object.keys(s.bases).length - 1, unit: 'colonies' },
   { id: 'gardener', name: 'World Gardener', tiers: [1, 4, 8, 13], stat: (s) => Object.keys(TERRA).reduce((a, b) => a + terraStage(s, b), 0), unit: 'terraforming stages' },
@@ -98,7 +98,7 @@ export const ACHS: Ach[] = [
   { id: 'loyal', name: 'Loyal Commander', tiers: [3, 7, 28, 100], stat: (s) => daily(s).total, unit: 'days logged in' },
   { id: 'streak', name: 'On a Roll', tiers: [3, 7, 14, 30], stat: (s) => daily(s).best, unit: 'day streak' },
   { id: 'hoarder', name: 'Supply Hoarder', tiers: [5, 30, 150, 600], stat: (s) => s.stats.drops || 0, unit: 'supply capsules' },
-  { id: 'warrior', name: 'War Games Ace', tiers: [10, 100, 500, 2000], stat: (s) => s.stats.warStars || 0, unit: 'stars won in War Games' },
+  { id: 'warrior', name: 'Orbital Trials Ace', tiers: [10, 100, 500, 2000], stat: (s) => s.stats.warStars || 0, unit: 'stars won in Orbital Trials' },
   { id: 'defender', name: 'Iron Wall', tiers: [1, 10, 50, 200], stat: (s) => s.stats.defHeld || 0, unit: 'defences held' },
 ];
 export const ACH_DM = [5, 15, 40, 100];
@@ -109,7 +109,7 @@ export function claimAch(s: State, id: string) { const a = ACHS.find((x) => x.id
 export interface Theme { id: string; name: string; robot: string; stat: string; action: string; blurb: string; col: string; }
 export const THEMES: Theme[] = [
   { id: 'solstice', name: 'Solar Solstice', robot: 'solstice', stat: 'collects', action: 'collections', blurb: 'The Sun at its strongest: every collection counts toward the Solstice Seraph.', col: '#ffd166' },
-  { id: 'cup', name: 'War Games Cup', robot: 'champion', stat: 'warWins', action: 'War Games wins', blurb: 'The Defence Council\'s grand tournament. Win simulations for the Arena Champion.', col: '#ff6b6b' },
+  { id: 'cup', name: 'Orbital Trials Cup', robot: 'champion', stat: 'warWins', action: 'Orbital Trials wins', blurb: 'The Defence Council\'s grand tournament. Win simulations for the Arena Champion.', col: '#ff6b6b' },
   { id: 'deep', name: 'Deep Space Week', robot: 'voyager', stat: 'launches', action: 'launches', blurb: 'Every launch pad on Earth is busy. Fly missions for the Deep Voyager.', col: '#8ec0ff' },
   { id: 'fusion', name: 'Fusion Frenzy', robot: 'chimera', stat: 'feeds', action: 'robot level-ups', blurb: 'The Fusion Labs run day and night. Level up your robots for the Chimera Core.', col: '#ff8be8' },
   { id: 'garden', name: 'Garden Gala', robot: 'blossom', stat: 'collected', action: 'resources collected (per 10% of a day\'s income)', blurb: 'Greenhouses in bloom on every world. Bring in the harvest for the Blossom Sentinel.', col: '#7cf29a' },

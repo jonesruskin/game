@@ -26,7 +26,7 @@ export const sailsOut = (s: State) => s.jobs.filter((j) => j.kind === 'sail').le
 export function sailSpec(s: State, id: string) { const d = dist(id); return { cost: fitMax({ credits: round2(400000 * d), rare: round2(40 * d) }), time: Math.round((d * 3 * 3600) / (1 + megaStage(s, 'laser') * 0.25)) }; }
 export function canSail(s: State, id: string): Check & { ms: ReturnType<typeof sailSpec> } {
   const ms = sailSpec(s, id); if (ist(s).surveyed[id]) return { ok: false, why: 'Already surveyed', done: true, ms };
-  if (!megaStage(s, 'laser')) return { ok: false, why: 'Build the Starshot Laser Array (select the Sun)', locked: true, ms };
+  if (!megaStage(s, 'laser')) return { ok: false, why: 'Build the Lightsail Laser Array (select the Sun)', locked: true, ms };
   if (dist(id) > surveyRange(s)) return { ok: false, why: `Beyond the array's reach (${surveyRange(s)} ly): add a stage`, locked: true, ms };
   if (s.jobs.some((j) => j.kind === 'sail' && j.star === id)) return { ok: false, why: 'A sail is on its way', busy: true, ms };
   if (sailsOut(s) >= megaStage(s, 'laser')) return { ok: false, why: `The array can push ${megaStage(s, 'laser')} sail${megaStage(s, 'laser') > 1 ? 's' : ''} at a time`, busy: true, ms };

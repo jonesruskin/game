@@ -1,8 +1,8 @@
-# Starward 3D War Games server
+# Helioscend Orbital Trials server
 
-The War Games (daily battles between commanders) work without any server: the Defence Council's **Academy** fields
+The Orbital Trials (daily battles between commanders) work without any server: the Defence Council's **Academy** fields
 commanders built under the same rules players build by, and every day it drills your own base. This server adds the
-real thing: other players' bases to attack, attacks on your base by other players (with replays), server-side trophies
+real thing: other players' bases to attack, attacks on your base by other players (with replays), server-side merit
 and a leaderboard. When the game is built without a server URL, or the server cannot be reached, it quietly falls back
 to the Academy; the game never waits on the network.
 
@@ -27,14 +27,14 @@ happened. Layouts are validated too (buildable square, no overlaps, building cou
 ```bash
 npm install -g wrangler           # Cloudflare's CLI (log in with: wrangler login)
 cd starward3d/server
-wrangler d1 create starward_war   # copy the database_id it prints into wrangler.toml
-wrangler d1 execute starward_war --remote --file schema.sql
-wrangler deploy                   # prints your Worker's URL, e.g. https://starward-war-games.<you>.workers.dev
+wrangler d1 create helioscend_trials   # copy the database_id it prints into wrangler.toml
+wrangler d1 execute helioscend_trials --remote --file schema.sql
+wrangler deploy                   # prints your Worker's URL, e.g. https://helioscend-trials.<you>.workers.dev
 ```
 Then build the game pointed at it:
 ```bash
 cd ..   # starward3d/
-VITE_WAR_SERVER=https://starward-war-games.<you>.workers.dev npm run build
+VITE_WAR_SERVER=https://helioscend-trials.<you>.workers.dev npm run build
 ```
 In production set `ALLOWED_ORIGIN` in `wrangler.toml` to the domain the game is served from (for portal builds, the
 portal's game domain), and `VERIFY` to match your plan.
@@ -44,10 +44,10 @@ portal's game domain), and `VERIFY` to match your plan.
 |---|---|---|
 | POST | `/v1/register` | `{name}` → `{id, token}`: a new commander (the token is stored only as a SHA-256 hash) |
 | PUT | `/v1/snapshot` | your Earth base layout, banner colours and squad strength (validated) |
-| GET | `/v1/opponents` | up to three commanders near your trophies, each with a single-use match id |
-| POST | `/v1/result` | `{match, army, deploys, end}` → `{stars, pct, dT, trophies}` (re-run when `VERIFY = "on"`; three sorties per 8 hours) |
+| GET | `/v1/opponents` | up to three commanders near your merit, each with a single-use match id |
+| POST | `/v1/result` | `{match, army, deploys, end}` → `{stars, pct, dT, merit}` (re-run when `VERIFY = "on"`; three sorties per 8 hours) |
 | GET | `/v1/defences?since=` | attacks on your base, newest first, each with its replay input |
-| GET | `/v1/me` | your trophies and sorties |
+| GET | `/v1/me` | your merit and sorties |
 | GET | `/v1/leaderboard` | the top 50 commanders |
 | GET | `/v1/health` | `{ok, verify}` |
 

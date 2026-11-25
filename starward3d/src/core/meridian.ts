@@ -29,9 +29,9 @@ export function queueUpgrade(s: State, base: string, id: string) { const c = can
 export function unqueue(s: State, kind: 'r' | 'u', i: number) { const M = mer(s); if (kind === 'r') M.rq.splice(i, 1); else M.uq.splice(i, 1); }
 // once a second: start what can be started, drop what never can
 export function tickMeridian(s: State, t = Date.now()) { const out: { kind: string; text: string }[] = []; const a = s as any; if (!a.meridian || !level(s)) return out; const M = mer(s);
-  while (M.rq.length) { const id = M.rq[0]; if (s.tech[id] || !TECH[id]) { M.rq.shift(); continue; } if (slotsBusy(s) >= slotsTotal(s)) break; const c = canResearch(s, id); if (!c.ok) break; startResearch(s, id, t); M.rq.shift(); out.push({ kind: 'meridian', text: `Meridian started research: ${TECH[id].name}` }); }
-  while (M.uq.length) { const o = M.uq[0]; const it = itemOf(s, o.base, o.id); if (!it || it.lvl >= BUILDINGS[it.b].max) { M.uq.shift(); if (it) out.push({ kind: 'meridian', text: `Meridian dropped an order: ${BUILDINGS[it.b].name} is at its maximum level` }); continue; }
-    if (s.jobs.some((j) => j.item === o.id)) break; const c = canUpgrade(s, o.base, o.id); if (!c.ok) break; startUpgrade(s, o.base, o.id, t); M.uq.shift(); out.push({ kind: 'meridian', text: `Meridian started: ${BUILDINGS[it.b].name} → level ${it.lvl + 1}${o.base !== 'earth' ? ` (${s.bases[o.base]?.name || o.base})` : ''}` }); }
+  while (M.rq.length) { const id = M.rq[0]; if (s.tech[id] || !TECH[id]) { M.rq.shift(); continue; } if (slotsBusy(s) >= slotsTotal(s)) break; const c = canResearch(s, id); if (!c.ok) break; startResearch(s, id, t); M.rq.shift(); out.push({ kind: 'meridian', text: `Aova started research: ${TECH[id].name}` }); }
+  while (M.uq.length) { const o = M.uq[0]; const it = itemOf(s, o.base, o.id); if (!it || it.lvl >= BUILDINGS[it.b].max) { M.uq.shift(); if (it) out.push({ kind: 'meridian', text: `Aova dropped an order: ${BUILDINGS[it.b].name} is at its maximum level` }); continue; }
+    if (s.jobs.some((j) => j.item === o.id)) break; const c = canUpgrade(s, o.base, o.id); if (!c.ok) break; startUpgrade(s, o.base, o.id, t); M.uq.shift(); out.push({ kind: 'meridian', text: `Aova started: ${BUILDINGS[it.b].name} → level ${it.lvl + 1}${o.base !== 'earth' ? ` (${s.bases[o.base]?.name || o.base})` : ''}` }); }
   return out; }
 // food logistics follow Meridian's level
 logistics.level = (s) => { const n = level(s); return n >= 2 ? n - 1 : 0; };

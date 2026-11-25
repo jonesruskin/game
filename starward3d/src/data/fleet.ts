@@ -26,14 +26,14 @@ export const DEF_MAX = 10;
 export const SWARM: Record<string, UnitDef> = {
   drone: { name: 'Drone', size: 'S', wpn: 'laser', hp: 350, sh: 0, atk: 55, desc: 'A chitin dart with a cutting maw. They come in clouds.' },
   warrior: { name: 'Warrior', size: 'M', wpn: 'missile', hp: 2400, sh: 100, atk: 400, desc: 'Fires spines of frozen acid that home in on heat.' },
-  brood: { name: 'Brood Ship', size: 'L', wpn: 'rail', hp: 15000, sh: 1200, atk: 2200, desc: 'A living carrier, spawning drones as it fights.' },
-  queen: { name: 'Brood Queen', size: 'XL', wpn: 'missile', hp: 300000, sh: 9000, atk: 25000, desc: 'The mind of the Swarm: a living moon.' },
+  brood: { name: 'Spawn Carrier', size: 'L', wpn: 'rail', hp: 15000, sh: 1200, atk: 2200, desc: 'A living carrier, spawning drones as it fights.' },
+  queen: { name: 'Swarm Matriarch', size: 'XL', wpn: 'missile', hp: 300000, sh: 9000, atk: 25000, desc: 'The mind of the Swarm: a living moon.' },
 };
 // hives the Swarm holds at real stars; strength is the size of their garrison
 export const HIVES: Record<string, HiveDef> = {
   ross154: { name: 'Hive at Ross 154', star: 'ross154', comp: { drone: 150, warrior: 22, brood: 3 }, loot: { metal: 2e9, rare: 2e5 }, desc: 'A forward hive in Sagittarius, stripping a red dwarf\'s asteroid belt.' },
   uvceti: { name: 'Hive at Luyten 726-8', star: 'uvceti', comp: { drone: 420, warrior: 70, brood: 8 }, loot: { credits: 4e9, xeno: 20000 }, desc: 'Nested between two flare stars that hide its heat from our telescopes.' },
   lacaille: { name: 'Hive at Lacaille 9352', star: 'lacaille', comp: { drone: 900, warrior: 150, brood: 18 }, loot: { metal: 6e9, exotic: 3000 }, desc: 'It has eaten one super-Earth already and is starting on the second.' },
-  kapteyn: { name: 'The Brood Queen', star: 'kapteyn', comp: { drone: 1800, warrior: 320, brood: 40, queen: 1 }, loot: { dm: 1000, xeno: 100000 }, queen: true, desc: 'At Kapteyn\'s Star, refugee from a swallowed galaxy, the Queen broods over the Swarm.' },
+  kapteyn: { name: 'The Swarm Matriarch', star: 'kapteyn', comp: { drone: 1800, warrior: 320, brood: 40, queen: 1 }, loot: { dm: 1000, xeno: 100000 }, queen: true, desc: 'At Kapteyn\'s Star, refugee from a swallowed galaxy, the Queen broods over the Swarm.' },
 };
 export const HIVE_ORDER = ['ross154', 'uvceti', 'lacaille', 'kapteyn'];

@@ -26,7 +26,7 @@ export const HRELAY: { name: string; stages: number; req: string; cost: Record<s
 // endgame megaprojects, added to the megastructure panel on the Sun
 export const MEGA2: Record<string, { name: string; req: string; stages: number; days: number; fund?: boolean; cost: Record<string, number>; growth: number; desc: string; effect: string }> = {
   matrioshka: { name: 'Matrioshka Brain', req: 'matrioshkaBrains', stages: 5, days: 6, fund: true, cost: { credits: 2e9, metal: 3e9, exotic: 10000, antimatter: 500 }, growth: 1.6, desc: 'Shells of computers around the Sun, each running on the waste heat of the one inside. A mind the size of a solar system. Each stage: research 15% faster and +1M science per hour.', effect: 'Research' },
-  ringworld: { name: 'Ringworld', req: 'ringworlds', stages: 3, days: 10, fund: true, cost: { credits: 6e9, metal: 1e10, rare: 3e6, antimatter: 2000 }, growth: 1.8, desc: 'A band of land a million kilometres wide around a star: three million Earths of living space. Each stage: credits +25% and colony housing +50%.', effect: 'Credits and living space' },
+  ringworld: { name: 'Ring Habitat', req: 'ringworlds', stages: 3, days: 10, fund: true, cost: { credits: 6e9, metal: 1e10, rare: 3e6, antimatter: 2000 }, growth: 1.8, desc: 'A band of land a million kilometres wide around a star: three million Earths of living space. Each stage: credits +25% and colony housing +50%.', effect: 'Credits and living space' },
 };
 // Ascension perks: bought with Ascension points, kept for ever
 export const PERKS: Record<string, { name: string; max: number; cost: number; desc: string }> = {
