@@ -15,7 +15,7 @@ function serve() { return new Promise((res) => { const srv = http.createServer((
 // ---- runs in the page: the showcase programme ----
 function stage() {
   const a = window.__app, s = a.s, G = window.__G, SO = window.__SO, D = window.__D, AL = window.__AL, LF = window.__LF, BY = window.__BY;
-  s.tut = 99; s.name = 'Aurora Programme'; s.bases.earth.name = 'Cape Horizon';
+  s.tut = 99; s.name = 'Aurora Programme'; s.bases.earth.name = 'Cape Horizon'; s.rank = { xp: 1400, lvl: 18, total: 31000, seen: 18 }; s.hap = { next: Date.now() + 864e5, cur: null, act: [], n: 9, took: 6 }; /* a seasoned programme, no surprise mid-shot */
   for (const t in D.TECH) s.tech[t] = 1; for (const r of ['credits', 'metal', 'fuel', 'science', 'cells', 'he3', 'rare', 'exotic', 'influence', 'xeno', 'antimatter']) s.res[r] = 1e13; s.res.dm = 1e6;
   const hq = s.bases.earth.items.find((i) => i.b === 'hq'); hq.lvl = 10;
   const build = (base, b, n = 1) => { for (let k = 0; k < n; k++) { const sp = G.freeSpot(s, base, b); if (!sp) return; const r = G.startBuild(s, base, b, sp[0], sp[1], 0); if (!r.ok) return; for (const j of [...s.jobs]) G.speedup(s, j.id); a.tickNow(); } };
@@ -73,7 +73,7 @@ function deploy() { const a = window.__app; if (!a.battle) return; const B = a.b
   for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const off = ((i % 5) - 2) * 1.8; if (Math.floor(i / 2) % 2) a.world.onBattleTap(Math.min(N - 0.3, x1 + 1.1), mz + off); else a.world.onBattleTap(mx + off, Math.min(N - 0.3, z1 + 1.1)); } }
 async function boot(b, w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
-  await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`);
+  await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`); await pg.addStyleTag({ content: '#standby { display: none !important; }' }); /* the showcase base, not its to-do list */
   for (let i = 0; i < 400; i++) { await pg.clock.runFor(100); if (await pg.evaluate(() => !!(window.__app && window.__app.world && window.__G && window.__D))) break; }
   await pg.clock.runFor(1500); await pg.evaluate(stage); await pg.clock.runFor(1500); await pg.evaluate(() => { const a = window.__app; window.__G.events.length = 0; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} });
   return { ctx, pg, errs };
