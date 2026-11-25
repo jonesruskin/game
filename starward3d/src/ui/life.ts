@@ -15,7 +15,7 @@ export class LifeUI {
   get s() { return this.ui.app.s; } get A() { return this.ui.app; }
   available() { const s = this.s; return !!s.tech.xenobiology || !!(s as any).life && (Object.keys(LF.life(s).found).length > 0 || LF.life(s).outbreaks.length > 0); }
   outbreaks() { return (this.s as any).life ? LF.life(this.s).outbreaks : []; }
-  attention() { const s = this.s; if (!(s as any).life) return false; return this.outbreaks().length > 0 || LF.entries(s).some((e) => e.state === 'signal' && LF.canBio(s, e.id).ok); }
+  attention() { const s = this.s; if (!(s as any).life) return false; if (this.outbreaks().length) return true; if (s.jobs.filter((j) => j.kind === 'bio').length >= LF.MAX_BIO(s)) return false; return LF.entries(s).some((e) => e.state === 'signal' && LF.canBio(s, e.id, e).ok); }
   private plate(e: LF.Entry, size: number) { const civ = e.kind === 'civ' ? allSpecies()[e.sp!] : null;
     return `<img class="plate" src="${specimen({ id: e.id, art: e.art, col: e.col, seed: e.seed, rung: e.rung, size: e.size, unknown: e.state === 'unknown', signal: e.state === 'signal', civ: civ ? { col: civ.col, art: civ.art, seed: civ.seed, extinct: civ.extinct } : undefined }, size * 2)}" width="${size}" height="${size}" alt="">`; }
   private pips(e: LF.Entry) { return e.kind === 'life' || e.kind === 'exo' ? `<span class="pips">${[1, 2, 3].map((k) => `<i class="${e.lvl >= k ? 'on' : ''}"></i>`).join('')}</span>` : ''; }

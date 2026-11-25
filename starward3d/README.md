@@ -3,7 +3,7 @@
 
 The 3D evolution of [Starward](../starward/): Starward's economy, research tree and campaign (balanced by its year-long simulator), presented as real bases on real worlds, with people living in them, robots that make their lives easier (Dragon City's core ideas: collect, assign, fuse, events), Clash-of-Clans-style layouts where placement matters, and daily War Games against other players. Built with TypeScript, Three.js and Vite; CrazyGames first, then Google Play and the App Store.
 
-> **Status: v2 in development, Parts 1-8 of 10 done.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets and `UPLOAD.md` in this folder still describe v1 and will be regenerated in Part 10. See [DESIGN.md](DESIGN.md) for the vision and the 10-part plan.
+> **Status: v2 complete (Parts 1-10), ready to upload.** v1 (a floating-island robot collector) was rebuilt as v2 on the owner's direction; v1 lives in git history (commit `0952b96`). The store assets in `store/` and [UPLOAD.md](UPLOAD.md) describe v2. See [DESIGN.md](DESIGN.md) for the design and the build plan.
 
 ## Run it
 ```bash
@@ -135,6 +135,13 @@ Alien life from single cells to gods, on eight rungs (Microbial, Colonial, Compl
 - **Style Locker** (🎨 in the HUD): 18 paint schemes, 14 banner colours, 8 emblem colours and 16 emblems (helix, ring, galaxy spiral, bulwark...), each earned by playing: grow Mission Control, found colonies, terraform Mars, study alien life, meet civilisations, win War Games, destroy a hive, reach other galaxies, ascend. Locked ones say how to earn them; new unlocks are announced. Rename the programme and the spaceport. A live preview shows Mission Control in your colours.
 - **Ten decorations** in the Build menu, on Earth and every colony: walkways, lamps, colony flags flying your banner, holo trees in your accent colour, a regolith garden, a dish array, a holo beacon projecting your emblem, a pioneer statue, a xeno garden of glowing alien life and a rocket monument in your paint. They never change the numbers and never enter War Games layouts.
 - **Colony card:** a 1200×630 image of your base as it looks right now, with your banner, name and the story so far (worlds, star colonies, lifeforms, robots, technologies, trophies), ready to save or share.
+
+## Part 10: Polish & ship (done)
+- **Store assets rebuilt for v2** by `tools/store-assets.cjs`, which stages a showcase programme inside the real built game (a grown spaceport with decorations, a fully terraformed Mars, star colonies, the Life Ladder, the Local Group, a War Games raid) and shoots covers, a text-free thumbnail, five screenshots and two 18-second trailers on Playwright's virtual clock, so every run is identical.
+- **Listing copy and upload guide** rewritten for v2, including how to deploy the optional War Games server on Cloudflare and which plan to pick.
+- **Rewarded timer skips:** an optional "▶ Ad: −30 min" on running construction and research (CrazyGames build, 8 a day), alongside the extra daily spin.
+- **Mobile notifications:** when the app goes to the background it schedules the next finished timers, the next supply capsule and the daily reward, and cancels them on return.
+- **Review loop:** every screen exercised in the browser at desktop and phone sizes (fresh start through Ascension), zero page errors; War Games server tests 25/25.
 
 ## Code map
 ```

@@ -46,8 +46,8 @@ export class App {
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else this.tickNow(); }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
+    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
@@ -66,6 +66,14 @@ export class App {
     requestAnimationFrame((tt) => this.loop(tt));
   }
   tickNow() { this.tick(); this.changed(); }
+  // local notifications (mobile build only; no-ops elsewhere): the next finished timers, a supply capsule, the daily reward
+  private noteIds: string[] = [];
+  private scheduleNotes() { const P = this.platform, s = this.s; this.cancelNotes(); const now = Date.now();
+    const jobs = s.jobs.filter((j) => j.end > now + 60e3).sort((a, b) => a.end - b.end).slice(0, 3); const label = (j: any) => j.kind === 'research' ? `Research complete: ${TECH[j.tech]?.name || 'a new technology'}` : j.kind === 'bio' ? 'The xenobiologists have results' : j.kind === 'build' || j.b ? `${BUILDINGS[j.b]?.name || 'A building'} is ready` : 'A project is complete';
+    jobs.forEach((j, i) => { const id = 'job' + i; P.notify(id, j.end, s.name, label(j)); this.noteIds.push(id); });
+    const dd = DY.daily(s); if (dd.drop > now) { P.notify('capsule', dd.drop, s.name, 'A supply capsule has landed at the spaceport'); this.noteIds.push('capsule'); }
+    const ev = new Date(now); ev.setHours(19, 0, 0, 0); if (ev.getTime() < now + 3600e3) ev.setDate(ev.getDate() + 1); P.notify('daily', ev.getTime(), s.name, 'Your daily reward is waiting'); this.noteIds.push('daily'); }
+  private cancelNotes() { for (const id of this.noteIds) this.platform.cancelNotify(id); this.noteIds = []; }
   private tick() {
     const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }

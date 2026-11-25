@@ -51,7 +51,7 @@ export const MAX_BIO = (s: State) => 2 + (lvlOf(s, 'earth', 'xenolab') >= 10 ? 1
 const baseCost = (e: Entry) => (e.def ? e.def.cost : 3e7 * Math.pow(2.4, e.rung));
 export const bioCost = (e: Entry, lvl: number) => { const b = baseCost(e) * Math.pow(2, lvl); return { science: round2(b * 0.6), credits: round2(b * 0.4) }; };
 export const bioTime = (s: State, e: Entry, lvl: number) => Math.round(ladder(11.5 + lvl * 1.1 + e.rung * 0.4) / (1 + lvlOf(s, 'earth', 'xenolab') * 0.05));
-export function canBio(s: State, id: string) { const e = entry(s, id); if (!e || e.kind === 'civ' || e.kind === 'asc') return { ok: false, why: '' };
+export function canBio(s: State, id: string, known?: Entry) { const e = known || entry(s, id); if (!e || e.kind === 'civ' || e.kind === 'asc') return { ok: false, why: '' };
   if (e.state === 'unknown') return { ok: false, why: e.hint || 'Not found yet', locked: true }; if (e.lvl >= 3) return { ok: false, why: 'Fully studied', done: true };
   if (!s.tech.xenobiology) return { ok: false, why: 'Research Xenobiology', locked: true }; const lvl = e.state === 'found' ? e.lvl + 1 : 0;
   if (s.jobs.some((j) => j.kind === 'bio' && j.life === id)) return { ok: false, why: 'Under study', busy: true }; if (s.jobs.filter((j) => j.kind === 'bio').length >= MAX_BIO(s)) return { ok: false, why: 'The labs are full', busy: true };

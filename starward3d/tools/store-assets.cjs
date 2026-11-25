@@ -1,7 +1,9 @@
 // Starward 3D store assets, rendered from the real built game (dist/web), so run `npm run build` first:
-//   covers (CrazyGames 1920x1080 / 800x1200 / 800x800), a text-free 1024x1024 thumbnail, three screenshots,
+//   covers (CrazyGames 1920x1080 / 800x1200 / 800x800), a text-free 1024x1024 thumbnail, five screenshots,
 //   and silent preview videos (1920x1080 + 1080x1620, 18 s, the cover as the first second).
-// The game is driven on Playwright's virtual clock, so every frame is exact and every run is identical.
+// A showcase programme is staged inside the game (a grown Earth spaceport with decorations, a terraformed Mars colony,
+// star colonies, the Local Group, the Life Ladder, a War Games squad), then each view is shot on Playwright's virtual
+// clock, so every frame is exact and every run is identical.
 // Needs Playwright (Chromium) and ffmpeg.  From the repo root:  node starward3d/tools/store-assets.cjs [--no-video | --video-only]
 const http = require('http'); const fs = require('fs'); const path = require('path'); const os = require('os'); const { execFileSync } = require('child_process');
 const { chromium } = require('playwright');
@@ -10,68 +12,79 @@ const START = Date.UTC(2026, 10, 24, 15, 0, 0);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
 function serve() { return new Promise((res) => { const srv = http.createServer((q, r) => { const p = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); fs.readFile(p, (e, d) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream' }); r.end(d); }); }); srv.listen(0, () => res(srv)); }); }
 
-// ---- runs in the page: a showcase colony at Commander level 24 ----
-function stage(turf) {
-  const a = window.__app, s = a.s, G = window.__G; let n = 0; const now = Date.now();
-  const it = (t, x, z, lvl = 1, el) => ({ id: 'show' + n++, t, x, z, r: 0, lvl, ...(el ? { el } : {}) });
-  s.name = 'Nova Haven'; s.lvl = 24; s.xp = 0; s.res = { credits: 2.43e6, cells: 4.1e5, dm: 840, iridium: 0 }; s.tut = 99;
-  s.paint = { primary: '#e9eef5', accent: '#22c7e8' }; s.banner = { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' };
-  const H = s.islands.home; H.plots = ['1,1', '2,1', '3,1', '1,2', '2,2', '3,2', '1,3', '2,3', '3,3', '2,0', '0,2', '4,2', '2,4']; H.bought = 4; if (turf) H.turf = turf; else delete H.turf;
-  const bays = { solar: it('bay', 7, 7, 8, 'solar'), plasma: it('bay', 11, 7, 7, 'plasma'), hydro: it('bay', 16, 7, 7, 'hydro'), bio: it('bay', 20, 7, 6, 'bio') };
-  const items = [it('command', 13, 13, 9), ...Object.values(bays), it('fab', 7, 12, 6), it('fab', 7, 16, 5), it('assembly', 20, 12, 5), it('fusion', 19, 16, 4), it('arena', 13, 1, 5), it('pad', 25, 13, 6),
-    it('statue', 14, 19, 1, 'colossus'), it('sign', 13, 22), it('fountain', 2, 14), it('pond', 14, 25), it('beacon', 12, 26), it('turbine', 17, 25), it('bench', 16, 27), it('topiary', 13, 28), it('dish', 28, 16), it('crystal', 24, 17),
-    it('tree', 1, 12), it('tree', 4, 17), it('tree', 10, 13), it('tree', 11, 17), it('tree', 18, 11), it('tree', 8, 21), it('tree', 21, 21), it('tree', 26, 12), it('crystal', 18, 13), it('topiary', 10, 20), it('bench', 19, 20), it('rock', 7, 20),
-    it('lamp', 12, 12), it('lamp', 17, 12), it('lamp', 12, 17), it('lamp', 17, 17), it('lamp', 5, 13), it('lamp', 5, 16), it('lamp', 12, 5), it('lamp', 17, 5),
-    it('flag', 6, 6), it('flag', 23, 6), it('flag', 6, 23), it('flag', 23, 23), it('flag', 12, 0), it('flag', 17, 0),
-    ...Array.from({ length: 16 }, (_, i) => it('path', 7 + i, 10)), it('path', 14, 11), it('path', 15, 11), it('path', 14, 12), it('path', 15, 12), it('path', 14, 17), it('path', 15, 17), it('path', 14, 18), it('path', 15, 18)];
-  H.items = items;
-  const crew = { solar: ['helio', 'solarflare', 'solaris'], plasma: ['ember', 'blastforge', 'primemover'], hydro: ['tidepool', 'tsunami', 'leviathan'], bio: ['sprout', 'gaia', 'genesis'] };
-  s.bots = []; s.bay = {}; s.dex = {}; let k = 0;
-  for (const [el, sps] of Object.entries(crew)) { const b = bays[el]; for (const sp of sps) { s.bots.push({ id: 'showbot' + k, sp, lvl: 12 + ((k * 7) % 19), fed: 0, bay: b.id, born: now }); k++; s.dex[sp] = now; } s.bay[b.id] = G.bayCap(b, s) * 0.7; }
-  for (const sp of ['colossus', 'corona', 'tectonic', 'verdant', 'tesla', 'borealis', 'supernova', 'tempest', 'eventide', 'starweaver', 'quasar', 'seraph', 'voltaic', 'omega', 'horizon', 'veyari']) s.dex[sp] = now;
-  s.jobs = []; s.cores = []; s.ready = {}; s.obj = { i: 22, claimed: {} }; s.stats = { ...s.stats, arenaWins: 31, fusions: 9, expeditions: 7, decor: 40, collects: 400 };
-  a.changed(); try { a.ui.renderHud(); a.ui.renderObj(); } catch (e) {} G.events.length = 0; document.querySelectorAll('#modal [data-a="closeModal"]').forEach((b) => b.click()); try { a.ui.closeModal(); a.ui.closeOver(); } catch (e) {}
-  const w = a.world; Object.assign(w.cam, { x: 0.5, z: 1.5, tx: 0.5, tz: 1.5, dist: 46, tdist: 46, yaw: Math.PI / 4, tyaw: Math.PI / 4 });
+// ---- runs in the page: the showcase programme ----
+function stage() {
+  const a = window.__app, s = a.s, G = window.__G, SO = window.__SO, D = window.__D, AL = window.__AL, LF = window.__LF, BY = window.__BY;
+  s.tut = 99; s.name = 'Aurora Programme'; s.bases.earth.name = 'Cape Horizon';
+  for (const t in D.TECH) s.tech[t] = 1; for (const r of ['credits', 'metal', 'fuel', 'science', 'cells', 'he3', 'rare', 'exotic', 'influence', 'xeno', 'antimatter']) s.res[r] = 1e13; s.res.dm = 1e6;
+  const hq = s.bases.earth.items.find((i) => i.b === 'hq'); hq.lvl = 10;
+  const build = (base, b, n = 1) => { for (let k = 0; k < n; k++) { const sp = G.freeSpot(s, base, b); if (!sp) return; const r = G.startBuild(s, base, b, sp[0], sp[1], 0); if (!r.ok) return; for (const j of [...s.jobs]) G.speedup(s, j.id); a.tickNow(); } };
+  const earthB = Object.keys(D.BUILDINGS).filter((b) => b !== 'hq' && b !== 'wall' && D.BUILDINGS[b].bases.includes('earth') && D.BUILDINGS[b].cat !== 'decor');
+  for (const b of earthB) build('earth', b, D.BUILDINGS[b].unique ? 1 : 2);
+  for (const [b, n] of [['statue', 1], ['monument', 1], ['xenogarden', 1], ['beacon', 2], ['dishes', 1], ['rockgarden', 1], ['holotree', 6], ['flag', 4], ['lamp', 10]]) build('earth', b, n);
+  for (const it of s.bases.earth.items) it.lvl = Math.min(D.BUILDINGS[it.b].max, it.b === 'hq' ? 14 : 13);
+  // robots at work, so the bases are busy
+  const sps = ['thunderhead', 'prism', 'umbra', 'mirrorplate', 'tidepool', 'rootbound', 'helio', 'digger', 'ember', 'sprout']; s.robots = s.robots || { list: [], dex: {}, cores: [], made: 0 };
+  sps.forEach((sp, i) => { s.robots.list.push({ id: 'show' + i, sp, lvl: 20, post: null, born: Date.now() }); s.robots.dex[sp] = Date.now(); });
+  // Mars, terraformed to rivers and green valleys, and Venus's cloud city
+  SO.foundColony(s, 'mars'); SO.foundColony(s, 'venus'); SO.foundColony(s, 'titan'); const S = SO.sol(s); S.terra.mars = SO.TERRA.mars.stages.length; for (const b of ['europa', 'enceladus', 'jupiter', 'psyche', 'vesta', 'ceres', 'mercury']) S.sites[b] = 6;
+  const colB = Object.keys(D.BUILDINGS).filter((b) => D.BUILDINGS[b].bases.includes('mars') && D.BUILDINGS[b].cat !== 'decor' && b !== 'hub' && b !== 'wall');
+  const hub = s.bases.mars.items.find((i) => i.b === 'hub'); if (hub) hub.lvl = 12; for (const b of colB) build('mars', b, 2); for (const [b, n] of [['holotree', 3], ['flag', 2], ['lamp', 4], ['statue', 1]]) build('mars', b, n);
+  for (const it of s.bases.mars.items) it.lvl = Math.min(D.BUILDINGS[it.b].max, 12); s.bases.mars.pop = 4000;
+  // the stars, contact, life and the Local Group
+  s.stars = { surveyed: {}, colonies: {}, ships: {}, mega: { laser: 3, dyson: 6, gate: 1 }, gates: {}, story: {} }; for (const id of ['proxima', 'acen', 'barnard', 'wolf359', 'lalande', 'sirius', 'epseri', 'ross128', 'trappist', 'tauceti', 'vega', 'altair', 'fomalhaut', 'gj667c', 'kapteyn']) s.stars.surveyed[id] = 1;
+  for (const id of ['veyari', 'lumen', 'synod', 'mycelar', 'oshoru']) { AL.meet(s, id, 'music'); AL.known(s, id).und = 75; }
+  const L = LF.life(s); for (const id of ['aresbrine', 'cloudmotes', 'plumespores', 'azotes', 'ventweavers', 'lithophages', 'floaters', 'kites']) { L.found[id] = Date.now(); L.st[id] = id === 'floaters' ? 2 : 3; }
+  for (const e of LF.entries(s)) if (e.kind === 'exo' && e.rung >= 1) { L.found[e.id] = Date.now(); L.st[e.id] = 1; } for (const r of [0, 1, 2, 3, 4, 5, 6]) L.rungs[r] = Date.now(); L.sig = { drifters: 1 };
+  const B = BY.bey(s); B.relay = 4; B.visited = { sagdeg: 1, lmc: 1, smc: 1 };
+  s.kMax = 2.2; s.obj.i = 60; a.changed(); a.world.look = window.__STY.lookOf(s); a.world.sync(s);
+  window.__G.events.length = 0; a.queue.length = 0; try { a.ui.closeModal(); a.ui.closeOver(); a.ui.renderHud(); a.ui.renderNav(); a.ui.renderObj(); } catch (e) {}
 }
+// views (each returns once the view is set; the clock then runs to settle it)
+function view([name, land]) {
+  const a = window.__app, w = a.world; try { a.ui.closeModal(); a.ui.closeOver(); } catch (e) {} a.queue.length = 0;
+  const cam = (x, z, dist, yaw) => Object.assign(w.cam, { x, z, tx: x, tz: z, dist, tdist: dist, yaw, tyaw: yaw });
+  if (name === 'earth') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(land ? -3 : 0, land ? 4 : 2, land ? 40 : 52, Math.PI / 4); }
+  if (name === 'earthClose') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-1, 3, 24, Math.PI / 4 + 0.5); }
+  if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
+  if (name === 'system') { a.toBase(); a.openMap(); }
+  if (name === 'stars') { a.toBase(); a.openStars(); }
+  if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
+  if (name === 'life') { a.ui.life.sel = 'floaters'; a.ui.life.rung = -1; a.ui.openOver('life'); }
+  if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
+}
+function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, m = (Lr.lo + Lr.hi) / 2; for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const off = ((i % 3) - 1) * 1.5; if (i % 2) a.world.onBattleTap(Lr.lo - 2.5, m + off); else a.world.onBattleTap(m + off, Lr.lo - 2.5); } }
 async function boot(b, w, h) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
   await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`);
-  for (let i = 0; i < 400; i++) { await pg.clock.runFor(100); if (await pg.evaluate(() => !!(window.__app && window.__app.world && window.__G))) break; }
-  await pg.clock.runFor(1500); return { ctx, pg, errs };
+  for (let i = 0; i < 400; i++) { await pg.clock.runFor(100); if (await pg.evaluate(() => !!(window.__app && window.__app.world && window.__G && window.__D))) break; }
+  await pg.clock.runFor(1500); await pg.evaluate(stage); await pg.clock.runFor(1500); await pg.evaluate(() => { const a = window.__app; window.__G.events.length = 0; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} });
+  return { ctx, pg, errs };
 }
+const HIDE = '#hud,#nav,#obj,#bubbles,#toasts,#panel,#mapui,#place,#modal,#over,#rail,#bhud{display:none!important}';
 let base = '';
-async function shot(b, w, h, out, opts = {}) {
-  const { ctx, pg, errs } = await boot(b, w, h); await pg.evaluate(stage, opts.turf || null);
-  await pg.addStyleTag({ content: '#hud,#nav,#obj,#bubbles,#toasts,#panel,#mapui,#place,#modal,#over{display:none!important}' });
-  await pg.evaluate(([dist, ox, oz]) => { const c = window.__app.world.cam; Object.assign(c, { dist, tdist: dist, x: ox, tx: ox, z: oz, tz: oz }); }, [opts.dist || 40, opts.ox || 0.5, opts.oz || 1.5]);
-  await pg.clock.runFor(2500); await pg.screenshot({ path: out }); if (errs.length) console.warn('page errors:', errs.slice(0, 3)); await ctx.close();
+async function shot(b, w, h, out, v, opts = {}) {
+  const { ctx, pg, errs } = await boot(b, w, h); if (opts.clean) await pg.addStyleTag({ content: HIDE });
+  await pg.evaluate(view, [v, w > h]); if (opts.clean) await pg.evaluate(() => { const e = window.__app.world.env; if (e && e.grid) e.grid.visible = false; if (e && e.bound) e.bound.visible = false; }); await pg.clock.runFor(2500);
+  if (v === 'battle') { await pg.evaluate(deploy); await pg.clock.runFor(opts.fight || 11000); }
+  await pg.evaluate(() => { const a = window.__app; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} document.querySelectorAll('#toasts > *').forEach((t) => t.remove()); }); await pg.clock.runFor(300);
+  await pg.screenshot({ path: out }); if (errs.length) console.warn('page errors:', errs.slice(0, 3)); await ctx.close();
 }
-async function cover(b, w, h, text, out, opts) {
-  const bg = path.join(ROOT, 'starward3d', 'tools', `.bg-${w}x${h}.png`); await shot(b, w, h, bg, opts);
+async function cover(b, w, h, text, out, v) {
+  const bg = path.join(ROOT, 'starward3d', 'tools', `.bg-${w}x${h}.png`); await shot(b, w, h, bg, v, { clean: true });
   const pg = await b.newPage({ viewport: { width: w, height: h } }); await pg.goto(`${base}/starward3d/tools/covers.html?w=${w}&h=${h}&text=${text ? 1 : 0}&bg=${encodeURIComponent('.bg-' + w + 'x' + h + '.png')}`);
   await pg.waitForFunction(() => window.coverReady, null, { timeout: 20000 }); await pg.screenshot({ path: out }); await pg.close(); fs.rmSync(bg, { force: true });
 }
-// the trailer: collect → restyle the island → an Arena battle → a launch → the Solar System → the daily core spin
-async function video(b, w, h, coverPng, shots) {
-  const { ctx, pg, errs } = await boot(b, w, h); await pg.evaluate(stage, null);
-  await pg.evaluate((land) => { const c = window.__app.world.cam; Object.assign(c, { dist: land ? 38 : 50, tdist: land ? 38 : 50 }); }, w > h);
-  await pg.evaluate(() => { window.__act = (a, data = {}) => { const el = document.createElement('button'); el.dataset.a = a; for (const [k, v] of Object.entries(data)) el.dataset[k] = v; window.__app.ui.act(a, el); }; });
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 's3d-frames-')); const FRAMES = 17 * 30; const land = w > h;
+// the trailer: the spaceport → Mars in green → the Solar System → the stars → the Local Group → alien life → a War Games raid
+async function video(b, w, h, coverPng) {
+  const { ctx, pg, errs } = await boot(b, w, h); const land = w > h; await pg.addStyleTag({ content: '#obj,#toasts,#rail{display:none!important}' });
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 's3d-frames-')); const FRAMES = 17 * 30;
+  const cuts = { 0: 'earth', 90: 'mars', 170: 'system', 235: 'stars', 290: 'galaxy', 345: 'life', 405: 'battle' };
   for (let f = 0; f < FRAMES; f++) {
-    await pg.evaluate(([f, land]) => { const a = window.__app, s = a.s, G = window.__G, w = a.world, H = s.islands.home; const byT = (t, el) => H.items.find((i) => i.t === t && (!el || i.el === el));
-      if (w.mode === 'island') w.cam.tyaw += 0.0022;
-      if (f === 24) a.collect(byT('bay', 'solar')); if (f === 38) a.collect(byT('bay', 'plasma')); if (f === 52) a.collect(byT('bay', 'hydro')); if (f === 64) a.collect(byT('bay', 'bio'));
-      if (f === 92) { H.turf = 'neon'; a.changed(); } if (f === 122) { H.turf = 'sakura'; a.changed(); }
-      if (f === 150) window.__act('arena'); if (f === 164) window.__act('fight', { i: '0' }); if (f === 176) { window.__act('autoBattle'); window.__act('battleSpeed'); }
-      if (f >= 280 && f <= 330 && w.mode === 'arena' && !document.querySelector('#modal').classList.contains('hidden')) window.__act('leaveArena');
-      if (f === 331 && w.mode === 'arena') { try { w.exitArena(); a.ui.closeModal(); } catch (e) {} }
-      if (f === 336) { const p = byT('pad'); const c = w.centerOf(p); w.focus(c.x, c.z, land ? 24 : 32); w.launchFx(p.id, 3); }
-      if (f === 392) window.__act('space'); if (f === 446) window.__act('closeMap');
-      if (f === 452) { w.focus(0.5, 1.5, land ? 38 : 50); window.__act('spin'); }
-    }, [f, land]);
-    await pg.clock.runFor(1000 / 30);
-    const fp = path.join(tmp, `f${String(f).padStart(4, '0')}.jpg`); await pg.screenshot({ path: fp, type: 'jpeg', quality: 90 });
-    if (shots && shots.includes(f)) await pg.screenshot({ path: path.join(OUT, `screenshot-${shots.indexOf(f) + 1}.png`) });
+    if (cuts[f]) { await pg.evaluate(view, [cuts[f], land]); if (cuts[f] === 'battle') { await pg.clock.runFor(400); await pg.evaluate(deploy); } }
+    await pg.evaluate(([f, land]) => { const a = window.__app, w = a.world; if (w.mode === 'base') { w.cam.tyaw += 0.0026; w.cam.yaw += 0.0026; if (f < 90) { w.cam.tdist -= land ? 0.05 : 0.06; } }
+      if (w.mode === 'battle' && w.battle) w.battle.speed = 2; a.queue.length = 0; if (f % 10 === 0) { try { if (w.mode !== 'battle') a.ui.closeModal(); } catch (e) {} } }, [f, land]);
+    await pg.clock.runFor(1000 / 30); await pg.screenshot({ path: path.join(tmp, `f${String(f).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 90 });
   }
   if (errs.length) console.warn('page errors:', errs.slice(0, 3));
   const out = path.join(OUT, `preview-${land ? 'landscape' : 'portrait'}-${w}x${h}.mp4`);
@@ -83,18 +96,20 @@ async function video(b, w, h, coverPng, shots) {
   if (!fs.existsSync(path.join(ROOT, 'starward3d', 'dist', 'web', 'index.html'))) { console.error('Build first: cd starward3d && npm run build'); process.exit(1); }
   const noVideo = process.argv.includes('--no-video'); fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve(); base = `http://localhost:${srv.address().port}`; const b = await chromium.launch(); console.log('▶ starward3d');
-  const L = { dist: 38, ox: -5.5, oz: 6.5 }, P = { dist: 52, ox: 0.5, oz: -2 }, Q = { dist: 44, ox: 0.5, oz: 0 };
   if (!process.argv.includes('--video-only')) {
-    await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'), L);
-    await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'), P);
-    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), Q);
-    await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'), { dist: 34, ox: 0.5, oz: 1.5 });
+    await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'), 'earth');
+    await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'), 'earth');
+    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earth');
+    await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'), 'earthClose');
     console.log('  ✔ covers + thumbnail');
+    const shots = [['earth', 'the spaceport'], ['mars', 'a terraformed Mars colony'], ['life', 'the Life Ladder'], ['battle', 'a War Games raid'], ['galaxy', 'the Local Group']];
+    for (let i = 0; i < shots.length; i++) await shot(b, 1920, 1080, path.join(OUT, `screenshot-${i + 1}.png`), shots[i][0]);
+    console.log('  ✔ screenshots: ' + shots.map((x) => x[1]).join(', '));
   }
   if (!noVideo) {
     const cl = path.join(os.tmpdir(), 's3d-cl.png'), cp = path.join(os.tmpdir(), 's3d-cp.png');
-    await cover(b, 1920, 1080, true, cl, L); await cover(b, 1080, 1620, true, cp, P);
-    await video(b, 1920, 1080, cl, [70, 240, 420]); await video(b, 1080, 1620, cp, null);
+    await cover(b, 1920, 1080, true, cl, 'earth'); await cover(b, 1080, 1620, true, cp, 'earth');
+    await video(b, 1920, 1080, cl); await video(b, 1080, 1620, cp);
   }
   await b.close(); srv.close();
 })().catch((e) => { console.error(e); process.exit(1); });

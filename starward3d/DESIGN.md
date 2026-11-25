@@ -95,4 +95,6 @@ Timers from seconds to days on Starward's ladder; offline time always counts (co
 7. **Interstellar:** galaxy map (real stars + procedural systems), FTL, exoplanet bases, cosmic resources, megastructures, empire overview.
 8. **Contact & conflict:** alien civilisations, diplomacy, trade routes, hostile raids (PvE battles), fleets and space battles.
 9. **Beyond & Type III, the Life Ladder:** other galaxies, funding pools, the endgame megastructures, Type III, Ascension; alien life from microbes to the Ascendants (§9.1); Style Locker, decor and the colony card.
-10. **Polish & ship:** tutorial, audio, balance simulation, performance, store assets, docs, review loop.
+10. **Polish & ship:** store assets from the real game, listing copy, upload guide (with the War Games server on Cloudflare), rewarded timer skips, mobile notifications, review loop.
+
+All ten parts are done.
