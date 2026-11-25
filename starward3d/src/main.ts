@@ -11,7 +11,8 @@ import { Studio } from './render/studio';
 import { UI, costHTML, kReward } from './ui/ui';
 import { Audio } from './audio';
 import { $, fmt, esc, fmtTime } from './core/util';
-import { BUILDINGS, areaSide } from './data/buildings';
+import { BUILDINGS, areaSide, GRID } from './data/buildings';
+import { DEPOSITS } from './data/sites';
 import { TECH } from './data/research';
 import { RES } from './data/resources';
 import * as SP from './core/space';
@@ -27,6 +28,8 @@ import * as LF from './core/life';
 import * as FD from './core/food';
 import * as MER from './core/meridian';
 import * as STY from './core/style';
+import { plotName } from './ui/land';
+import * as LD from './core/land';
 import { LIFE, RUNGS } from './data/life';
 import { specimen } from './render/specimens';
 import * as NET from './core/net';
@@ -44,12 +47,12 @@ export class App {
     const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
     this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
     this.world.look = STY.lookOf(this.s); STY.freshUnlocks(this.s); this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
-    const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - 26; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
+    const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - GRID / 2; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__FD = FD; (window as any).__MER = MER; (window as any).__STRF = STR; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
+    (window as any).__app = this; (window as any).__G = G; (window as any).__LD = LD; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__FD = FD; (window as any).__MER = MER; (window as any).__STRF = STR; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
@@ -71,13 +74,13 @@ export class App {
   // local notifications (mobile build only; no-ops elsewhere): the next finished timers, a supply capsule, the daily reward
   private noteIds: string[] = [];
   private scheduleNotes() { const P = this.platform, s = this.s; this.cancelNotes(); const now = Date.now();
-    const jobs = s.jobs.filter((j) => j.end > now + 60e3).sort((a, b) => a.end - b.end).slice(0, 3); const label = (j: any) => j.kind === 'research' ? `Research complete: ${TECH[j.tech]?.name || 'a new technology'}` : j.kind === 'bio' ? 'The xenobiologists have results' : j.kind === 'build' || j.b ? `${BUILDINGS[j.b]?.name || 'A building'} is ready` : 'A project is complete';
+    const jobs = s.jobs.filter((j) => j.end > now + 60e3).sort((a, b) => a.end - b.end).slice(0, 3); const label = (j: any) => j.kind === 'research' ? `Research complete: ${TECH[j.tech]?.name || 'a new technology'}` : j.kind === 'bio' ? 'The xenobiologists have results' : j.kind === 'prospect' ? 'A rover has finished its survey' : j.kind === 'claim' ? 'New land is ready to build on' : j.kind === 'build' || j.b ? `${BUILDINGS[j.b]?.name || 'A building'} is ready` : 'A project is complete';
     jobs.forEach((j, i) => { const id = 'job' + i; P.notify(id, j.end, s.name, label(j)); this.noteIds.push(id); });
     const dd = DY.daily(s); if (dd.drop > now) { P.notify('capsule', dd.drop, s.name, 'A supply capsule has landed at the spaceport'); this.noteIds.push('capsule'); }
     const ev = new Date(now); ev.setHours(19, 0, 0, 0); if (ev.getTime() < now + 3600e3) ev.setDate(ev.getDate() + 1); P.notify('daily', ev.getTime(), s.name, 'Your daily reward is waiting'); this.noteIds.push('daily'); }
   private cancelNotes() { for (const id of this.noteIds) this.platform.cancelNotify(id); this.noteIds = []; }
   private tick() {
-    const notes = G.advance(this.s, Date.now()); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
+    const notes = this.batchLand(G.advance(this.s, Date.now())); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
@@ -96,7 +99,12 @@ export class App {
     if (k >= 3 && !BY.bey(this.s).typeIII) { BY.bey(this.s).typeIII = Date.now(); this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV TYPE III</div><h1>A galactic civilisation</h1><p class="desc">From one launch pad on Earth to the power of a galaxy: ${k.toFixed(2)} on the Kardashev scale. Every star the relays reach answers to the people you sent out from the domes and the tunnels, the robots that built them and the friends you made in the dark.</p><p class="desc good">Nobody in the Local Group has done this in a million years.</p><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
     if (Date.now() > this.saveAt) { this.saveAt = Date.now() + 10000; this.save(); }
   }
+  // many surveys finishing at once (back from a break): one summary instead of a stack of toasts
+  private batchLand(notes: G.Note[]) { const P = notes.filter((n) => n.kind === 'prospect'); if (P.length < 3) return notes; const found = new Set<string>(); for (const n of P) for (const t of n.found) found.add(t);
+    this.ui.toast(`${P.length} surveys complete${found.size ? `: ${[...found].map((t) => esc(DEPOSITS[t].name)).join(', ')} found` : ': nothing below the surface'}`, found.size ? 'gold' : 'good'); this.audio.play('done'); this.world.sync(this.s); return notes.filter((n) => n.kind !== 'prospect'); }
   private note(n: G.Note) {
+    if (n.kind === 'prospect') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; this.audio.play('done'); this.ui.toast(`Survey of plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''} complete: ${n.found.length ? n.found.map((t: string) => esc(DEPOSITS[t].name)).join(', ') + ' found' : 'nothing below the surface'}`, n.found.length ? 'gold' : 'good'); if (n.base === this.s.at) this.world.sync(this.s); return; }
+    if (n.kind === 'claim') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; this.audio.play('done'); this.ui.toast(`Plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''} is yours: more room to build`, 'gold'); if (n.base === this.s.at) { this.world.sync(this.s); const p = { x: (cx + 0.5) * 6 - GRID / 2, y: 1, z: (cz + 0.5) * 6 - GRID / 2 }; this.world.burst(p as any, '#ffd36a', 36); } return; }
     if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); if (areaSide('earth', n.lvl) > areaSide('earth', n.lvl - 1)) this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
     else if (n.kind === 'core') { this.audio.play('claim'); this.ui.toast(`${n.fused ? 'Fusion complete' : 'Core assembled'}: a ${RARITIES[SPECIES[n.sp].rarity].name} core is ready to activate (Robots → Workshop)`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'robots') this.ui.renderOver(); }
     else if (n.kind === 'rocket') { this.audio.play('done'); this.ui.toast(`${esc(n.name)} is assembled and waiting on the pad`, 'good'); this.ui.renderNav(); if (this.ui.over === 'launch') this.ui.renderOver(); }
@@ -153,13 +161,14 @@ export class App {
   ascendNow() { const n = BY.ascend(this.s); if (!n) return; this.s = n as any; this.save(); location.reload(); }
   openStars() { this.ui.select(null); this.ui.solar.clearLabels(); this.ui.beyond.clearLabels(); const M = this.world.openStars(); document.body.classList.add('mapping'); this.world.onStarPick = (id) => { this.ui.stars.sel = id; M.setFocus(id); this.ui.renderPanel(); if (id) this.audio.play('tap'); }; this.ui.renderNav(); this.ui.renderPanel(); }
   toBase() { this.world.closeOrbit(); document.body.classList.remove('orbiting', 'mapping'); this.ui.solar.clearLabels(); this.ui.stars.clearLabels(); this.ui.beyond.clearLabels(); this.ui.renderNav(); this.ui.renderPanel(); }
-  travel(base: string) { if (!this.s.bases[base]) return; this.toBase(); this.ui.select(null); this.s.at = base; this.world.setWorld(this.s, base); this.world.sync(this.s); const A = G.area(this.s, base); const c = (A.lo + A.hi) / 2 - 26; this.world.cam.x = this.world.cam.tx = c; this.world.cam.z = this.world.cam.tz = c + 2; this.world.cam.dist = this.world.cam.tdist = 26 + A.side * 0.6; this.audio.play('whoosh'); this.ui.renderHud(); this.changed(); }
+  travel(base: string) { if (!this.s.bases[base]) return; this.toBase(); this.ui.select(null); this.s.at = base; this.world.setWorld(this.s, base); this.world.sync(this.s); const A = G.area(this.s, base); const c = (A.lo + A.hi) / 2 - GRID / 2; this.world.cam.x = this.world.cam.tx = c; this.world.cam.z = this.world.cam.tz = c + 2; this.world.cam.dist = this.world.cam.tdist = 26 + A.side * 0.6; this.audio.play('whoosh'); this.ui.renderHud(); this.changed(); if (LD.askSite(this.s, base)) this.enqueue(() => this.ui.modal(this.ui.land.sitePickHTML(base), { wide: true })); }
   openOrbit(f: 'earth' | 'station') { this.ui.select(null); this.world.openOrbit(SP.sp(this.s)); this.world.orbit!.setFocus(f); document.body.classList.add('orbiting'); this.ui.renderNav(); }
   closeOrbit() { this.world.closeOrbit(); document.body.classList.remove('orbiting'); this.ui.renderNav(); }
   enqueue(fn: () => void) { this.queue.push(fn); }
   // ---------------- taps ----------------
   private tapped(h: { item?: string; cell?: [number, number]; drop?: boolean }) {
     if (this.placing) return; if (h.drop) { this.openDropNow(); return; }
+    if (this.world.land.mode) { if (h.cell) this.ui.land.tapCell(h.cell[0], h.cell[1]); return; }
     if (h.item) { const it = G.itemOf(this.s, this.s.at, h.item); if (it && this.R.item[it.id] && (it.held || 0) >= 1 && this.ui.sel !== it.id) { this.collect(it.id); } this.ui.select(h.item); this.audio.play('tap'); return; }
     this.ui.select(null);
   }
@@ -192,12 +201,12 @@ export class App {
   // ---------------- placement ----------------
   private wallDir: [number, number] = [1, 0];
   startPlacing(b: string, move?: string, at?: [number, number]) {
-    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = at || G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: raise Mission Control to expand the spaceport'); return; } [x, z] = sp; }
-    this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - 26, z + d / 2 - 26);
-    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}</span><button class="btn small" data-a="rotate">⟳ Rotate</button><button class="btn small red" data-a="unplace">✕</button><button class="btn small gold" data-a="place" id="placeOk">✓ ${move ? 'Move here' : 'Build here'}</button>`;
+    const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const sp = at || G.freeSpot(s, s.at, b); if (!sp) { this.ui.deny('No room left: claim more land (Land) or raise the command level'); return; } [x, z] = sp; }
+    this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - GRID / 2, z + d / 2 - GRID / 2);
+    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}<i class="gnd"></i></span><button class="btn small" data-a="rotate">⟳ Rotate</button><button class="btn small red" data-a="unplace">✕</button><button class="btn small gold" data-a="place" id="placeOk">✓ ${move ? 'Move here' : 'Build here'}</button>`; this.ghostMoved();
     this.world.sync(s);
   }
-  private ghostMoved() { const g = this.world.ghost; if (!g) return; g.ok = G.fits(this.s, this.s.at, g.b, g.x, g.z, g.r, g.move).ok; this.world.syncGhost(); const b = $('#placeOk') as HTMLButtonElement; if (b) b.disabled = !g.ok; }
+  private ghostMoved() { const g = this.world.ghost; if (!g) return; const f = G.fits(this.s, this.s.at, g.b, g.x, g.z, g.r, g.move); g.ok = f.ok; this.world.syncGhost(); const b = $('#placeOk') as HTMLButtonElement; if (b) b.disabled = !g.ok; const lb = $('#place .gnd'); if (lb) { const t = g.ok ? this.ui.land.ghostLine(this.s.at, g.b, g.x, g.z, g.r) : f.why || ''; lb.textContent = t; lb.className = 'gnd ' + (g.ok ? 'good' : 'bad'); } }
   confirmPlace() {
     const g = this.world.ghost, P = this.placing; if (!g || !P) return; const s = this.s;
     const r = P.move ? G.moveItem(s, s.at, P.move, g.x, g.z, g.r) : G.startBuild(s, s.at, g.b, g.x, g.z, g.r);

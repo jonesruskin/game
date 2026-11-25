@@ -2,7 +2,7 @@
 // construction drones, research, collecting, dark-matter speed-ups, objectives, and exact offline catch-up
 // (production is integrated piecewise between timer completions, so a reactor finishing at 3 a.m. powers the
 // mines from 3 a.m.). Later systems register job completers and objective checks through the hooks below.
-import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, cmdReqs, capClamp, unlockHq, areaSide, GRID, kindOf } from '../data/buildings';
+import { BUILDINGS, allowedLevel, allowedCount, crewsFromHq, cmdReqs, capClamp, unlockHq, areaSide, GRID, CHUNK, kindOf } from '../data/buildings';
 import { TECH, techCost, techTime } from '../data/research';
 import { allSteps, Step } from '../data/objectives';
 import { mods, rates, accrue, canPay, pay, give, hqLevel, lvlOf, collectsOf, Mods, Rates } from './econ';
@@ -20,7 +20,7 @@ export const costOf = (id: string, L: number, m: Mods) => { const d = BUILDINGS[
 export const timeOf = (id: string, L: number, m: Mods) => Math.max(2, Math.round(timeCurve(BUILDINGS[id].time, L) * (1 - m.buildTime)));
 export const researchTimeOf = (t: string, R: Rates) => Math.max(5, Math.round((techTime(TECH[t]) * (1 - R.m.researchTime)) / (1 + R.speed)));
 export const crewsTotal = (s: State, m = mods(s)) => crewsFromHq(hqLevel(s)) + m.crews;
-export const crewsBusy = (s: State) => s.jobs.filter((j) => j.kind === 'build').length;
+export const crewsBusy = (s: State) => s.jobs.filter((j) => j.kind === 'build' || j.kind === 'claim').length;
 export const slotsTotal = (s: State, m = mods(s)) => 1 + m.slots;
 export const slotsBusy = (s: State) => s.jobs.filter((j) => j.kind === 'research').length;
 export const jobOf = (s: State, itemId: string) => s.jobs.find((j) => j.kind === 'build' && j.item === itemId);
@@ -29,15 +29,20 @@ export const countOf = (s: State, base: string, b: string) => s.bases[base].item
 // ---------------- the grid ----------------
 export const dims = (b: string, r = 0): [number, number] => { const [w, d] = BUILDINGS[b].fp; return r % 2 ? [d, w] : [w, d]; };
 export function area(s: State, base: string) { const side = areaSide(base, hqLevel(s, base) || 1); const lo = Math.floor((GRID - side) / 2); return { lo, hi: lo + side, side }; }
+// land you own: the core square (grows with the command level) and every plot you have claimed beyond it
+export const chunkKey = (x: number, z: number) => Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK);
+export function owned(s: State, base: string, x: number, z: number) { if (x < 0 || z < 0 || x >= GRID || z >= GRID) return false; const A = area(s, base); if (x >= A.lo && z >= A.lo && x < A.hi && z < A.hi) return true; const c = s.bases[base]?.claims; return !!(c && c[chunkKey(x, z)]); }
+// the bounding box of everything owned (for searches)
+export function ownedBox(s: State, base: string) { const A = area(s, base); let lo = A.lo, hi = A.hi; for (const k in s.bases[base]?.claims || {}) { const [cx, cz] = k.split(',').map(Number); lo = Math.min(lo, cx * CHUNK, cz * CHUNK); hi = Math.max(hi, (cx + 1) * CHUNK, (cz + 1) * CHUNK); } return { lo: Math.max(0, lo), hi: Math.min(GRID, hi) }; }
 export function fits(s: State, base: string, b: string, x: number, z: number, r: number, ignore?: string): Check {
-  const [w, d] = dims(b, r); const A = area(s, base);
-  if (x < A.lo || z < A.lo || x + w > A.hi || z + d > A.hi) return { ok: false, why: 'Outside the base (raise the command level to expand it)' };
+  const [w, d] = dims(b, r);
+  for (let zz = z; zz < z + d; zz++) for (let xx = x; xx < x + w; xx++) if (!owned(s, base, xx, zz)) return { ok: false, why: 'Not your land yet: claim it first (Land), or raise the command level' };
   for (const it of s.bases[base].items) { if (it.id === ignore) continue; const [iw, id] = dims(it.b, it.r); if (x < it.x + iw && x + w > it.x && z < it.z + id && z + d > it.z) return { ok: false, why: 'Something is in the way' }; }
   return { ok: true };
 }
 // the first free spot nearest the centre (used to suggest a placement)
 export function freeSpot(s: State, base: string, b: string, r = 0): [number, number] | null {
-  const A = area(s, base), [w, d] = dims(b, r), c = GRID / 2; let best: [number, number] | null = null, bd = 1e9;
+  const A = ownedBox(s, base), [w, d] = dims(b, r), c = GRID / 2; let best: [number, number] | null = null, bd = 1e9;
   for (let z = A.lo; z + d <= A.hi; z++) for (let x = A.lo; x + w <= A.hi; x++) { const dd = Math.hypot(x + w / 2 - c, z + d / 2 - c); if (dd < bd && fits(s, base, b, x, z, r).ok) { bd = dd; best = [x, z]; } }
   return best;
 }

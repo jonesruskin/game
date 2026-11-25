@@ -9,7 +9,7 @@ import { canPay, pay, give, hqLevel, rateHooks, baseHooks, lvlOf, Rates } from '
 import { completers, stepChecks, Check, Note } from './game';
 import { State, uid, Item } from './state';
 import { round2, ladder, curve } from './util';
-import { yardLevel, airHooks } from './solar';
+import { yardLevel, airHooks, terraK } from './solar';
 import * as F from './fund';
 export interface StarColony { star: string; p: number; lvl: number; spec: string; t: number; }
 export interface Interstellar { surveyed: Record<string, number>; colonies: Record<string, StarColony>; ships: Record<string, number>; mega: Record<string, number>; gates: Record<string, number>; story: Record<string, number>; }
@@ -128,7 +128,7 @@ export function canExoTerra(s: State, key: string): Check { const C = ist(s).col
   const n = exoTerraStage(s, key); if (n >= EXO_TERRA.length) return { ok: false, why: 'Terraformed', done: true } as Check; if (!s.tech.worldseeding) return { ok: false, why: 'Research Worldseeding', locked: true, tech: 'worldseeding' } as Check;
   if (s.jobs.some((j) => j.kind === 'exoterra' && j.key === key)) return { ok: false, why: 'Under way', busy: true } as Check; const st = EXO_TERRA[n];
   if (st.life && !studiedLife(s)) return { ok: false, why: 'Fully study a lifeform on the Life Ladder first', locked: true } as Check; if (st.dev && C.lvl < st.dev) return { ok: false, why: `Develop the colony to level ${st.dev} first`, locked: true } as Check;
-  const cost = fitMax(st.cost); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(st.days * 86400) }; }
+  const cost = fitMax(st.cost); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round((st.days * 86400) / terraK(s, key)) }; }
 export function startExoTerra(s: State, key: string, t = Date.now()) { const c = canExoTerra(s, key); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'exoterra', key, stage: exoTerraStage(s, key), start: t, end: t + c.time! * 1000 }); return c; }
 completers.exoterra = (s, j): Note => { const I = ist(s) as any; I.terra = I.terra || {}; I.terra[j.key] = Math.max(I.terra[j.key] || 0, j.stage + 1); return { kind: 'exoterra', key: j.key, stage: j.stage, last: I.terra[j.key] >= EXO_TERRA.length }; };
 stepChecks.exoterra = (s, st) => Object.keys((ist(s) as any).terra || {}).some((k) => exoTerraStage(s, k) >= (st.n || 1));

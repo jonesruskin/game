@@ -28,7 +28,9 @@ One empire stockpile, storage caps from Mission Control, depots and vaults. Reso
 - **Time ladder** and cost curves from Starward (`ladder`, `curve`, `capClamp`), so the year-long pacing holds.
 
 ## 4. Bases on real worlds
-Every base is a grid on that world's own ground, under its own sky; the buildable area grows with the command level. Off the grid the landscape runs to the horizon.
+Every base stands in 96 × 96 cells of its world's own ground, under its own sky. The core around the command building grows with the command level; the rest is claimed plot by plot (6 × 6 cells) for credits, metal, a crew's time and a permanent energy draw. Off the land the landscape runs to the horizon.
+
+**Exploration, not handouts.** Where a colony lands is the player's choice among real sites (Shackleton, Marius Hills, Jezero, Hellas, Kraken Mare...; exoplanet regions from the planet type), each rated for ice, ore, rare minerals, sun, shelter, storms and how fast it terraforms. The site seeds the deposits hidden in the land (ore, rare minerals, ice, helium-3, methane, geothermal vents, sunny ridges, natural shelter), with its two best finds just outside the core. Rovers survey plots near owned land; satellites and relay networks show hints from orbit. A building on a deposit it can use produces more, so the map is a puzzle the player solves for themselves. Exposed sites get storms that cut solar output; shelter ignores them.
 | World | Look | Traits |
 |---|---|---|
 | Earth (Cape Horizon) | Coastal plain, sea, blue sky, clouds, day/night | Home: funding (credits), full population, the launch complex |
@@ -97,6 +99,7 @@ Timers from seconds to days on Starward's ladder; offline time always counts (co
 9. **Beyond & Type III, the Life Ladder:** other galaxies, funding pools, the endgame megastructures, Type III, Ascension; alien life from microbes to the Ascendants (§9.1); Style Studio, decor and the colony card.
 10. **Polish & ship:** store assets from the real game, listing copy, upload guide (with the Orbital Trials server on Cloudflare), rewarded timer skips, mobile notifications, review loop.
 
-All ten parts are done.
+All thirteen parts are done.
+13. **The land is yours to take:** the Helioscend name and terms of our own; 96 × 96 land per base, claimed plot by plot (cost, crew time, energy draw); landing sites on every world; deposits found by rovers and hinted from orbit, boosting buildings on them; storms and shelter; Land mode; Venus deck modules.
 12. **Visible progress everywhere:** every building level and tier visibly different (continuous growth, tier structures, rank band, pylon and level rings), new models for the last generic buildings, towns around growing bases, outposts and endgame megastructures on the Solar System map, colony development on the star map, a visible Aova core, robot rank rings.
 11. **Food, Aova and Worldseeding:** food as a third life-support need (farms, supply runs from Earth priced by distance, open-air farming on living worlds, alien food trade); Aova, an AI that carries out the player's orders (research and upgrade queues) and runs food logistics but never advises; terraforming star colonies in four stages.

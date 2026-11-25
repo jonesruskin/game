@@ -2,9 +2,9 @@
 // state in their own sub-objects, created on first use (see each module's accessor).
 import { GRID } from '../data/buildings';
 export const SAVE_KEY = 'starward3d_v2';
-export const VERSION = 2;
+export const VERSION = 3;
 export interface Item { id: string; b: string; lvl: number; x: number; z: number; r: number; held?: number; }
-export interface Base { body: string; name: string; items: Item[]; pop?: number; }
+export interface Base { body: string; name: string; items: Item[]; pop?: number; claims?: Record<string, number>; surveyed?: Record<string, number>; site?: string; }
 export interface Job { id: string; kind: string; base?: string; item?: string; b?: string; from?: number; to?: number; tech?: string; start: number; end: number; [k: string]: any; }
 export interface State {
   v: number; created: number; last: number; seq: number; name: string;
@@ -26,6 +26,8 @@ export function fresh(t = Date.now()): State {
 }
 export function migrate(s: State): State {
   const f = fresh(s.created || Date.now()) as any; const o = s as any;
+  // v3: the land around each base grew from 52 to 96 cells; everything moves to the new centre
+  if ((o.v || 2) < 3 && o.bases) for (const k in o.bases) for (const it of o.bases[k].items || []) { it.x += 22; it.z += 22; }
   for (const k in f) if (o[k] === undefined) o[k] = f[k];
   for (const k in f.stats) if (s.stats[k] === undefined) s.stats[k] = f.stats[k];
   for (const k in f.settings) if ((s.settings as any)[k] === undefined) (s.settings as any)[k] = f.settings[k];

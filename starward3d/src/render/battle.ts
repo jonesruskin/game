@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { Battle, BBld, BUnit, step, newBattle, BattleInput } from '../core/battle';
 import { buildModel, droneModel, Look, Model } from './models';
 import { buildBot, BotModel } from './botmodels';
-import { GRID } from '../data/buildings';
+import { BATTLE_GRID as GRID } from '../data/buildings';
 import { TICK } from '../data/war';
 import { ELEMENTS } from '../data/elements';
 import { SPECIES } from '../data/species';

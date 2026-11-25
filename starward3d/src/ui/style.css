@@ -253,3 +253,16 @@ body.mapping #bubbles .bub:not(.lbl) { display: none !important; }
 @media (max-width: 720px) { .mqs { grid-template-columns: 1fr; } }
 .tsteps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 6px 0; } .tstep { font-size: 11px; padding: 5px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: var(--muted); } .tstep b { font: 700 12px Oxanium; margin-right: 3px; } .tstep.done { color: var(--green); border-color: rgba(124, 242, 154, 0.4); } .tstep.next { color: #fff; border-color: var(--gold); }
 @media (max-width: 720px) { .tsteps { grid-template-columns: repeat(2, 1fr); } }
+/* Land mode: plots, deposits, landing sites, weather */
+body.landmode #obj, body.landmode #rail, body.landmode #bubbles { display: none !important; }
+.chip.storm { border-color: rgba(255, 170, 90, 0.7); color: #ffd9b0; background: rgba(90, 44, 10, 0.55); } .chip.storm.soon { border-style: dashed; }
+.sitestats { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 8px; font-size: 12px; color: var(--muted); } .sitestats > span { display: inline-flex; align-items: center; gap: 5px; } .sitestats .pips { margin-top: 0; } .sitestats .pips.bad i.on { background: #ff9a3c; }
+.deps { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; } .dep { border-left: 3px solid var(--c); padding: 4px 0 4px 8px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent); border-radius: 0 8px 8px 0; } .dep > b:first-child { color: var(--c); }
+#place .gnd { display: block; font: 600 11px Inter, sans-serif; font-style: normal; min-height: 13px; } #place .gnd.good { color: var(--green); } #place .gnd.bad { color: #ff9aa6; }
+.sites { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; } .site { text-align: left; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); border-radius: 12px; padding: 10px; color: inherit; font: inherit; cursor: pointer; } .site.on { border-color: var(--gold); background: rgba(255, 211, 106, 0.08); } .site b { font: 700 14px Oxanium; }
+details.scout summary { cursor: pointer; list-style: none; } details.scout summary::-webkit-details-marker { display: none; } details.scout[open] summary { margin-bottom: 6px; } details.scout .site { cursor: default; }
+#stormfx { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0; transition: opacity 1.2s; --dust: #d29b72; background: radial-gradient(ellipse 80% 70% at 50% 55%, color-mix(in srgb, var(--dust) 18%, transparent), color-mix(in srgb, var(--dust) 75%, transparent)); overflow: hidden; }
+#stormfx i { position: absolute; inset: -20%; background: repeating-linear-gradient(104deg, transparent 0 46px, rgba(255, 236, 214, 0.10) 46px 48px, transparent 48px 120px), repeating-linear-gradient(98deg, transparent 0 80px, color-mix(in srgb, var(--dust) 40%, transparent) 80px 110px, transparent 110px 230px); animation: stormdrift 2.4s linear infinite; }
+@keyframes stormdrift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(240px, 40px, 0); } }
+@media (prefers-reduced-motion: reduce) { #stormfx i { animation: none; } }
+@media (max-width: 720px) { body.landmode #panel { max-height: 44vh; overflow-y: auto; } }

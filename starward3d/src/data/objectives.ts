@@ -20,6 +20,8 @@ export const CHAPTERS: Chapter[] = [
       { id: 'o4', text: 'Build a Fuel Refinery', kind: 'build', b: 'refinery', lvl: 1, reward: { fuel: 400, metal: 800 } },
       { id: 'o5', text: 'Upgrade the Metal Mine to level 3', kind: 'build', b: 'mine', lvl: 3, reward: { credits: 800, dm: 5 } },
       { id: 'o6', text: 'Keep the grid powered: +10 spare energy', kind: 'energy', n: 10, reward: { metal: 600, credits: 600 } },
+      { id: 'ld1', text: 'Send a rover to survey the land beyond the spaceport (🧭 Land)', kind: 'surveys', n: 1, reward: { credits: 1200, fuel: 600, dm: 5 } },
+      { id: 'ld2', text: 'Claim a plot of land next to the spaceport', kind: 'claims', n: 1, reward: { metal: 2000, credits: 1500 } },
       { id: 'o8', text: 'Research Multistage Rockets', kind: 'tech', id2: 'multistage', reward: { science: 300, credits: 1200 } },
       { id: 'o8b', text: 'Upgrade Mission Control to level 3', kind: 'hq', lvl: 3, reward: { credits: 1500, metal: 1500 } },
       { id: 'o9', text: 'Build the Vehicle Assembly building', kind: 'build', b: 'vab', lvl: 1, reward: { metal: 2000, dm: 10 } },

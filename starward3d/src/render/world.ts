@@ -8,6 +8,7 @@ import { MATS, Kit } from './kit';
 import { State } from '../core/state';
 import * as G from '../core/game';
 import { GRID } from '../data/buildings';
+import { LandLayer } from './land';
 import { clamp } from '../core/util';
 import { OrbitView } from './orbit';
 import { SystemView } from './system';
@@ -30,7 +31,7 @@ interface Drone { g: THREE.Group; job: string; ph: number; spark: THREE.Mesh; }
 export interface Ghost { b: string; r: number; x: number; z: number; move?: string; ok: boolean; }
 const C = GRID / 2;
 export class World {
-  renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
+  renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; land!: LandLayer; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
   cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
   mode: 'base' | 'orbit' | 'system' | 'battle' | 'stars' | 'space' | 'galaxy' = 'base'; space: SpaceBattleView | null = null; galaxy: GalaxyView | null = null; onGalaxyPick: (id: string | null) => void = () => {}; starMap: StarMap | null = null; onStarPick: (id: string | null) => void = () => {}; battle: BattleView | null = null; onBattleTap: (x: number, z: number) => void = () => {}; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
@@ -67,19 +68,19 @@ export class World {
   private worldKey = '';
   setWorld(s: State, base: string) {
     const body = s.bases[base].body, T = terraState(s, body); const key = `${base}:${T ? T.n : 0}`; if (this.worldKey === key) return; this.worldKey = key;
-    this.baseId = base; this.setCapsule(s, false); if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer, T); if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkers.suits(body !== 'earth' && !breathable(T) && !(isExo(body) && exoBreathable(body))); this.walkKey = '';
+    const prev = this.baseId; this.baseId = base; this.setCapsule(s, false); if (this.env) this.env.dispose(); this.env = new Env(this.scene, body, this.quality, this.renderer, T); { const m = this.land && prev === base ? this.land.mode : false, sel = this.land && prev === base ? this.land.sel : null; if (this.land) this.land.dispose(); this.land = new LandLayer(this.scene, this.env.look, this.quality); this.land.sun = { light: this.sun, base: this.env.look.sunI }; this.land.setMode(m); if (sel) this.land.select(sel[0], sel[1]); } if (this.walkers) this.walkers.clear(); else this.walkers = new Walkers(this.scene, this.quality); this.walkers.suits(body !== 'earth' && !breathable(T) && !(isExo(body) && exoBreathable(body))); this.walkKey = '';
     for (const v of this.views.values()) this.scene.remove(v.root); this.views.clear(); for (const d of this.drones.values()) this.scene.remove(d.g); this.drones.clear();
     const L = this.env.look; this.scene.fog = new THREE.Fog(L.fog, L.fogNear, L.fogFar); this.sun.color.set(L.sun); this.sun.intensity = L.sunI; this.hemi.color.set(L.amb[0]); this.hemi.groundColor.set(L.amb[1]); this.hemi.intensity = L.amb[2]; this.area = { lo: -1, hi: -1 };
   }
   // ---------------- camera ----------------
   private placeCamera() {
     const c = this.cam; const k = 0.16; c.x += (c.tx - c.x) * k; c.z += (c.tz - c.z) * k; c.dist += (c.tdist - c.dist) * k; c.yaw += (c.tyaw - c.yaw) * k;
-    c.y += (c.ty - c.y) * 0.08; const pitch = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(52, 17, clamp((c.dist - 14) / 81))); const narrow = this.camera.aspect < 0.8 ? 1.45 : 1; const d = c.dist * narrow;
+    c.y += (c.ty - c.y) * 0.08; const pitch = THREE.MathUtils.degToRad(this.land?.mode ? THREE.MathUtils.lerp(58, 46, clamp((c.dist - 40) / 90)) : THREE.MathUtils.lerp(52, 17, clamp((c.dist - 14) / 81))); const narrow = this.camera.aspect < 0.8 ? 1.45 : 1; const d = c.dist * narrow;
     this.camera.position.set(c.x + Math.sin(c.yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d + 1 + c.y * 0.85, c.z + Math.cos(c.yaw) * Math.cos(pitch) * d); this.camera.lookAt(c.x, 0.5 + c.y, c.z);
     this.sun.target.position.set(c.x, 0, c.z); this.sun.position.set(c.x - 0.55 * 70, 0.62 * 70, c.z + 0.42 * 70);
   }
   focus(x: number, z: number, dist?: number) { this.cam.tx = x; this.cam.tz = z; if (dist) this.cam.tdist = dist; }
-  private clampCam() { const c = this.cam, L = C + 6; c.tx = clamp(c.tx, -L, L); c.tz = clamp(c.tz, -L, L); c.tdist = clamp(c.tdist, 12, 95); }
+  private clampCam() { const c = this.cam, L = C + 6; c.tx = clamp(c.tx, -L, L); c.tz = clamp(c.tz, -L, L); c.tdist = clamp(c.tdist, 12, this.land?.mode ? 135 : 95); }
   groundAt(cx: number, cy: number): THREE.Vector3 | null { const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(this.ptr, this.camera); const p = new THREE.Vector3(); return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p) ? p : null; }
   private input() {
@@ -112,12 +113,12 @@ export class World {
     if (this.mode === 'orbit') return; if (this.ghost) { this.ghostTo(cx, cy); return; }
     if (this.capsule) { const r = this.canvas.getBoundingClientRect(); this.ray.setFromCamera(new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), this.camera); if (this.ray.intersectObject(this.capsule.pick, false).length) { this.onTap({ drop: true }); return; } }
     const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
-    const hit = this.ray.intersectObjects([...this.views.values()].map((v) => v.pick), false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
+    const hit = this.land.mode ? null : this.ray.intersectObjects([...this.views.values()].map((v) => v.pick), false)[0]; if (hit) { this.onTap({ item: hit.object.userData.item }); return; }
     const g = this.groundAt(cx, cy); this.onTap(g ? { cell: [Math.floor(g.x + C), Math.floor(g.z + C)] } : {});
   }
   // ---------------- placement ghost ----------------
-  startGhost(g: Ghost) { this.ghost = g; this.env.showGrid(true); this.rebuildGhost(); }
-  endGhost() { this.ghost = null; if (this.ghostObj) this.scene.remove(this.ghostObj); this.ghostObj = null; this.env.showGrid(false); for (const v of this.views.values()) v.root.visible = true; }
+  startGhost(g: Ghost) { this.ghost = g; this.land.showGrid(true); this.rebuildGhost(); }
+  endGhost() { this.ghost = null; if (this.ghostObj) this.scene.remove(this.ghostObj); this.ghostObj = null; this.land.showGrid(false); for (const v of this.views.values()) v.root.visible = true; }
   private ghostTo(cx: number, cy: number) { const g = this.groundAt(cx, cy); if (!g || !this.ghost) return; const [w, d] = G.dims(this.ghost.b, this.ghost.r);
     const x = Math.round(g.x + C - w / 2), z = Math.round(g.z + C - d / 2); if (x !== this.ghost.x || z !== this.ghost.z) { this.ghost.x = x; this.ghost.z = z; this.onGhostMove(); } }
   rotateGhost() { if (!this.ghost) return; this.ghost.r = (this.ghost.r + 1) % 4; this.rebuildGhost(); this.onGhostMove(); }
@@ -158,7 +159,7 @@ export class World {
         this.mer = g; this.scene.add(g); } }
     const hq = this.baseId === 'earth' ? s.bases.earth.items.find((i) => i.b === 'hq') : null; const v = hq ? this.views.get(hq.id) : null; if (this.mer) { this.mer.visible = !!v; if (v) this.mer.position.set(v.root.position.x, v.model.height + 1.1, v.root.position.z); } }
   sync(s: State) { this.settle(s);
-    const B = s.bases[this.baseId]; if (!B) return; const A = G.area(s, this.baseId); if (A.lo !== this.area.lo || A.hi !== this.area.hi) { this.area = { lo: A.lo, hi: A.hi }; this.env.setArea(A.lo, A.hi); }
+    const B = s.bases[this.baseId]; if (!B) return; const A = G.area(s, this.baseId); if (A.lo !== this.area.lo || A.hi !== this.area.hi) this.area = { lo: A.lo, hi: A.hi }; this.land.sync(s, this.baseId);
     this.env.setSats(this.baseId === 'earth' ? (sp(s).sats || []).length : relayLevel(s, this.baseId) * 2);
     const lookKey = JSON.stringify(this.look); const seen = new Set<string>();
     for (const it of B.items) { seen.add(it.id); const job = G.jobOf(s, it.id); const key = `${it.b}|${it.lvl}|${it.r}|${job ? 1 : 0}|${lookKey}`; let v = this.views.get(it.id);
@@ -216,7 +217,7 @@ export class World {
     if (this.mode === 'stars' && this.starMap) { this.starMap.frame(dt); this.renderer.render(this.starMap.scene, this.starMap.camera); return; }
     if (this.mode === 'battle' && this.battle) { this.battle.frame(dt); this.renderer.render(this.battle.scene, this.battle.camera); return; }
     if (this.mode === 'system' && this.system) { this.system.frame(dt, this.mapSel); this.renderer.render(this.system.scene, this.system.camera); return; }
-    this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt); if (this.mer && this.mer.visible) { this.mer.children[0].rotation.y = t * 0.8; this.mer.children[0].rotation.x = t * 0.3; for (const c of this.mer.children) if (c.userData.ring) c.rotation.z = t * (0.4 + c.userData.ring * 0.15) * (c.userData.ring % 2 ? 1 : -1); this.mer.position.y += Math.sin(t * 1.5) * 0.002; }
+    this.placeCamera(); this.capsuleFrame(t, dt); this.env.update(t, dt); this.land.frame(t, dt, this.cam.x, this.cam.z, this.scene.fog as THREE.Fog); this.flightsFrame(dt); this.walkers?.frame(s, this.baseId, t, dt); if (this.mer && this.mer.visible) { this.mer.children[0].rotation.y = t * 0.8; this.mer.children[0].rotation.x = t * 0.3; for (const c of this.mer.children) if (c.userData.ring) c.rotation.z = t * (0.4 + c.userData.ring * 0.15) * (c.userData.ring % 2 ? 1 : -1); this.mer.position.y += Math.sin(t * 1.5) * 0.002; }
     for (const [id, v] of this.views) { v.model.anim?.(t, { working: working(id) }); if (v.scaf) { const cr = v.scaf.children[0]; if (cr) cr.rotation.y = 0; } }
     for (const d of this.drones.values()) { const c = this.views.get(d.job); if (!c) continue; const h = c.model.height + 0.8; const a = t * 1.3 + d.ph; d.g.position.set(c.root.position.x + Math.cos(a) * 0.9, h + Math.sin(t * 3 + d.ph) * 0.15, c.root.position.z + Math.sin(a) * 0.9); d.g.rotation.y = -a;
       d.spark.position.set(0, -0.25 - Math.random() * 0.1, 0); d.spark.visible = Math.sin(t * 23 + d.ph) > 0.2; }

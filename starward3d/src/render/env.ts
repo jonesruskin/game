@@ -91,7 +91,7 @@ const C = GRID / 2;
 function noise2(seed: number) { const R = rng(seed); const P = new Float32Array(256 * 256).map(() => R()); const f = (x: number, z: number) => { const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi; const h = (a: number, b: number) => P[((a & 255) << 8) | (b & 255)]; const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
   return (h(xi, zi) * (1 - u) + h(xi + 1, zi) * u) * (1 - v) + (h(xi, zi + 1) * (1 - u) + h(xi + 1, zi + 1) * u) * v; }; return (x: number, z: number) => f(x, z) * 0.55 + f(x * 2.1 + 7, z * 2.1 + 3) * 0.3 + f(x * 4.3 + 1, z * 4.3 + 9) * 0.15; }
 export class Env {
-  group = new THREE.Group(); sky: THREE.Mesh; private clouds: THREE.Group = new THREE.Group(); private water: THREE.Mesh | null = null; private grid: THREE.LineSegments | null = null; private bound: THREE.Mesh | null = null; look: WorldLook;
+  group = new THREE.Group(); sky: THREE.Mesh; private clouds: THREE.Group = new THREE.Group(); private water: THREE.Mesh | null = null; look: WorldLook;
   height: (x: number, z: number) => number = () => 0;
   constructor(private scene: THREE.Scene, id: string, private quality: 'high' | 'low', private renderer?: THREE.WebGLRenderer, terra?: Record<string, number> | null) { this.look = terraLook(WORLDS[id] || (id.includes(':') ? exoLook(id) : WORLDS.earth), terra); this.sky = this.makeSky(); this.build(); this.skyBodies(); this.scene.add(this.sats); }
   private skyObjs: THREE.Object3D[] = [];
@@ -149,7 +149,7 @@ export class Env {
           }` }));
       w.rotation.x = -Math.PI / 2; w.position.y = L.seaSide ? -0.4 : (L.lakes ?? -0.4); this.water = w; this.group.add(w);
       // ponds and meres just beyond the colony (a terraformed world's first open water, where you can see it)
-      if (L.ponds) { const RP = rng(77); for (let i = 0; i < L.ponds; i++) { const big = L.seaSide ? 1.5 : 1; const r0 = (1.6 + RP() * 2.2) * big; let x = 0, z = 0; for (let k = 0; k < 20; k++) { const a = RP() * Math.PI * 2, d = 23.5 + r0 + RP() * (6 - r0 * 0.5); x = Math.cos(a) * d; z = Math.sin(a) * d; if (Math.max(Math.abs(x), Math.abs(z)) > 21 + r0) break; }
+      if (L.ponds) { const RP = rng(77); for (let i = 0; i < L.ponds; i++) { const big = L.seaSide ? 1.5 : 1; const r0 = (1.6 + RP() * 2.2) * big; let x = 0, z = 0; for (let k = 0; k < 20; k++) { const a = RP() * Math.PI * 2, d = C + 3 + r0 + RP() * 9; x = Math.cos(a) * d; z = Math.sin(a) * d; if (Math.max(Math.abs(x), Math.abs(z)) > C + 1 + r0) break; }
         const sh = new THREE.Shape(), rim = new THREE.Shape(); for (let k = 0; k <= 20; k++) { const a = (k / 20) * Math.PI * 2, j = 0.75 + 0.5 * n(Math.cos(a) * 2 + i * 7, Math.sin(a) * 2); const px = Math.cos(a) * r0 * j, pz = Math.sin(a) * r0 * j; if (k) { sh.lineTo(px, pz); rim.lineTo(px * 1.25, pz * 1.25); } else { sh.moveTo(px, pz); rim.moveTo(px * 1.25, pz * 1.25); } }
         const y = this.height(x, z); const rm = new THREE.Mesh(new THREE.ShapeGeometry(rim), new THREE.MeshStandardMaterial({ color: mix(L.base, '#3a2414', 0.45), roughness: 1 })); rm.rotation.x = -Math.PI / 2; rm.position.set(x, y + 0.05, z); rm.receiveShadow = true; this.group.add(rm);
         const pm = new THREE.Mesh(new THREE.ShapeGeometry(sh), w.material); pm.rotation.x = -Math.PI / 2; pm.position.set(x, y + 0.14, z); pm.renderOrder = 2; this.group.add(pm); } } }
@@ -250,16 +250,6 @@ export class Env {
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(W, W), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.015; m.receiveShadow = true; m.renderOrder = -1; this.group.add(m);
   }
-  // the buildable square: a grid while placing, and a dashed border always
-  setArea(lo: number, hi: number) {
-    if (this.grid) { this.group.remove(this.grid); this.grid.geometry.dispose(); } if (this.bound) { this.group.remove(this.bound); this.bound.geometry.dispose(); }
-    const pts: number[] = []; for (let i = lo; i <= hi; i++) { pts.push(i - C, 0.03, lo - C, i - C, 0.03, hi - C, lo - C, 0.03, i - C, hi - C, 0.03, i - C); }
-    const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); this.grid = new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.22 })); this.grid.visible = false; this.group.add(this.grid);
-    const s = hi - lo, r = new THREE.RingGeometry(0, 1, 4, 1); r.dispose(); const shape = new THREE.Shape(); const o = s / 2 + 0.25, i2 = s / 2; shape.moveTo(-o, -o); shape.lineTo(o, -o); shape.lineTo(o, o); shape.lineTo(-o, o); shape.lineTo(-o, -o);
-    const hole = new THREE.Path(); hole.moveTo(-i2, -i2); hole.lineTo(-i2, i2); hole.lineTo(i2, i2); hole.lineTo(i2, -i2); hole.lineTo(-i2, -i2); shape.holes.push(hole);
-    const bg = new THREE.ShapeGeometry(shape); bg.rotateX(-Math.PI / 2); this.bound = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: '#f4e7b8', transparent: true, opacity: 0.55, depthWrite: false })); this.bound.position.set((lo + hi) / 2 - C, 0.04, (lo + hi) / 2 - C); this.group.add(this.bound);
-  }
-  showGrid(v: boolean) { if (this.grid) this.grid.visible = v; }
   update(t: number, dt: number) { for (const m of this.sats.children) { const d = m.userData; d.a += d.s * dt; const p = (d.u as THREE.Vector3).clone().multiplyScalar(Math.cos(d.a)).add((d.v as THREE.Vector3).clone().multiplyScalar(Math.sin(d.a))).multiplyScalar(1500); m.position.copy(p); ((m as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = p.y > 40 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 3 + d.ph)) : 0; }
     for (const c of this.cloudSea) (c.material as THREE.ShaderMaterial).uniforms.t.value = t; if (this.drift) this.drift.children.forEach((g) => { g.position.y += Math.sin(t * 0.3 + g.userData.ph) * dt * 0.4; g.rotation.y += dt * 0.02; });
     if (this.earthSky) { this.earthSky.mesh.rotation.y = t * 0.01; if (this.earthSky.uniforms) this.earthSky.uniforms.uTime.value = t; } if (this.water) (this.water.material as THREE.ShaderMaterial).uniforms.t.value = t; for (const c of this.clouds.children) { c.position.x += (c.userData.v as number) * dt; if (c.position.x > 1000) c.position.x = -1000; } }

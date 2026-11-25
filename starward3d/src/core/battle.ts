@@ -5,7 +5,7 @@
 // Robots fight by role (from their primary element), bring escort drones, path around buildings and break through
 // walls when that is the cheaper way in; defences pick the nearest target they can hit; shields soak damage for the
 // buildings inside them; EMP pulses freeze every robot nearby.
-import { BUILDINGS, GRID } from '../data/buildings';
+import { BUILDINGS, BATTLE_GRID as GRID } from '../data/buildings';
 import { SPECIES } from '../data/species';
 import { RARITY_ORDER } from '../data/rarities';
 import { ROLE_OF, ROLES, Role, R_POWER, levelK, BOT_HP, BOT_DPS, escorts, DRONE, DEF, DefDef, DEF_K, buildingHp, TICK, MAX_TICKS } from '../data/war';

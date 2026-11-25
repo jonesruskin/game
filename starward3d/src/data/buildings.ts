@@ -299,6 +299,11 @@ Object.assign(BUILDINGS, {
 });
 export const CATS: Record<string, string> = { core: 'Command', production: 'Production', power: 'Power', storage: 'Storage', science: 'Science', spaceflight: 'Spaceflight', defense: 'Defence', robots: 'Robots', decor: 'Decor' };
 // buildable area (grid cells per side) for a command level; the landscape continues beyond it
-export const GRID = 52;
+// the land around every base (cells): a core square that grows with the command level, the rest claimed plot by plot
+export const GRID = 96;
+// the Orbital Trials field: the defended core square around Mission Control, always 52 cells
+export const BATTLE_GRID = 52;
+// land beyond the core is claimed in plots of CHUNK × CHUNK cells
+export const CHUNK = 6;
 // Earth stops growing at 46 cells so War Games always leave a landing strip (about 2.5 cells) round the base
-export const areaSide = (base: string, hq: number) => (base === 'earth' ? Math.min(GRID - 6, 24 + 2 * (hq - 1)) : Math.min(40, 18 + 2 * (hq - 1)));
+export const areaSide = (base: string, hq: number) => (base === 'earth' ? Math.min(BATTLE_GRID - 6, 24 + 2 * (hq - 1)) : Math.min(40, 18 + 2 * (hq - 1)));

@@ -31,6 +31,15 @@ function stage() {
   const colB = Object.keys(D.BUILDINGS).filter((b) => D.BUILDINGS[b].bases.includes('mars') && D.BUILDINGS[b].cat !== 'decor' && b !== 'hub' && b !== 'wall');
   const hub = s.bases.mars.items.find((i) => i.b === 'hub'); if (hub) hub.lvl = 12; for (const b of colB) build('mars', b, 2); for (const [b, n] of [['holotree', 3], ['flag', 2], ['lamp', 4], ['statue', 1]]) build('mars', b, n);
   for (const it of s.bases.mars.items) it.lvl = Math.min(D.BUILDINGS[it.b].max, 12); s.bases.mars.pop = 4000;
+  s.bases.mars.site = 'gale'; s.bases.venus.site = 'equator'; s.bases.titan.site = 'kraken';
+  // the Moon at Shackleton, spreading over the land: surveyed ground, claimed plots, ice extractors on the ice
+  const LD = window.__LD; SO.foundColony(s, 'moon'); LD.setSite(s, 'moon', 'shackleton'); const M = s.bases.moon; const mh = M.items.find((i) => i.b === 'hub'); if (mh) mh.lvl = 8;
+  M.surveyed = {}; for (let z = 3; z <= 12; z++) for (let x = 3; x <= 12; x++) M.surveyed[x + ',' + z] = 1; M.claims = {};
+  const Dm = LD.deposits(s, 'moon'); const iceIn = (x, z) => { let n = 0; for (let j = z * 6; j < z * 6 + 6; j++) for (let i = x * 6; i < x * 6 + 6; i++) if (Dm.get(j * 96 + i) === 'ice') n++; return n; };
+  const ring = []; for (let z = 4; z <= 11; z++) for (let x = 4; x <= 11; x++) if (!LD.ownedChunk(s, 'moon', x, z)) ring.push([x, z, iceIn(x, z)]); ring.sort((p, q) => q[2] - p[2]);
+  for (const [x, z] of ring.slice(0, 7)) if (LD.canClaim(s, 'moon', x, z).ok || LD.surveyed(s, 'moon', x, z)) M.claims[x + ',' + z] = Date.now();
+  for (let k = 0; k < 7; k++) { let put = false; for (const [i, t] of Dm) { if (t !== 'ice') continue; const x = i % 96, z = Math.floor(i / 96); if (G.fits(s, 'moon', 'ice', x, z, 0).ok) { const r = G.startBuild(s, 'moon', 'ice', x, z, 0); if (r.ok) { for (const j of [...s.jobs]) G.speedup(s, j.id); a.tickNow(); put = true; break; } } } if (!put) break; }
+  for (const b of ['lsolar', 'dome', 'regolith', 'he3x', 'greenhouse', 'burrow']) if (D.BUILDINGS[b] && D.BUILDINGS[b].bases.includes('moon')) build('moon', b, 2); for (const it of M.items) it.lvl = Math.min(D.BUILDINGS[it.b].max, 8);
   // the stars, contact, life and the Local Group
   s.stars = { surveyed: {}, colonies: {}, ships: {}, mega: { laser: 3, dyson: 6, gate: 1 }, gates: {}, story: {} }; for (const id of ['proxima', 'acen', 'barnard', 'wolf359', 'lalande', 'sirius', 'epseri', 'ross128', 'trappist', 'tauceti', 'vega', 'altair', 'fomalhaut', 'gj667c', 'kapteyn']) s.stars.surveyed[id] = 1;
   for (const id of ['veyari', 'lumen', 'synod', 'mycelar', 'oshoru']) { AL.meet(s, id, 'music'); AL.known(s, id).und = 75; }
@@ -52,6 +61,10 @@ function view([name, land]) {
   if (name === 'stars') { a.toBase(); a.openStars(); }
   if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
   if (name === 'life') { a.ui.life.sel = 'floaters'; a.ui.life.rung = -1; a.ui.openOver('life'); }
+  if (name === 'land') { a.travel('moon'); const s = a.s, LD = window.__LD; const now = Date.now(); s.jobs = s.jobs.filter((j) => j.kind !== 'prospect' && j.kind !== 'claim');
+    const free = []; for (let z = 3; z <= 12; z++) for (let x = 3; x <= 12; x++) if (!LD.ownedChunk(s, 'moon', x, z)) free.push([x, z]); const near = free.filter(([x, z]) => LD.canClaim(s, 'moon', x, z).ok);
+    if (near[0]) s.jobs.push({ id: 'shc', kind: 'claim', base: 'moon', key: near[0].join(','), start: now, end: now + 9e6 }); delete s.bases.moon.surveyed['13,7']; s.jobs.push({ id: 'shp', kind: 'prospect', base: 'moon', key: '13,7', start: now, end: now + 9e6 });
+    a.changed(); a.ui.land.open(); const best = free.map(([x, z]) => [x, z, Object.keys(LD.plotInfo(s, 'moon', x, z).found).length]).sort((p, q) => q[2] - p[2])[0]; if (best) a.ui.land.tapCell(best[0] * 6 + 3, best[1] * 6 + 3); cam(4, 8, 104, Math.PI / 4); }
   if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
 }
 function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, m = (Lr.lo + Lr.hi) / 2, N = 52;
@@ -107,7 +120,7 @@ async function video(b, w, h, coverPng) {
     await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'), 'earthClose');
     console.log('  ✔ covers + thumbnail');
     if (process.argv.includes('--fix')) { await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earthLow'); await shot(b, 1920, 1080, path.join(OUT, 'screenshot-4.png'), 'battle'); console.log('  ✔ square cover + battle screenshot'); await b.close(); srv.close(); return; }
-    const shots = [['earth', 'the spaceport'], ['mars', 'a terraformed Mars colony'], ['life', 'the Life Ladder'], ['battle', 'a War Games raid'], ['galaxy', 'the Local Group']];
+    const shots = [['earth', 'the spaceport'], ['mars', 'a terraformed Mars colony'], ['life', 'the Life Ladder'], ['battle', 'an Orbital Trials assault'], ['galaxy', 'the Local Group'], ['land', 'claiming land at Shackleton on the Moon']];
     for (let i = 0; i < shots.length; i++) await shot(b, 1920, 1080, path.join(OUT, `screenshot-${i + 1}.png`), shots[i][0]);
     console.log('  ✔ screenshots: ' + shots.map((x) => x[1]).join(', '));
   }

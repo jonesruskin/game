@@ -17,7 +17,7 @@ Everything you need is in this folder. You don't need to build anything.
 | Landscape preview video | `starward3d/store/preview-landscape-1920x1080.mp4` | 18 s, silent, opens on the cover |
 | Portrait preview video | `starward3d/store/preview-portrait-1080x1620.mp4` | 18 s, 2:3 |
 | Square thumbnail (no text) | `starward3d/store/poki-thumbnail-1024x1024.png` | 1024×1024, full-bleed |
-| Screenshots | `starward3d/store/screenshot-1..5.png` | 1920×1080: the spaceport, a terraformed Mars colony, the Life Ladder, a Orbital Trials assault, the Local Group |
+| Screenshots | `starward3d/store/screenshot-1..6.png` | 1920×1080: the spaceport, a terraformed Mars colony, the Life Ladder, an Orbital Trials assault, the Local Group, claiming land on the Moon |
 | Title, descriptions, controls, tags | `starward3d/store/description.md` | Copy and paste |
 
 ---
@@ -54,5 +54,5 @@ Details and the full API are in `server/README.md`; `npm run test:server` runs t
 - **Dark matter** (finishes timers) is earned from goals, Kardashev milestones, the calendar, missions, new rungs of the Life Ladder and expeditions; nothing is sold. On mobile, AdMob and store billing slot into `src/platform/mobile.ts` without touching game code.
 
 ## 🔁 After launch
-- Read day-1 and day-7 retention on the portal. The levers: the goal chapters and their rewards (`src/data/objectives.ts`), the calendar and daily missions (`src/core/daily.ts`), study costs and gifts on the Life Ladder (`src/data/life.ts`, `src/core/life.ts`), the Style Studio unlocks (`src/data/style.ts`), food yields and supply-run prices (`src/core/food.ts`) and Orbital Trials rewards and circles (`src/data/war.ts`).
+- Read day-1 and day-7 retention on the portal. The levers: the goal chapters and their rewards (`src/data/objectives.ts`), the calendar and daily missions (`src/core/daily.ts`), study costs and gifts on the Life Ladder (`src/data/life.ts`, `src/core/life.ts`), the Style Studio unlocks (`src/data/style.ts`), food yields and supply-run prices (`src/core/food.ts`), land prices, survey times, energy draw and storms (`src/core/land.ts`), landing sites and what deposits do (`src/data/sites.ts`) and Orbital Trials rewards and circles (`src/data/war.ts`).
 - Rebuild with `npm install` (once) and `npm run build` inside `starward3d/`, then regenerate the store assets with `node starward3d/tools/store-assets.cjs` from the repo root (needs Playwright and ffmpeg).

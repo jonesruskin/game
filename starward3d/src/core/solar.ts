@@ -92,7 +92,10 @@ export const terraStage = (s: State, body: string) => sol(s).terra[body] || 0;
 // a sky you can breathe: colonists leave the domes, and air stops being a limit
 export const breathable = (T: Record<string, number> | null) => !!T && (T.o2 || 0) >= 12;
 export const terraJob = (s: State, body: string) => s.jobs.find((j) => j.kind === 'terra' && j.body === body);
-export const terraTime = (s: State, body: string, n: number) => Math.round((TERRA[body].stages[n].days * 86400) / (1 + lvlOf(s, body, 'terraformer') * (BUILDINGS.terraformer.terra || 0.04)));
+// landing sites that terraform faster (a deep basin fills with sea first): see core/land
+export const terraSpeed: ((s: State, body: string) => number)[] = [];
+export const terraK = (s: State, body: string) => terraSpeed.reduce((k, f) => k * f(s, body), 1);
+export const terraTime = (s: State, body: string, n: number) => Math.round((TERRA[body].stages[n].days * 86400) / (1 + lvlOf(s, body, 'terraformer') * (BUILDINGS.terraformer.terra || 0.04)) / terraK(s, body));
 export function canTerra(s: State, body: string): Check & { stage?: TerraStage } {
   const T = TERRA[body]; if (!T) return { ok: false, why: 'Not terraformable' }; if (!s.bases[body]) return { ok: false, why: 'Found a colony first', locked: true };
   const n = terraStage(s, body); if (n >= T.stages.length) return { ok: false, why: 'Terraforming complete', done: true }; const st = T.stages[n];
