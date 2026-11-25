@@ -22,6 +22,12 @@ function zip(dir, outFile) {
 }
 for (const t of targets) {
   await build({ root, mode: t, logLevel: 'warn' });
+  { const o = path.join(root, 'dist', t); // third-party licences travel with every build (three.js: MIT; Barlow and Oxanium: SIL Open Font License)
+    const lic = ['HELIOSCEND: third-party software and fonts', '', 'All game code, 3D models, textures, icons, music and sound effects are original and were made for Helioscend.', '', '== three.js (MIT License) ==', fs.readFileSync(path.join(root, 'node_modules/three/LICENSE'), 'utf8'), '', '== Barlow (SIL Open Font License 1.1) ==', fs.readFileSync(path.join(root, 'src/ui/fonts/OFL-Barlow.txt'), 'utf8'), '', '== Oxanium (SIL Open Font License 1.1) ==', fs.readFileSync(path.join(root, 'src/ui/fonts/OFL-Oxanium.txt'), 'utf8')].join('\n');
+    fs.writeFileSync(path.join(o, 'LICENSES.txt'), lic); }
+  { const o = path.join(root, 'dist', t); // third-party licences travel with every build (three.js: MIT; Barlow and Oxanium: SIL Open Font License)
+    const lic = ['HELIOSCEND: third-party software and fonts', '', 'All game code, 3D models, textures, icons, music and sound effects are original and were made for Helioscend.', '', '== three.js (MIT License) ==', fs.readFileSync(path.join(root, 'node_modules/three/LICENSE'), 'utf8'), '', '== Barlow (SIL Open Font License 1.1) ==', fs.readFileSync(path.join(root, 'src/ui/fonts/OFL-Barlow.txt'), 'utf8'), '', '== Oxanium (SIL Open Font License 1.1) ==', fs.readFileSync(path.join(root, 'src/ui/fonts/OFL-Oxanium.txt'), 'utf8')].join('\n');
+    fs.writeFileSync(path.join(o, 'LICENSES.txt'), lic); }
   const out = path.join(root, 'dist', t); const files = walk(out); const size = files.reduce((a, f) => a + fs.statSync(path.join(out, f)).size, 0);
   if (t !== 'mobile') { const zf = path.join(root, 'dist', `helioscend-${t}.zip`); zip(out, zf); console.log(`✔ ${t.padEnd(11)} ${files.length} files, ${(size / 1024).toFixed(0)} KB → ${path.relative(root, zf)} (${(fs.statSync(zf).size / 1024).toFixed(0)} KB zipped)`); }
   else console.log(`✔ ${t.padEnd(11)} ${files.length} files, ${(size / 1024).toFixed(0)} KB → dist/mobile/ (wrap with Capacitor)`);

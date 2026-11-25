@@ -1,5 +1,5 @@
 // The economy (ported from Starward). Aggregates research modifiers, computes production, storage and energy from
-// every building on every world, and integrates the stockpile over time. Collectors (CoC) hold their own output
+// every building on every world, and integrates the stockpile over time. Collectors hold their own output
 // until tapped. Later systems (satellites, colonies, star colonies, aliens) plug in through the hook lists below,
 // so this file never has to import them.
 import { BUILDINGS, holdHours } from '../data/buildings';

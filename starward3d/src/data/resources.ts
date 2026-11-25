@@ -15,5 +15,5 @@ export const RES: Record<string, ResDef> = {
   dm: { name: 'Dark Matter', short: 'DM', color: '#c9b6ff', cap: false, start: true, icon: '◈', desc: 'A precious, mysterious resource. It completes any timer instantly. Earned, never bought.' },
 };
 export const RES_ORDER = ['credits', 'metal', 'fuel', 'science', 'cells', 'he3', 'rare', 'exotic', 'antimatter', 'influence', 'xeno'];
-// resources whose producers hold their output until it is collected (Clash of Clans collectors)
+// resources whose producers hold their output until it is collected
 export const COLLECTED = ['credits', 'metal', 'fuel'];

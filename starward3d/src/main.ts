@@ -42,7 +42,7 @@ export class App {
   version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
   private last = performance.now(); private acc = 0; private saveAt = 0; private queue: (() => void)[] = []; private placing: { b: string; move?: string } | null = null;
   async boot() {
-    await this.platform.init(); this.platform.loadingStart();
+    await this.platform.init(); this.platform.loadingStart(); (window as any).__deviceType = this.platform.device?.() || undefined;
     let raw: string | null = null; try { raw = this.platform.load(SAVE_KEY); } catch (e) { raw = null; }
     let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
     const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
@@ -52,10 +52,13 @@ export class App {
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
+    for (const ev of ['click', 'touchend']) document.addEventListener(ev, () => this.audio.unlock(), { passive: true }); // iOS only lets audio start inside a click or touchend
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
     (window as any).__app = this; (window as any).__G = G; (window as any).__LD = LD; (window as any).__ri = ri; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__FD = FD; (window as any).__MER = MER; (window as any).__STRF = STR; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
-    if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
+    // a new player lands straight in the base with a one-line intro and the hand-pointing coach; nobody else sees it
+    if (this.s.stats.sessions === 1 && this.s.obj.i === 0 && this.s.tut < 99) this.ui.coach.intro(); else if (this.s.tut < 99) this.s.tut = 99;
+    if (this.s.stats.sessions === 1 && this.platform.username) this.platform.username().then((u) => { if (u && this.s.stats.sessions === 1) { this.s.name = `${u}'s Programme`.slice(0, 24); this.ui.renderHud(); this.save(); } });
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
   }
   private report(away: number, before: Record<string, number>, notes: G.Note[]) {
@@ -68,7 +71,7 @@ export class App {
     const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt; this.s.stats.playS += dt;
     if (this.acc >= 0.25) { this.acc = 0; this.tick(); }
     this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel();
-    if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing && this.world.mode !== 'battle' && this.world.mode !== 'space') this.queue.shift()!(); // never over a battle
+    if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing && !this.ui.coach.on && this.world.mode !== 'battle' && this.world.mode !== 'space') this.queue.shift()!(); // never over a battle
     requestAnimationFrame((tt) => this.loop(tt));
   }
   tickNow() { this.tick(); this.changed(); }
@@ -90,7 +93,7 @@ export class App {
     AL.drift(this.s, 1); for (const n of [...AL.tickAliens(this.s, this.R), ...CF.tickWar(this.s), ...LF.tickLife(this.s), ...LD.tickFalls(this.s)]) this.note(n); if (this.ui.tick % 30 === 11 && this.world.mode === 'base' && !this.ui.over) this.ui.contact.maybePrompt();
     for (const n of MER.tickMeridian(this.s)) { this.ui.toast('🤖 ' + esc(n.text), 'good'); this.changed(); if (this.ui.over === 'research') this.ui.renderOver(); this.ui.renderPanel(); }
     if (this.ui.tick % 5 === 2) for (const n of FD.tickFood(this.s)) { const nm = esc(this.s.bases[n.base]?.name || n.base); this.ui.toast(n.ok ? `${nm} is fed again` : `🍽 ${nm} is going hungry: build farms there (Algae Vats, Greenhouses, Deep Farms) or turn on supply runs from Earth`, n.ok ? 'good' : 'bad'); }
-    if (this.ui.tick % 20 === 13) { const nu = STY.freshUnlocks(this.s); if (nu.length) { this.ui.toast(`🎨 New style unlocked: <b>${esc(nu[0].name)}</b>${nu.length > 1 ? ` and ${nu.length - 1} more` : ''} (Style Studio)`, 'gold'); this.ui.renderHud(); } }
+    if (this.ui.tick % 20 === 13 && !this.ui.coach.on) { const nu = STY.freshUnlocks(this.s); if (nu.length) { this.ui.toast(`🎨 New style unlocked: <b>${esc(nu[0].name)}</b>${nu.length > 1 ? ` and ${nu.length - 1} more` : ''} (Style Studio)`, 'gold'); this.ui.renderHud(); } }
     if (this.ui.tick % 60 === 7) NET.pushSnapshot(this.s, { primary: this.world.look.banner.bg, accent: this.world.look.banner.fg });
     if (this.ui.tick % 10 === 3 && WG.unlocked(this.s) && this.world.mode === 'base') { const d = WG.drill(this.s); if (d) this.ui.toast(d.held ? `The Academy drilled your defences: they held (${d.pct}%). Bounty waiting in the Orbital Trials log.` : `The Academy drill broke through (${d.stars}★, ${d.pct}%). Check the replay in the Orbital Trials log.`, d.held ? 'good' : 'bad'); } this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
     // Kardashev milestones pay out dark matter as the civilisation's power grows
@@ -197,7 +200,7 @@ export class App {
   closeSpace() { this.world.space?.clear(); this.world.closeOrbit(); document.body.classList.remove('battling'); this.ui.fleet.hideHud(); this.ui.renderNav(); this.ui.renderPanel(); this.world.sync(this.s); }
   openDropNow() { const at = this.world.capsulePos(); const r = DY.openDrop(this.s); if (!r) return; this.audio.play('levelup'); if (at) { at.y += 1; this.world.burst(at, '#ffd36a', 36); } this.world.setCapsule(this.s, false); this.ui.daily.reveal('SUPPLY CAPSULE', '📦', r.res, r.gift); this.changed(); this.ui.daily.renderRail(); }
   focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
-  collect(id: string) {
+  collect(id: string) { this.ui.coach.event('collect');
     const r = G.collect(this.s, this.s.at, id, this.R); if (!r) return; if (r.n <= 0) { this.ui.toast(`${RES[r.r].name} storage is full. Build or upgrade a Logistics Depot.`, 'bad'); this.audio.play('deny'); return; }
     this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${ri(r.r)}`, RES[r.r].color); }
     if (r.full) this.ui.toast(`${RES[r.r].name} storage is full: the rest stays in the building.`, 'bad'); this.changed();

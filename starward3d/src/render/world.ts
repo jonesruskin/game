@@ -41,11 +41,11 @@ export class World {
   onTap: (hit: { item?: string; cell?: [number, number]; drop?: boolean }) => void = () => {}; onGhostMove: () => void = () => {};
   private shF = 0; private shX = 1e9; private shZ = 1e9;
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
-    const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ((navigator as any).maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820);
+    const dev = (window as any).__deviceType as string | undefined; const mobile = dev ? dev !== 'desktop' : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); // the portal's own device info where it gives one, never touch detection
     this.quality = quality === 'auto' ? (mobile ? 'low' : 'high') : quality;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality === 'high', powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.quality === 'high' ? 2 : 1.5)); this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0; this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0; this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.5, 6000);
     this.sun = new THREE.DirectionalLight('#fff1d6', 2.8); this.sun.castShadow = true; const sz = this.quality === 'high' ? 2048 : 1024; this.sun.shadow.mapSize.set(sz, sz);
     const sc = this.sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 34; sc.bottom = -34; sc.near = 1; sc.far = 160; this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.03;

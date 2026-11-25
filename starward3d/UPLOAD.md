@@ -27,11 +27,27 @@ Everything you need is in this folder. You don't need to build anything.
 2. Upload `helioscend-crazygames.zip`.
 3. Fill in the form from `store/description.md`:
    - **Category:** Strategy (alternatives: Simulation, Idle, Casual)
-   - **Orientation:** both (portrait and landscape layouts are built in)
-   - **Mobile:** yes · **Multiplayer:** no (Orbital Trials plays against stored player bases, never live) · **In-game purchases:** no
-4. **Tick "Progress Save."** The build writes its save through the CrazyGames data module, so a programme follows the player across devices. It also keeps a local copy.
+   - **Orientation:** both (the site asks players to rotate if needed; portrait and landscape layouts are built in)
+   - **Mobile:** yes · **Language:** English · **Multiplayer:** no (Orbital Trials plays against stored bases, never live) · **In-game purchases:** no
+4. **Tick "Progress Save."** The build writes its save through the CrazyGames data module, so a programme follows the player across devices (it also keeps a local copy).
 5. Upload the covers, both videos and the screenshots.
-6. Submit. The build already sends `loadingStart`/`loadingStop`, `gameplayStart`/`gameplayStop` (stopped while menus are open) and `happytime` (milestones, first contact, discoveries, expeditions).
+6. Before submitting, open the game in the Developer Portal's **QA tool / Preview** and play the first minute.
+7. Submit.
+
+### ✅ How the build meets CrazyGames' requirements
+| Requirement | How Helioscend meets it |
+|---|---|
+| Loads and plays in desktop Chrome within 20 s, no errors | About 0.5 MB zipped, 9 files, relative paths only; playable in about 1 s on a desktop and under 1 s with the CPU slowed 4×; no console errors or warnings |
+| Works on mobile | Tested on iPhone 13 and Pixel 7 emulation with touch, portrait and landscape (800 × 450), and every CrazyGames iframe size down to 821 × 462; safe-area padding for the CrazyGames app; audio starts on the first tap (iOS rule); device type comes from the SDK, never touch detection |
+| Default language English | English throughout (`<html lang="en">`) |
+| The first minute is clear, minimal reading | No pop-up on arrival: a one-line title card ("Build a space programme. Reach the stars."), then a bouncing hand points at what to tap with 2-4 word captions (collect → Mission Control → Upgrade → Build → Research Center → place), skippable; other pop-ups wait until it is done; then the goal card's "Show me →" takes over |
+| Land directly in gameplay (Full Launch) | Zero clicks: the base is live behind the title card |
+| SDK | v3: loading start/stop, gameplay start/stop (stopped while menus are open), happytime, data module saves, mute setting, the player's CrazyGames username as the programme name on a new game; init never holds the game up (5 s timeout) |
+| Ads | **Off in the default build** (Basic Launch allows no ads). When CrazyGames selects the game for Full Launch, rebuild with `VITE_CG_ADS=on npm run build`: rewarded ads appear only on a player's tap, and the game works with ad blockers |
+| No external links, no custom fullscreen, no app-store links, no other logins | None in the game |
+| PEGI 12 | Sci-fi, no gore; robots fight holograms and alien drones |
+| Original, own the rights | All code, 3D models, icons, music and sound are original (procedural models, synthesized audio). Third-party pieces are open source and credited: three.js (MIT), Barlow and Oxanium fonts (SIL OFL); `LICENSES.txt` ships in the zip and Settings → Credits says so |
+| Tested by someone else | **Your part:** have a friend play through `TESTING.md` (about 15 minutes) before submitting |
 
 ## 2️⃣ Google Play and the App Store
 Follow `mobile/README.md`: `npm run build:mobile`, then wrap `dist/mobile/` with Capacitor and build in Android Studio / Xcode. When the app goes to the background it schedules local notifications for the next three finished timers, the next supply capsule and the daily reward at 7 pm (and cancels them when the player comes back). Store accounts, signing keys and payment details are yours to set up.
@@ -49,7 +65,7 @@ The shipped builds play Orbital Trials offline against the **Academy**: adaptive
 Details and the full API are in `server/README.md`; `npm run test:server` runs the 25 server tests locally.
 
 ## 💰 Monetisation that's already built in
-- **Rewarded ads (optional), CrazyGames build only:** **"▶ Ad: −30 min"** on any running construction or research timer (8 a day), and an extra daily core spin. They appear only when the portal reports ads are available.
+- **Rewarded ads (optional), CrazyGames build only, after Full Launch:** **"▶ Ad: −30 min"** on any running construction or research timer (8 a day), and an extra daily core spin. Off until you rebuild with `VITE_CG_ADS=on` (Basic Launch allows no ads); then they appear only when the portal reports ads are available.
 - **No forced ads.** No midgame breaks are fired; the adapter supports them if you ever want one at a natural pause.
 - **Dark matter** (finishes timers) is earned from goals, Kardashev milestones, the calendar, missions, new rungs of the Life Ladder and expeditions; nothing is sold. On mobile, AdMob and store billing slot into `src/platform/mobile.ts` without touching game code.
 

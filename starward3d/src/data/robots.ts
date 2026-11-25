@@ -1,4 +1,4 @@
-// Robots and AIs: what they are good at. Dragon City's core ideas, made ours: robots are collected, housed in docks,
+// Robots and AIs: what they are good at. Robots are collected, housed in docks,
 // levelled with Power Cells and fused into hybrids, but here they work for people. Assigned to a building as
 // operators, a robot whose element suits the job boosts it far more than a mismatch.
 // building → the elements that suit its work

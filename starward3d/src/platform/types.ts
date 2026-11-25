@@ -4,6 +4,10 @@ export interface PlatformAPI {
   name: string;
   adsAvailable: boolean;
   init(): Promise<void>;
+  /** the portal's device type (desktop, tablet, mobile) when it reports one */
+  device?(): string | null;
+  /** the signed-in player's name on the portal, if any */
+  username?(): Promise<string | null>;
   loadingStart(): void;
   loadingStop(): void;
   gameplayStart(): void;

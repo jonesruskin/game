@@ -1,13 +1,13 @@
 # HELIOSCEND: design bible (v2)
 *From one launch pad on Earth to a Type III civilisation, in 3D.*
 
-> v1 of Helioscend was a floating-island collector. The owner wanted Starward's real journey kept and Dragon City / classic base-builders **ideas** layered on top, so v2 rebuilds it: Starward's economy, research tree and campaign (balanced by its year-long simulator) ported to TypeScript, presented as real 3D bases on real worlds, with people, robots, CoC-style layouts and daily battles between players.
+> v1 of Helioscend was a floating-island collector. The owner wanted Starward's real journey kept and collector, builder and base-defence **mechanics** of the genre layered on top, so v2 rebuilds it: Starward's economy, research tree and campaign (balanced by its year-long simulator) ported to TypeScript, presented as real 3D bases on real worlds, with people, robots, grid base layouts and daily battles between players.
 
 ## 1. Pillars
 1. **A civilisation, not a base.** People live, work and grow on every world you settle. Robots make their lives easier: they dig, build, mine, research and fight for them.
 2. **Grounded, then wondrous.** Real rockets, real Solar System data, real nearby stars; then fusion, warp, wormholes, Dyson swarms and the galaxy.
 3. **Visible progress.** Every upgrade changes the 3D base; satellites orbit every world you reach; terraformed Mars turns blue and green in front of you.
-4. **Your own civilisation.** Clash-of-Clans freedom: grid layouts where placement matters for efficiency (synergy auras), defence (Orbital Trials) and looks (paint, banners, decor, statues of your robots).
+4. **Your own civilisation.** Freedom on a grid: layouts where placement matters for efficiency (synergy auras), defence (Orbital Trials) and looks (paint, banners, decor, statues of your robots).
 5. **A reason to come back every day, and for years.** Daily micro-loops (collect, missions, calendar, supply capsules, robot core, Orbital Trials) inside a years-long macro arc measured on the **Kardashev scale**, from humanity today (K 0.73) to Type III (K 3.0).
 
 ## 2. The arc (eras)
@@ -21,7 +21,7 @@
 | 6. Beyond | other galaxies | Relays, intergalactic expeditions, Type III, Ascension |
 
 ## 3. Economy (ported from Starward)
-One empire stockpile, storage caps from Mission Control, depots and vaults. Resources: **Aurivane (the currency), metal, fuel, science**, energy (a live balance; a deficit slows output), **Helium-3** (Moon, gas giants), **rare elements** (asteroids), **exotic matter**, **antimatter**, **influence** and **xenodata** (aliens), **dark matter** (earned; finishes timers), **Power Cells** (new: robot upkeep and levelling, the Dragon City "food").
+One empire stockpile, storage caps from Mission Control, depots and vaults. Resources: **Aurivane (the currency), metal, fuel, science**, energy (a live balance; a deficit slows output), **Helium-3** (Moon, gas giants), **rare elements** (asteroids), **exotic matter**, **antimatter**, **influence** and **xenodata** (aliens), **dark matter** (earned; finishes timers), **Power Cells** (new: robot upkeep and levelling, the robots' food).
 - **Collectors:** Aurivane, metal and fuel accumulate inside their buildings (a few hours' worth) and are tapped to collect; science and the rest flow straight to the stockpile.
 - **Construction drones** are the builder bottleneck (Starward's engineering crews, now visible robots flying to each site).
 - **Command gating:** buildings cap at 2 × Mission Control; Mission Control levels need the base grown first (Starward's `cmdReqs`).
@@ -44,10 +44,10 @@ Every base stands in 96 × 96 cells of its world's own ground, under its own sky
 
 **People:** colonists arrive with the colony and grow toward the lowest of housing, air, water and food. They live in **glass domes** or **underground habitats** that robots dig, work the buildings (staffing scales output) and move outdoors as terraforming makes a world habitable.
 
-## 5. Robots (Dragon City's core ideas, made ours)
+## 5. Robots
 - **Collect:** 114 robots and AIs, 22 elements, 7 rarities (Standard → Singularity), each with a 3D model.
 - **Work:** robots are assigned to buildings as operators; their element suits certain jobs (Geo → mining, Hydro → ice and water, Bio → greenhouses and terraforming, Neural → research, Solar/Volt/Plasma → power, Alloy/Kinetic → construction and defence, Photon → comms, Gravity → launch and shipyards...). A match boosts the building far more than a mismatch.
-- **Grow:** Power Cells level them up (the Dragon City food loop); Robot Docks house them (habitats).
+- **Grow:** Power Cells level them up (the feeding loop); Robot Docks house them (habitats).
 - **Breed:** the Fusion Lab fuses two robots into a new hybrid core; rarer pairs make rarer robots; the Robot Registry records every species.
 - **Events:** a weekly themed event with an exclusive robot; a daily robot core spin.
 
@@ -88,7 +88,7 @@ Aliens are not only civilisations. Everything alive sits on one of eight rungs: 
 Timers from seconds to days on Starward's ladder; offline time always counts (collectors fill up, timers finish). Dark matter is earned, never sold. Rewarded ads (optional): −30 min on a timer, double login reward, an extra robot spin, an extra Orbital Trials sortie.
 
 ## 12. Build plan (each part committed and pushed when done)
-1. **Foundation v2:** TypeScript port of Starward's economy (resources, Earth buildings, research tree, time ladder, gating); the 3D Earth spaceport on a coastal landscape with sky; CoC grid placement with a growing buildable area; construction drones; build, upgrade, collect; research lab; objectives; energy; Kardashev meter; save v2.
+1. **Foundation v2:** TypeScript port of Starward's economy (resources, Earth buildings, research tree, time ladder, gating); the 3D Earth spaceport on a coastal landscape with sky; grid placement with a growing buildable area; construction drones; build, upgrade, collect; research lab; objectives; energy; Kardashev meter; save v2.
 2. **Rockets & orbit:** rocket parts and designer, Vehicle Assembly, launches in 3D, missions, satellites orbiting Earth, the space station.
 3. **Robots:** workshop, docks, operators with element affinities, Power Cells, Fusion Lab, Robot Registry, helpers; people and robots walking around the bases.
 4. **Colonies:** the Moon and Mars bases (terrain, sky, traits), landers and rovers, colony hubs, domes and underground habitats, colonists and life support, the 3D Solar System map.
