@@ -192,6 +192,8 @@ export class World {
       if (f.t > 11) { this.scene.remove(f.m.group, f.smoke); f.smoke.geometry.dispose(); this.flights.splice(this.flights.indexOf(f), 1); this.cam.ty = 0; if (this.saved && !this.flights.length) { this.focus(this.saved.x, this.saved.z, this.saved.dist); this.saved = null; } } }
   }
   // ---------------- frame ----------------
+  // draw the current view now (for snapshots: the WebGL buffer is readable until the browser composites)
+  renderNow() { const m = this.mode; const v: any = m === 'orbit' ? this.orbit : m === 'galaxy' ? this.galaxy : m === 'space' ? this.space : m === 'stars' ? this.starMap : m === 'battle' ? this.battle : m === 'system' ? this.system : null; if (v) this.renderer.render(v.scene, v.camera); else this.renderer.render(this.scene, this.camera); }
   frame(s: State, dt: number, working: (id: string) => boolean) {
     this.t += dt; const t = this.t;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }

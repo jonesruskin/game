@@ -271,6 +271,22 @@ export function cmdReqs(b: string, L: number, base?: string): [string, number][]
   return r.filter(([, lv]) => lv > 0).map(([rb, lv]) => [rb, Math.min(lv, BUILDINGS[rb].max)] as [string, number]);
 }
 export const crewsFromHq = (hq: number) => 2 + (hq >= 5 ? 1 : 0) + (hq >= 10 ? 1 : 0) + (hq >= 15 ? 1 : 0);
+// decorations: the personal touch. No effect on the numbers, never part of a War Games layout.
+const ALLB = ['earth', ...COL];
+const decor = (name: string, fp: [number, number], credits: number, count: number[], desc: string, req?: { tech?: string; hq?: number }, bases = ALLB): BuildingDef =>
+  ({ name, fp, bases, max: 1, cat: 'decor', instant: true, count, req, cost: { credits: [credits, 1] }, time: [0.02, 1], desc });
+Object.assign(BUILDINGS, {
+  walkway: decor('Walkway', [1, 1], 200, [20, 30, 40, 55, 70, 85, 100, 120, 140, 160], 'A paved tile for paths and plazas between the domes.'),
+  lamp: decor('Lumen Post', [1, 1], 1500, [2, 4, 6, 8, 10, 12, 14, 16, 18, 20], 'A tall lamp with a warm glow for the night shift.'),
+  flag: decor('Colony Flag', [1, 1], 3000, [1, 2, 2, 3, 3, 4, 4, 5, 5, 6], 'Flies your banner. Change it in the Style Locker.'),
+  holotree: decor('Holo Tree', [1, 1], 6000, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'A tree grown from engineered moss and fibre optics, glowing in your colours.', { hq: 2 }),
+  rockgarden: decor('Regolith Garden', [2, 2], 15000, [0, 1, 1, 2, 2, 2, 3, 3, 3, 4], 'Raked dust and stones brought home from other worlds. Calming, apparently.', { hq: 3 }),
+  dishes: decor('Dish Array', [2, 2], 30000, [0, 0, 1, 1, 2, 2, 2, 3, 3, 3], 'A row of small radio dishes listening to the sky, mostly for show.', { hq: 4 }),
+  beacon: decor('Holo Beacon', [1, 1], 50000, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4], 'Projects your banner emblem as a slowly turning hologram.', { hq: 5 }),
+  statue: decor('Pioneer Statue', [2, 2], 65000, [0, 0, 0, 1, 1, 1, 1, 2, 2, 2], 'A bronze astronaut on a plinth: the first person to walk on this world.', { hq: 5 }),
+  xenogarden: decor('Xeno Garden', [2, 2], 200000, [0, 0, 0, 1, 1, 1, 2, 2, 2, 3], 'A sealed glass terrarium of alien life, glowing softly. Children press their faces to it.', { tech: 'xenobiology', hq: 7 }),
+  monument: decor('Rocket Monument', [2, 2], 120000, [0, 0, 0, 0, 1, 1, 1, 1, 1, 1], 'Your first rocket, retired and standing on a plinth in your paint.', { hq: 6 }),
+});
 export const CATS: Record<string, string> = { core: 'Command', production: 'Production', power: 'Power', storage: 'Storage', science: 'Science', spaceflight: 'Spaceflight', defense: 'Defence', robots: 'Robots', decor: 'Decor' };
 // buildable area (grid cells per side) for a command level; the landscape continues beyond it
 export const GRID = 52;

@@ -24,6 +24,7 @@ import * as AL from './core/aliens';
 import * as CF from './core/conflict';
 import * as BY from './core/beyond';
 import * as LF from './core/life';
+import * as STY from './core/style';
 import { LIFE, RUNGS } from './data/life';
 import { specimen } from './render/specimens';
 import * as NET from './core/net';
@@ -40,13 +41,13 @@ export class App {
     let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
     const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
     this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
-    this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
+    this.world.look = STY.lookOf(this.s); STY.freshUnlocks(this.s); this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
     const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - 26; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else this.tickNow(); }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__spec = specimen;
+    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
@@ -73,6 +74,7 @@ export class App {
     DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
     // contact and conflict: relations drift, civilisations make requests, the Swarm raids
     AL.drift(this.s, 1); for (const n of [...AL.tickAliens(this.s, this.R), ...CF.tickWar(this.s), ...LF.tickLife(this.s)]) this.note(n); if (this.ui.tick % 30 === 11 && this.world.mode === 'base' && !this.ui.over) this.ui.contact.maybePrompt();
+    if (this.ui.tick % 20 === 13) { const nu = STY.freshUnlocks(this.s); if (nu.length) { this.ui.toast(`🎨 New style unlocked: <b>${esc(nu[0].name)}</b>${nu.length > 1 ? ` and ${nu.length - 1} more` : ''} (Style Locker)`, 'gold'); this.ui.renderHud(); } }
     if (this.ui.tick % 60 === 7) NET.pushSnapshot(this.s, { primary: this.world.look.banner.bg, accent: this.world.look.banner.fg });
     if (this.ui.tick % 10 === 3 && WG.unlocked(this.s) && this.world.mode === 'base') { const d = WG.drill(this.s); if (d) this.ui.toast(d.held ? `The Academy drilled your defences: they held (${d.pct}%). Bounty waiting in the War Games log.` : `The Academy drill broke through (${d.stars}★, ${d.pct}%). Check the replay in the War Games log.`, d.held ? 'good' : 'bad'); } this.world.setCapsule(this.s, DY.daily(this.s).drops > 0 && this.world.mode === 'base' && !this.placing); this.ui.daily.renderRail();
     // Kardashev milestones pay out dark matter as the civilisation's power grows

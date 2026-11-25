@@ -232,3 +232,18 @@ body.mapping #bubbles .bub:not(.lbl) { display: none !important; }
 .ldet h2 { font: 800 22px Oxanium; } .ldet .desc { margin: 6px 0 0; }
 .science { border-left: 3px solid var(--cyan); padding: 6px 10px; background: rgba(110, 231, 255, 0.05); border-radius: 0 10px 10px 0; } .science b { font: 700 10px Oxanium; letter-spacing: 0.18em; color: var(--cyan); } .science p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: #c8d4e8; }
 @media (max-width: 720px) { .body.life { display: flex; flex-direction: column; } .lmain { flex: none; } .ladder { flex: none; position: static; flex-direction: row; overflow-x: auto; border-left: 0; padding: 0 0 4px; } .rung { flex: none; padding: 6px 8px; } .rung::before { display: none; } .rung .num { width: auto; } .lgrid { grid-template-columns: 1fr; } .ldet .plate { width: 96px; height: 96px; } }
+/* ---------------- the Style Locker ---------------- */
+.stylegrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; max-width: 1100px; margin: 0 auto; }
+.stylegrid .card { gap: 8px; }
+.sws { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.sw { position: relative; width: 46px; height: 46px; padding: 3px; border-radius: 12px; border: 2px solid transparent; background: rgba(255, 255, 255, 0.05); cursor: pointer; transition: transform 0.12s; }
+.sw:hover { transform: translateY(-2px); } .sw > span { display: block; width: 100%; height: 100%; border-radius: 8px; }
+.sw.on { border-color: #fff; box-shadow: 0 0 12px rgba(110, 231, 255, 0.55); }
+.sw.lk > span, .sw.lk > img { filter: grayscale(1) brightness(0.45); }
+.sw.lk i { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 15px; }
+.sws.sm .sw { width: 34px; height: 34px; border-radius: 9px; } .sws.sm .sw > span { border-radius: 6px; }
+.sws.round .sw, .sws.round .sw > span { border-radius: 50%; }
+.sws.em .sw { width: 52px; height: 42px; display: grid; place-items: center; }
+.tin { width: 100%; margin-top: 4px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: #0d1a2e; color: #fff; font: 600 15px Barlow; box-sizing: border-box; user-select: text; -webkit-user-select: text; }
+.ibtn .rdot { position: absolute; top: -2px; right: -2px; }
+@media (max-width: 640px) { .stylegrid { grid-template-columns: 1fr; } .sw { width: 40px; height: 40px; } }

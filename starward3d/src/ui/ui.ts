@@ -19,6 +19,8 @@ import { ContactUI } from './contact';
 import { FleetUI } from './fleet';
 import { BeyondUI } from './beyond';
 import { LifeUI } from './life';
+import { StyleUI } from './style';
+import * as STY from '../core/style';
 import { isExo } from '../core/stars';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
@@ -26,10 +28,10 @@ const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${RES[r]?.icon || ''}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 export class UI {
-  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' | 'ascension' | 'life' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI; beyond: BeyondUI; life: LifeUI;
+  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' | 'ascension' | 'life' | 'style' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI; beyond: BeyondUI; life: LifeUI; style: StyleUI;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
-    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this); this.beyond = new BeyondUI(this); this.life = new LifeUI(this);
+    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this); this.beyond = new BeyondUI(this); this.life = new LifeUI(this); this.style = new StyleUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.id === 'aname') { const v = t.value.trim().slice(0, 24); if (v) { this.s.name = v; this.s.bases.earth.name = v; this.app.changed(); this.renderHud(); } } if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); });
   }
@@ -41,7 +43,7 @@ export class UI {
     $('#hud').innerHTML = `<div class="kchip" data-a="kard" title="Kardashev scale"><div class="ring" id="kring"><b id="kval">${k.toFixed(2)}</b></div><div class="nm"><b>${esc(s.name)}</b><i id="ktitle">Kardashev ${k.toFixed(3)}</i></div></div>${Object.keys(s.bases).length > 1 ? `<button class="chip" data-a="bases" title="Your worlds">${worldIcon(s.at)} ${esc(s.bases[s.at].name)} ▾</button>` : ''}
       ${HUD_RES.map((r) => `<div class="res" id="r-${r}" data-a="resinfo" data-r="${r}" style="--c:${RES[r].color}" title="${RES[r].name}"><span class="ic" style="color:${RES[r].color}">${RES[r].icon}</span><span class="v">0</span><span class="cap"><i></i></span></div>`).join('')}
       <div class="res" id="r-dm" data-a="resinfo" data-r="dm" title="Dark Matter"><span class="ic" style="color:${RES.dm.color}">${RES.dm.icon}</span><span class="v">0</span></div>
-      <span class="sp"></span><span class="chip" id="energy" data-a="energy" title="Energy: generation / demand">⚡ <span>0</span></span><span class="chip" id="crews" title="Construction drones">🛸 <span>0/0</span></span><button class="ibtn" data-a="settings" title="Settings">⚙</button>`;
+      <span class="sp"></span><span class="chip" id="energy" data-a="energy" title="Energy: generation / demand">⚡ <span>0</span></span><span class="chip" id="crews" title="Construction drones">🛸 <span>0/0</span></span><button class="ibtn" data-a="style" title="Style Locker" style="position:relative">🎨${STY.newCount(s) ? '<span class="rdot"></span>' : ''}</button><button class="ibtn" data-a="settings" title="Settings">⚙</button>`;
     this.lastRes = {}; this.updHud();
   }
   updHud() {
@@ -128,7 +130,7 @@ export class UI {
   closeOver() { this.over = ''; $('#over').classList.add('hidden'); this.app.platform.gameplayStart(); }
   renderOver() {
     const el = $('#over'); if (!this.over) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const s = this.s;
-    if (this.over === 'shop') { const base = s.at; const cats = ['core', 'production', 'power', 'storage', 'science', 'spaceflight', 'defense'].filter((c) => Object.values(BUILDINGS).some((d) => d.cat === c && d.bases.includes(kindOf(base))));
+    if (this.over === 'shop') { const base = s.at; const cats = ['core', 'production', 'power', 'storage', 'science', 'spaceflight', 'defense', 'decor'].filter((c) => Object.values(BUILDINGS).some((d) => d.cat === c && d.bases.includes(kindOf(base))));
       if (!cats.includes(this.tab)) this.tab = cats[0];
       const near = (tech?: string) => !tech || !!s.tech[tech] || (TECH[tech] && TECH[tech].req.every((r) => s.tech[r])); // hide buildings more than one discovery away
       const list = Object.entries(BUILDINGS).filter(([, d]) => d.cat === this.tab && d.bases.includes(kindOf(base)) && !d.command && near(d.req && d.req.tech));
@@ -145,6 +147,7 @@ export class UI {
     if (this.over === 'defence') { el.innerHTML = this.fleet.html(); return; }
     if (this.over === 'ascension') { el.innerHTML = this.beyond.ascensionHTML(); return; }
     if (this.over === 'life') { el.innerHTML = this.life.html(); return; }
+    if (this.over === 'style') { el.innerHTML = this.style.html(); this.renderHud(); return; }
     if (this.over === 'goals') { el.innerHTML = this.goalsHTML(); return; }
   }
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
@@ -192,7 +195,7 @@ export class UI {
       <p class="muted" style="font-size:12px">Graphics changes apply after a reload. Camera: drag to pan, scroll or pinch to zoom, right-drag, two-finger twist or Q/E to rotate.</p><div class="row" style="justify-content:center"><button class="btn red small" data-a="reset">Start over</button><button class="btn" data-a="closeModal">Close</button></div>`; }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement) {
-    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t) || this.contact.act(a, t) || this.fleet.act(a, t) || this.beyond.act(a, t) || this.life.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
+    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t) || this.contact.act(a, t) || this.fleet.act(a, t) || this.beyond.act(a, t) || this.life.act(a, t) || this.style.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
     switch (a) {
       case 'orbit': A.openOrbit('earth'); A.audio.play('whoosh'); break;
       case 'base': A.toBase(); A.audio.play('whoosh'); break;

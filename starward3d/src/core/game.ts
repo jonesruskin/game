@@ -16,7 +16,7 @@ export const events: Note[] = []; // UI-facing notifications (drained by the app
 export const builtHooks: ((s: State, b: string) => void)[] = []; // a building finished for the first time
 export const buildChecks: ((s: State, base: string, b: string) => Check | null)[] = []; // extra conditions (robots dig the tunnels)
 // ---------------- costs and timers ----------------
-export const costOf = (id: string, L: number, m: Mods) => { const d = BUILDINGS[id]; const out: Record<string, number> = {}; const h = unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
+export const costOf = (id: string, L: number, m: Mods) => { const d = BUILDINGS[id]; const out: Record<string, number> = {}; const h = d.cat === 'decor' ? Math.max(1, (d.req && d.req.hq) || 1) : unlockHq(id, L); for (const r in d.cost) out[r] = capClamp(round2(curve(d.cost[r][0], d.cost[r][1], L) * (1 - m.costs)), h, r); return out; };
 export const timeOf = (id: string, L: number, m: Mods) => Math.max(2, Math.round(timeCurve(BUILDINGS[id].time, L) * (1 - m.buildTime)));
 export const researchTimeOf = (t: string, R: Rates) => Math.max(5, Math.round((techTime(TECH[t]) * (1 - R.m.researchTime)) / (1 + R.speed)));
 export const crewsTotal = (s: State, m = mods(s)) => crewsFromHq(hqLevel(s)) + m.crews;

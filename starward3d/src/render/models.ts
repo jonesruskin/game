@@ -346,7 +346,38 @@ function fusionPlant(L: number, look: Look): Model {
 }
 // unknown types (later parts) get a placeholder block so the base never breaks
 function generic(b: string, look: Look): Model { const d = BUILDINGS[b]; const [w, dd] = d ? d.fp : [3, 3]; const k = new Kit(); pad(k, w, dd); k.box(w * 0.7, 1.2, dd * 0.7, look.primary, 0, 0.1, 0); windows(k, w * 0.7, dd * 0.7, 0.5, 0.2); k.box(w * 0.72, 0.1, dd * 0.72, look.accent, 0, 1.3, 0); return { group: k.build(b), height: 1.6 }; }
+// ---------------- decorations ----------------
+function flagPole(look: Look, x = 0, z = 0, h = 1.6) { const g = new THREE.Group(); const k = new Kit(); k.cyl(0.13, 0.16, 0.08, 8, CON, x, 0, z); k.cyl(0.025, 0.03, h, 6, STEEL, x, 0.08, z); k.sphere(0.04, look.accent, x, h + 0.1, z); g.add(k.build());
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.39), new THREE.MeshStandardMaterial({ map: bannerTexture(look.banner), side: THREE.DoubleSide, roughness: 0.8 })); f.position.set(x + 0.33, h - 0.15, z); g.add(f); return { g, f }; }
+function decorModel(b: string, look: Look): Model | null { const P = look.primary, A = look.accent;
+  switch (b) {
+    case 'walkway': { const k = new Kit(); k.box(0.98, 0.06, 0.98, '#b9bdc3'); k.box(0.9, 0.02, 0.9, '#cfd3d8', 0, 0.06, 0); k.box(0.92, 0.012, 0.05, A, 0, 0.075, 0.36); return { group: k.build('walkway'), height: 0.1 }; }
+    case 'lamp': { const k = new Kit(); k.cyl(0.12, 0.15, 0.1, 8, CON); k.cyl(0.03, 0.04, 1.5, 6, DARK, 0, 0.1, 0); k.box(0.34, 0.04, 0.08, DARK, 0.12, 1.55, 0); k.sphere(0.09, WIN, 0.26, 1.48, 0, { glow: true }); return { group: k.build('lamp'), height: 1.7 }; }
+    case 'flag': { const { g, f } = flagPole(look); return { group: g, height: 1.8, anim: (t) => { f.rotation.y = Math.sin(t * 2.2) * 0.18; } }; }
+    case 'holotree': { const k = new Kit(); k.cyl(0.2, 0.24, 0.12, 8, CON); k.cyl(0.05, 0.08, 0.9, 6, '#5b4636', 0, 0.12, 0); for (const [x, y, z, r] of [[0, 1.15, 0, 0.36], [0.22, 0.98, 0.1, 0.24], [-0.2, 1.0, -0.08, 0.26], [0.05, 1.42, -0.05, 0.22]]) k.sphere(r, A, x, y, z, { glow: true });
+      const g = k.build('holotree'); return { group: g, height: 1.6, anim: (t) => { g.scale.setScalar(1 + Math.sin(t * 1.4) * 0.02); } }; }
+    case 'rockgarden': { const k = new Kit(); k.box(1.96, 0.06, 1.96, '#d9cdb5'); for (let r = 0.3; r < 0.95; r += 0.16) k.add(new THREE.TorusGeometry(r, 0.012, 4, 40), '#c4b597', -0.3, 0.07, -0.3, { rx: Math.PI / 2 }); for (const [x, z, s, c] of [[-0.3, -0.3, 0.26, '#7a6f66'], [0.5, 0.35, 0.2, '#b0583a'], [0.45, -0.5, 0.14, '#8f99a6'], [-0.55, 0.55, 0.16, '#5a5048']] as [number, number, number, string][]) k.add(new THREE.DodecahedronGeometry(s, 0), c, x, s * 0.6, z, { sy: 0.7 }); return { group: k.build('rockgarden'), height: 0.4 }; }
+    case 'dishes': { const k = new Kit(); k.box(1.96, 0.08, 1.96, CON); const g = k.build('dishes'); const heads: THREE.Group[] = [];
+      for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) { const p = new Kit(); p.cyl(0.04, 0.06, 0.45, 6, STEEL, x, 0.08, z); g.add(p.build()); const h = new THREE.Group(); const d = new Kit(); d.add(new THREE.SphereGeometry(0.36, 14, 6, 0, Math.PI * 2, 0, Math.PI / 3.2), '#eef2f6', 0, 0, 0, { rx: Math.PI }); d.cyl(0.015, 0.015, 0.3, 4, STEEL, 0, -0.32, 0); d.sphere(0.035, A, 0, -0.48, 0); const dg = d.build(); dg.rotation.x = -0.8; h.add(dg); h.position.set(x, 0.62, z); g.add(h); heads.push(h); }
+      return { group: g, height: 1.0, anim: (t) => { heads.forEach((h, i) => { h.rotation.y = Math.sin(t * 0.1 + i * 0.3) * 1.1; }); } }; }
+    case 'beacon': { const k = new Kit(); k.cyl(0.3, 0.36, 0.16, 10, DARK); k.cyl(0.22, 0.22, 0.03, 16, A, 0, 0.16, 0, { glow: true }); const g = k.build('beacon');
+      const tex = bannerTexture({ bg: 'rgba(0,0,0,0)', fg: look.banner.fg, emblem: look.banner.emblem }); const holo = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.56), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      holo.position.y = 0.85; g.add(holo); const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.2, 0.55, 16, 1, true), new THREE.MeshBasicMaterial({ color: A, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); cone.position.y = 0.45; g.add(cone);
+      return { group: g, height: 1.3, anim: (t) => { holo.rotation.y = t * 0.8; holo.position.y = 0.85 + Math.sin(t * 1.5) * 0.04; } }; }
+    case 'statue': { const k = new Kit(); const SU = '#f1ede4', BR = '#c79a4a'; k.box(1.2, 0.5, 1.2, '#9aa3ad'); k.box(1.3, 0.08, 1.3, BR, 0, 0.5, 0); k.box(1.21, 0.1, 0.02, BR, 0, 0.22, 0.6);
+      k.box(0.17, 0.5, 0.18, SU, -0.11, 0.58, 0); k.box(0.17, 0.5, 0.18, SU, 0.11, 0.58, 0); k.box(0.2, 0.1, 0.26, '#6b7280', -0.11, 0.58, 0.03); k.box(0.2, 0.1, 0.26, '#6b7280', 0.11, 0.58, 0.03);
+      k.box(0.5, 0.56, 0.34, SU, 0, 1.06, 0); k.box(0.42, 0.46, 0.18, '#cfd3d8', 0, 1.1, -0.25); k.box(0.16, 0.1, 0.02, P, 0, 1.38, 0.18); k.box(0.08, 0.06, 0.02, A, -0.14, 1.26, 0.18);
+      k.sphere(0.24, SU, 0, 1.84, 0); k.sphere(0.17, '#ffcf6a', 0, 1.84, 0.1, { sz: 0.55, glow: true }); k.box(0.13, 0.46, 0.13, SU, -0.33, 1.16, 0, { rz: 0.18 }); k.box(0.13, 0.5, 0.13, SU, 0.34, 1.42, 0, { rz: -0.5 });
+      const f = flagPole(look, 0.52, 0.05, 1.5); const g = k.build('statue'); f.g.position.y = 0.54; f.g.scale.setScalar(0.85); g.add(f.g); return { group: g, height: 2.5, anim: (t) => { f.f.rotation.y = Math.sin(t * 2) * 0.15; } }; }
+    case 'xenogarden': { const k = new Kit(); k.cyl(0.92, 0.98, 0.2, 20, DARK); k.cyl(0.88, 0.88, 0.04, 20, '#2b3a2e', 0, 0.2, 0); const blobs: [number, number, number, number, string][] = [[-0.3, 0.32, -0.2, 0.16, '#5fe0c8'], [0.25, 0.3, 0.25, 0.12, '#c9a0ff'], [0.35, 0.28, -0.3, 0.1, '#7cf29a'], [-0.2, 0.3, 0.35, 0.11, '#ffd166']];
+      for (const [x, y, z, r, c] of blobs) { k.cyl(0.02, 0.03, y + r, 4, '#3a5a3a', x, 0.22, z); k.sphere(r, c, x, 0.22 + y + r, z, { glow: true }); } for (let i = 0; i < 9; i++) { const a = i * 0.7, d = 0.25 + (i % 3) * 0.18; k.box(0.03, 0.18 + (i % 4) * 0.08, 0.03, '#5fae6a', Math.cos(a) * d, 0.22, Math.sin(a) * d, { rz: (i % 2 ? 1 : -1) * 0.25 }); }
+      const g = k.build('xenogarden'); const glass = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: '#cfefff', transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0, depthWrite: false })); glass.position.y = 0.22; g.add(glass); return { group: g, height: 1.2 }; }
+    case 'monument': { const k = new Kit(); k.box(1.4, 0.4, 1.4, '#cfd3d8'); k.box(1.5, 0.06, 1.5, A, 0, 0.4, 0); k.cyl(0.2, 0.22, 1.7, 12, P, 0, 0.46, 0); k.cyl(0.0, 0.2, 0.5, 12, A, 0, 2.16, 0); k.cyl(0.205, 0.205, 0.12, 12, A, 0, 1.4, 0);
+      for (let i = 0; i < 4; i++) { const a = (i * Math.PI) / 2; k.box(0.04, 0.42, 0.26, A, Math.cos(a) * 0.24, 0.46, Math.sin(a) * 0.24, { ry: -a }); } k.cyl(0.13, 0.17, 0.18, 10, DARK, 0, 0.46, 0); return { group: k.build('monument'), height: 2.8 }; }
+  }
+  return null; }
 export function buildModel(b: string, L: number, look: Look): Model {
+  const dm = decorModel(b, look); if (dm) return dm;
   switch (b) {
     case 'hq': return hq(L, look); case 'research': return research(L, look); case 'university': return university(L, look); case 'mine': return mine(L, look);
     case 'refinery': return refinery(L, look); case 'office': return office(L, look); case 'solar': return solar(L); case 'fission': return fission(L, look); case 'depot': return depot(L, look);
@@ -378,11 +409,25 @@ export function emblemPath(g: CanvasRenderingContext2D, e: string, r: number) {
   else if (e === 'planet') { g.arc(0, 0, r * 0.6, 0, 7); g.moveTo(r, 0); g.ellipse(0, 0, r, r * 0.28, -0.3, 0, 7); }
   else if (e === 'rocket') { g.moveTo(0, -r); g.quadraticCurveTo(r * 0.45, -r * 0.3, r * 0.3, r * 0.5); g.lineTo(r * 0.6, r); g.lineTo(-r * 0.6, r); g.lineTo(-r * 0.3, r * 0.5); g.quadraticCurveTo(-r * 0.45, -r * 0.3, 0, -r); }
   else if (e === 'bolt') { g.moveTo(r * 0.2, -r); g.lineTo(-r * 0.5, r * 0.1); g.lineTo(0, r * 0.1); g.lineTo(-r * 0.2, r); g.lineTo(r * 0.5, -r * 0.1); g.lineTo(0, -r * 0.1); }
+  else if (e === 'gear') { for (let i = 0; i < 16; i++) { const a = (i * Math.PI) / 8, rr = i % 2 ? r * 0.7 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.moveTo(r * 0.3, 0); g.arc(0, 0, r * 0.3, 0, Math.PI * 2, true); }
+  else if (e === 'crown') { g.moveTo(-r * 0.9, r * 0.7); g.lineTo(-r * 0.95, -r * 0.55); g.lineTo(-r * 0.45, -r * 0.05); g.lineTo(0, -r * 0.8); g.lineTo(r * 0.45, -r * 0.05); g.lineTo(r * 0.95, -r * 0.55); g.lineTo(r * 0.9, r * 0.7); }
+  else if (e === 'atom') { for (let i = 0; i < 3; i++) { const a = (i * Math.PI) / 3; g.moveTo(Math.cos(a) * r, Math.sin(a) * r); g.ellipse(0, 0, r, r * 0.3, a, 0, Math.PI * 2); g.moveTo(Math.cos(a) * r * 0.84, Math.sin(a) * r * 0.84); g.ellipse(0, 0, r * 0.84, r * 0.17, a, 0, Math.PI * 2, true); } g.moveTo(r * 0.22, 0); g.arc(0, 0, r * 0.22, 0, Math.PI * 2); }
+  else if (e === 'leaf') { g.moveTo(-r * 0.75, r * 0.75); g.quadraticCurveTo(-r * 0.9, -r * 0.6, r * 0.8, -r * 0.85); g.quadraticCurveTo(r * 0.7, r * 0.75, -r * 0.6, r * 0.6); g.lineTo(-r * 0.9, r * 0.95); g.lineTo(-r * 0.95, r * 0.88); }
+  else if (e === 'eye') { g.moveTo(-r, 0); g.quadraticCurveTo(0, -r * 0.95, r, 0); g.quadraticCurveTo(0, r * 0.95, -r, 0); g.moveTo(r * 0.42, 0); g.arc(0, 0, r * 0.42, 0, Math.PI * 2, true); g.moveTo(r * 0.2, 0); g.arc(0, 0, r * 0.2, 0, Math.PI * 2); }
+  else if (e === 'chip') { const b = r * 0.62; g.rect(-b, -b, b * 2, b * 2); g.moveTo(-b * 0.5, -b * 0.5); g.lineTo(-b * 0.5, b * 0.5); g.lineTo(b * 0.5, b * 0.5); g.lineTo(b * 0.5, -b * 0.5); g.closePath();
+    for (let i = -1; i <= 1; i++) { const o = i * b * 0.6 - r * 0.07; g.rect(o, -r, r * 0.14, r - b); g.rect(o, b, r * 0.14, r - b); g.rect(-r, o, r - b, r * 0.14); g.rect(b, o, r - b, r * 0.14); } }
+  else if (e === 'gem') { g.moveTo(-r * 0.85, -r * 0.3); g.lineTo(-r * 0.45, -r * 0.78); g.lineTo(r * 0.45, -r * 0.78); g.lineTo(r * 0.85, -r * 0.3); g.lineTo(0, r * 0.92); }
+  else if (e === 'helix') { const w = r * 0.16; for (const sd of [-1, 1]) { g.moveTo(sd * r * 0.5, -r); for (let k = 0; k <= 24; k++) { const t = k / 24, y = -r + t * 2 * r; g.lineTo(sd * Math.cos(t * Math.PI * 2) * r * 0.5 - w / 2, y); } for (let k = 24; k >= 0; k--) { const t = k / 24, y = -r + t * 2 * r; g.lineTo(sd * Math.cos(t * Math.PI * 2) * r * 0.5 + w / 2, y); } g.closePath(); }
+    for (let k = 1; k < 8; k++) { const t = k / 8, y = -r + t * 2 * r, x = Math.abs(Math.cos(t * Math.PI * 2)) * r * 0.5; if (x > w) g.rect(-x, y - w * 0.3, x * 2, w * 0.6); } }
+  else if (e === 'shield') { g.moveTo(0, -r); g.lineTo(r * 0.85, -r * 0.65); g.quadraticCurveTo(r * 0.85, r * 0.5, 0, r); g.quadraticCurveTo(-r * 0.85, r * 0.5, -r * 0.85, -r * 0.65); }
+  else if (e === 'ring') { g.arc(0, 0, r * 0.32, 0, Math.PI * 2); g.moveTo(r * 0.95, 0); g.ellipse(0, 0, r * 0.95, r * 0.95, 0, 0, Math.PI * 2); g.moveTo(r * 0.72, 0); g.ellipse(0, 0, r * 0.72, r * 0.72, 0, 0, Math.PI * 2, true); }
+  else if (e === 'spiral') { for (let arm = 0; arm < 2; arm++) { const pts: [number, number][] = []; for (let k = 0; k <= 30; k++) { const t = k / 30, a = arm * Math.PI + t * Math.PI * 2.2, rr = r * (0.12 + t * 0.88), w = r * 0.16 * (1 - t * 0.7); pts.push([Math.cos(a) * (rr + w), Math.sin(a) * (rr + w)]); } for (let k = 30; k >= 0; k--) { const t = k / 30, a = arm * Math.PI + t * Math.PI * 2.2, rr = r * (0.12 + t * 0.88), w = r * 0.16 * (1 - t * 0.7); pts.push([Math.cos(a) * (rr - w), Math.sin(a) * (rr - w)]); } pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); } g.moveTo(r * 0.2, 0); g.arc(0, 0, r * 0.2, 0, Math.PI * 2); }
   else g.arc(0, 0, r * 0.8, 0, 7);
   g.closePath();
 }
+export const emblemRule = (e: string): CanvasFillRule => (e === 'atom' || e === 'eye' || e === 'chip' || e === 'gear' || e === 'ring' ? 'evenodd' : 'nonzero');
 export function bannerTexture(b: { bg: string; fg: string; emblem: string }) {
   const key = b.bg + b.fg + b.emblem; const hit = texCache.get(key); if (hit) return hit;
-  const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); g.fillStyle = b.fg; g.translate(64, 40); emblemPath(g, b.emblem, 24); g.fill();
+  const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d')!; g.fillStyle = b.bg; g.fillRect(0, 0, 128, 80); g.fillStyle = b.fg; g.translate(64, 40); emblemPath(g, b.emblem, 24); g.fill(emblemRule(b.emblem));
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t); return t;
 }
