@@ -23,7 +23,10 @@ export const unlocked = (s: State) => warroomLvl(s) > 0;
 export function squad(s: State): Fighter[] { const n = squadSize(warroomLvl(s)); return [...RB.rb(s).list].map((r) => ({ sp: r.sp, lvl: r.lvl })).sort((a, b) => botPower(b) - botPower(a)).slice(0, n); }
 export const squadPower = (army: Fighter[]) => army.reduce((a, f) => a + botPower(f), 0);
 // a snapshot of your Earth base for others to attack (robot operators on defences make them stronger)
-export function layoutOf(s: State): Layout { const A = areaOf(hqLevel(s)); return { lo: A.lo, hi: A.hi, items: s.bases.earth.items.filter((i) => i.lvl > 0 && (BUILDINGS[i.b] || {}).cat !== 'decor').map((i) => { const o: LItem = { id: i.id, b: i.b, lvl: i.lvl, x: i.x, z: i.z, r: i.r }; if (DEF[i.b]) { const k = RB.boostOf(s, 'earth', i.id); if (k) o.boost = Math.round(k * 100) / 100; } return o; }) }; }
+export function layoutOf(s: State): Layout { const A = areaOf(hqLevel(s));
+  // the red square always covers every building (a base laid out before the area cap keeps its edge buildings protected)
+  for (const i of s.bases.earth.items) { if (i.lvl <= 0 || (BUILDINGS[i.b] || {}).cat === 'decor') continue; const e = Math.max(...(BUILDINGS[i.b]?.fp || [1, 1])); A.lo = Math.max(1, Math.min(A.lo, i.x, i.z)); A.hi = Math.min(GRID - 1, Math.max(A.hi, i.x + e, i.z + e)); }
+  return { lo: A.lo, hi: A.hi, items: s.bases.earth.items.filter((i) => i.lvl > 0 && (BUILDINGS[i.b] || {}).cat !== 'decor').map((i) => { const o: LItem = { id: i.id, b: i.b, lvl: i.lvl, x: i.x, z: i.z, r: i.r }; if (DEF[i.b]) { const k = RB.boostOf(s, 'earth', i.id); if (k) o.boost = Math.round(k * 100) / 100; } return o; }) }; }
 const areaOf = (hq: number) => { const side = areaSide('earth', hq); const lo = Math.floor((GRID - side) / 2); return { lo, hi: lo + side }; };
 // ---------------- sorties, seasons ----------------
 export function tickWar(s: State, now = Date.now()) { const W = war(s);

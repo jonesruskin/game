@@ -11,7 +11,7 @@ import { Studio } from './render/studio';
 import { UI, costHTML, kReward } from './ui/ui';
 import { Audio } from './audio';
 import { $, fmt, esc, fmtTime } from './core/util';
-import { BUILDINGS } from './data/buildings';
+import { BUILDINGS, areaSide } from './data/buildings';
 import { TECH } from './data/research';
 import { RES } from './data/resources';
 import * as SP from './core/space';
@@ -97,7 +97,7 @@ export class App {
     if (Date.now() > this.saveAt) { this.saveAt = Date.now() + 10000; this.save(); }
   }
   private note(n: G.Note) {
-    if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
+    if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play('done'); const at = this.world.topOf(n.item); if (at) this.world.burst(at, '#ffd36a', 28); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'hq') { this.platform.happytime(); if (areaSide('earth', n.lvl) > areaSide('earth', n.lvl - 1)) this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
     else if (n.kind === 'core') { this.audio.play('claim'); this.ui.toast(`${n.fused ? 'Fusion complete' : 'Core assembled'}: a ${RARITIES[SPECIES[n.sp].rarity].name} core is ready to activate (Robots → Workshop)`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'robots') this.ui.renderOver(); }
     else if (n.kind === 'rocket') { this.audio.play('done'); this.ui.toast(`${esc(n.name)} is assembled and waiting on the pad`, 'good'); this.ui.renderNav(); if (this.ui.over === 'launch') this.ui.renderOver(); }
     else if (n.kind === 'mission') { this.audio.play('levelup'); this.platform.happytime(); if (n.base) { this.ui.renderHud(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">HUMANITY'S FIRST HOME OFF EARTH</div><h1>${esc(this.s.bases[n.base].name)}</h1><p class="desc">Prefabricated habitats, a power plant and a crew of colonists on the Moon. They need housing, water and air: build Ice Mines, a Habitat Dome or an Underground Habitat, and let your robots do the digging.</p><button class="btn gold" data-a="travel" data-k="${n.base}">Go to the Moon</button> <button class="btn" data-a="closeModal">Later</button>`, { rays: true })); } else if (n.first) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">MISSION ACCOMPLISHED</div><h1>${esc(n.name)}</h1>${n.reward ? `<div class="rewards">${costHTML(n.reward)}</div>` : ''}<button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); else this.ui.toast(`${esc(n.name)} complete`, 'good'); }

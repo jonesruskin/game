@@ -300,4 +300,5 @@ Object.assign(BUILDINGS, {
 export const CATS: Record<string, string> = { core: 'Command', production: 'Production', power: 'Power', storage: 'Storage', science: 'Science', spaceflight: 'Spaceflight', defense: 'Defence', robots: 'Robots', decor: 'Decor' };
 // buildable area (grid cells per side) for a command level; the landscape continues beyond it
 export const GRID = 52;
-export const areaSide = (base: string, hq: number) => (base === 'earth' ? Math.min(GRID, 24 + 2 * (hq - 1)) : Math.min(40, 18 + 2 * (hq - 1)));
+// Earth stops growing at 46 cells so War Games always leave a landing strip (about 2.5 cells) round the base
+export const areaSide = (base: string, hq: number) => (base === 'earth' ? Math.min(GRID - 6, 24 + 2 * (hq - 1)) : Math.min(40, 18 + 2 * (hq - 1)));
