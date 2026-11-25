@@ -20,7 +20,7 @@ Each game ships three zips: **crazygames** (CrazyGames SDK v3), **poki** (Poki S
 
 A 3-minute browser battle royale where every knockout drops your victim's abilities as glowing orbs. Grab them to swap into your kit. Grab a duplicate to **upgrade** it (Lv1 → Lv3). Every match your build turns into something new.
 
-- 🎮 **Play locally:** `python3 -m http.server 8080`, then open http://localhost:8080
+- 🎮 **Play locally:** `python3 -m http.server 8080`, then open http://localhost:8080 (Stealstorm). **Helioscend:** http://localhost:8080/starward3d/dist/web/ (start the server in the repo root, the folder that holds this README; on Windows use `py -m http.server 8080`).
 - 📦 **Build portal packages:** `node tools/build.mjs` creates `dist/stealstorm-{crazygames,poki,web}.zip`
 - ⚖️ **Size:** about 75 KB zipped. Zero image or audio files: all art is drawn in code and all sound is synthesized. It loads instantly.
 

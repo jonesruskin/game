@@ -12,7 +12,7 @@ npm install
 npm run dev            # http://localhost:5173 (hot reload)
 npm run build          # type-check + all three targets
 ```
-Or open the prebuilt `dist/web/` through the repo's static server: `python3 -m http.server 8080` from the repo root, then http://localhost:8080/starward3d/dist/web/
+**Just play it (no Node needed):** the ready-to-play build is committed in `dist/web/`. From the repo root (the folder with Stealstorm's `index.html`) run `python3 -m http.server 8080` (Windows: `py -m http.server 8080`), then open http://localhost:8080/starward3d/dist/web/ (http://localhost:8080/ is Stealstorm).
 
 ## Separate builds, one codebase
 | Target | Command | Output | Platform adapter |
