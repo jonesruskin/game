@@ -41,7 +41,7 @@ export function foodState(s: State): Record<string, FoodLine> { const out: Recor
   return out; }
 // the bill for supply runs (credits an hour): 10 per colonist fed, times the distance. A colonist in a dome earns 65-90
 // credits an hour, so living on Earth's food costs a colony a real share of what it makes, at every stage of the game.
-export const unitPrice = (s: State) => 10 * (logistics.level(s) >= 3 ? 0.6 : 1);
+export const unitPrice = (s: State) => 10 * (logistics.level(s) >= 2 ? 0.6 : 1);
 export function importBill(s: State, st = foodState(s)) { const u = unitPrice(s); let c = 0; const by: Record<string, number> = {}; for (const k in st) { const v = st[k].imported * distance(k, s) * u; by[k] = v; c += v; } return { total: c, by }; }
 export function setImports(s: State, base: string, on: boolean) { if (on) delete food(s).noImport[base]; else food(s).noImport[base] = 1; }
 // wiring: life support asks how well fed a colony is; supply runs cost credits every hour

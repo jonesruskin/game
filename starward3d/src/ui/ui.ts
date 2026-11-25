@@ -21,6 +21,7 @@ import { BeyondUI } from './beyond';
 import { LifeUI } from './life';
 import { StyleUI } from './style';
 import * as STY from '../core/style';
+import * as MER from '../core/meridian';
 import { isExo } from '../core/stars';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
@@ -94,6 +95,15 @@ export class UI {
     $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); e.innerHTML = c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'; } });
     const it = G.itemOf(s, s.at, this.sel); const x = it && this.R.item[it.id]; const h = $('#panel #held'); if (h && x && it) { h.textContent = `${fmt(it.held || 0)} / ${fmt(x.hold)}`; const b = $('#panel #heldbar') as HTMLElement; if (b) b.style.width = clamp((it.held || 0) / x.hold) * 100 + '%'; }
     $$('#panel [data-cost]').forEach((e) => { const [r, n] = e.dataset.cost!.split(':'); e.classList.toggle('short', (s.res[r] || 0) < +n); }); }
+  // Meridian carries out orders: queue this building's next upgrade (it starts when a crew and the resources are free)
+  private merUpBtn(id: string) { const s = this.s; if (!MER.level(s)) return ''; const M = MER.mer(s); const mine = M.uq.filter((o) => o.base === s.at && o.id === id).length; const c = MER.canQueueUpgrade(s, s.at, id);
+    return `<div class="row" style="gap:6px;margin-top:6px;align-items:center">${c.ok ? `<button class="btn small" data-a="mQueueU" data-id="${id}">⏳ Queue with Meridian</button>` : ''}<span class="muted" style="font-size:12px">${mine ? `🤖 ${mine} upgrade${mine > 1 ? 's' : ''} queued here · ` : ''}Meridian queue ${M.uq.length}/${MER.capacity(s)}</span></div>`; }
+  // the Meridian card on the research screen: its level and both queues, each order removable
+  private merHTML() { const s = this.s, n = MER.level(s); if (!n) return ''; const M = MER.mer(s);
+    const row = (label: string, kind: 'r' | 'u', i: number) => `<div class="mq"><span class="grow">${i + 1}. ${label}</span><button class="ibtn" style="width:26px;height:26px;font-size:12px" data-a="mUnq" data-k="${kind}" data-i="${i}">✕</button></div>`;
+    const rq = M.rq.map((id, i) => row(esc(TECH[id]?.name || id), 'r', i)).join(''), uq = M.uq.map((o, i) => { const it = G.itemOf(s, o.base, o.id); return row(it ? `${esc(BUILDINGS[it.b].name)}${o.base !== 'earth' ? ` (${esc(s.bases[o.base]?.name || o.base)})` : ''}` : '–', 'u', i); }).join('');
+    return `<div class="box mer"><div class="row"><b class="ox grow">🤖 Meridian · level ${n}</b><span class="muted">${MER.capacity(s)} order${MER.capacity(s) > 1 ? 's' : ''} per queue</span></div><div class="meta">Your programme's AI. It never decides for you: queue research and upgrades and it starts each one the moment a slot, a crew and the resources are free${n >= 2 ? ', and it shares food between your colonies' : ''}.</div>
+      <div class="mqs"><div><div class="tier">RESEARCH QUEUE</div>${rq || '<div class="muted" style="font-size:12px">Empty: tap ⏳ on a technology</div>'}</div><div><div class="tier">UPGRADE QUEUE</div>${uq || '<div class="muted" style="font-size:12px">Empty: tap ⏳ in a building\'s panel</div>'}</div></div></div>`; }
   // an optional rewarded ad takes 30 minutes off a running timer (portal builds that report ads; a few a day)
   adBtn(j: { id: string; end: number }) { const s = this.s as any; if (!this.app.platform.adsAvailable || j.end - Date.now() < 120e3) return ''; const today = new Date().toDateString(); const A = s.adSkips && s.adSkips.d === today ? s.adSkips : { d: today, n: 0 }; if (A.n >= AD_SKIPS) return '';
     return `<button class="btn small" data-a="adSkip" data-job="${j.id}" title="${AD_SKIPS - A.n} left today">▶ Ad: −30 min</button>`; }
@@ -107,11 +117,12 @@ export class UI {
     if (it.b === 'terraformer') h += this.solar.terraHTML(s.at);
     if (it.b === 'warroom' && it.lvl > 0) h += '<button class="btn gold" style="width:100%;margin-bottom:8px" data-a="war">⚔ Open the War Games</button>';
     h += this.statsHTML(it.b, Math.max(1, it.lvl), m, !job && it.lvl < d.max); h += this.robots.panelHTML(s.at, it.id);
+    if (job && !BUILDINGS[it.b].instant) h += this.merUpBtn(it.id);
     if (!job && it.lvl > 0) { const c = G.canUpgrade(s, s.at, it.id);
       if (c.max) h += '<p class="good ox">Maximum level reached.</p>';
       else { const cost = G.costOf(it.b, it.lvl + 1, m); h += `<div class="box"><div class="row"><b class="grow ox">Upgrade to level ${it.lvl + 1}</b><span class="muted">${BUILDINGS[it.b].instant ? '⚡ instant' : '⏱ ' + fmtTime(G.timeOf(it.b, it.lvl + 1, m))}</span></div><div style="margin:6px 0">${this.costLive(cost)}</div>`;
         if (c.reqs && c.reqs.length) h += `<ul class="reqs">${c.reqs.map(([b, n]: [string, number]) => `<li>${esc(BUILDINGS[b].name)} level ${n}</li>`).join('')}</ul>`;
-        h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}`;
+        h += `<button class="btn ${c.ok ? 'gold' : ''}" style="width:100%" data-a="upgrade" data-id="${it.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>⬆ Upgrade</button>${c.ok ? '' : `<p class="why">${esc(c.why || '')}</p>`}`; if (!c.ok && !BUILDINGS[it.b].instant) h += this.merUpBtn(it.id);
         if (BUILDINGS[it.b].instant) { const same = s.bases[s.at].items.filter((i) => i.b === it.b && i.lvl === it.lvl).length; if (same > 1) h += `<button class="btn" style="width:100%;margin-top:6px" data-a="upgradeAll" data-b="${it.b}" data-l="${it.lvl}">⬆ Upgrade all ${same} level-${it.lvl} ${esc(BUILDINGS[it.b].name.toLowerCase())}s (${fmt(cost.credits * same)} ¢)</button>`; }
         h += '</div>'; } }
     if (it.b === 'research') h += '<button class="btn" style="width:100%" data-a="research">🔬 Open research</button>';
@@ -166,13 +177,14 @@ export class UI {
     list.sort((a, b) => TECH[a].tier - TECH[b].tier || (TECH[a].hq || 0) - (TECH[b].hq || 0));
     const now = busy.map((j) => { const t = TECH[j.tech!]; const c = G.dmCost((j.end - Date.now()) / 1000); return `<div class="now"><div class="grow"><div class="tier">RESEARCHING</div><b class="ox" style="font-size:16px">${esc(t.name)}</b><div class="bar gold" style="margin-top:6px"><i style="width:${clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100}%"></i></div></div><div style="text-align:right"><b class="ox">${fmtTime((j.end - Date.now()) / 1000)}</b><br><button class="btn gold small" data-a="finish" data-job="${j.id}">${c ? `${icon('dm')}${c}` : 'Finish'}</button>${this.adBtn(j)}</div></div>`; }).join('');
     return `<div class="head"><h1>Research</h1><span class="chip">🔬 ${G.slotsBusy(s)}/${G.slotsTotal(s, this.R.m)} slots</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${k === this.rtab ? 'on' : ''}" data-a="rtab" data-t="${k}">${esc(n)}</button>`).join('')}</div>
-      <div class="body">${now}<div class="techs">${list.map((id) => this.techCard(id)).join('') || '<p class="muted">Nothing here yet.</p>'}</div></div>`;
+      <div class="body">${now}${this.merHTML()}<div class="techs">${list.map((id) => this.techCard(id)).join('') || '<p class="muted">Nothing here yet.</p>'}</div></div>`;
   }
+  private merResBtn(id: string, startable: boolean) { const s = this.s; if (!MER.level(s)) return ''; if (MER.mer(s).rq.includes(id)) return ` <span class="tag">⏳ QUEUED #${MER.mer(s).rq.indexOf(id) + 1}</span>`; if (startable) return ''; const c = MER.canQueueResearch(s, id); return c.ok ? ` <button class="btn small" data-a="mQueueR" data-t="${id}" title="Meridian starts it when it can">⏳ Queue</button>` : ''; }
   private techCard(id: string) {
     const s = this.s, t = TECH[id], c = G.canResearch(s, id); const done = !!s.tech[id], busy = s.jobs.some((j) => j.kind === 'research' && j.tech === id); const cost = techCost(t);
     const cls = done ? 'done' : busy ? 'busy' : c.locked ? 'locked' : c.ok ? 'ready' : ''; const time = c.time || G.researchTimeOf(id, this.R);
     return `<div class="tech ${cls}" style="--bc:${BRANCHES[t.branch]?.color}"><div class="row"><span class="tier grow">${esc(BRANCHES[t.branch]?.name || '')} · TIER ${t.tier}${t.hq ? ` · MC ${t.hq}` : ''}</span>${done ? '<span class="good">✓</span>' : ''}</div><b>${esc(t.name)}</b><p class="desc">${esc(t.desc)}</p>${t.unlocks ? `<div class="unl">Unlocks: ${esc(t.unlocks)}</div>` : ''}
-      ${done ? '' : busy ? '<div class="warn ox">In progress</div>' : `<div class="row"><span class="grow">${this.costLive(cost)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(time)}</span></div><button class="btn small ${c.ok ? 'gold' : ''}" data-a="study" data-t="${id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Research' : esc(c.why || '')}</button>`}</div>`;
+      ${done ? '' : busy ? '<div class="warn ox">In progress</div>' : `<div class="row"><span class="grow">${this.costLive(cost)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(time)}</span></div><button class="btn small ${c.ok ? 'gold' : ''}" data-a="study" data-t="${id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Research' : esc(c.why || '')}</button>${this.merResBtn(id, c.ok)}`}</div>`;
   }
   private goalsHTML() {
     const s = this.s; const cur = G.currentStep(s); let h = `<div class="head"><h1>Goals</h1><span class="chip">${G.stepIndex(s)}/${G.stepCount()} complete</span><button class="ibtn" data-a="close">✕</button></div><div class="body" style="max-width:760px;margin:0 auto;width:100%">`;
@@ -220,6 +232,9 @@ export class UI {
       case 'collect': if (it) A.collect(it.id); break;
       case 'upgrade': if (it) { const r = G.startUpgrade(s, s.at, it.id); if (r.ok) { A.audio.play('build'); A.changed(); this.renderPanel(); } else this.deny(r.why); } break;
       case 'upgradeAll': { const n = G.upgradeAllOf(s, s.at, t.dataset.b!, +t.dataset.l!); if (n) { A.audio.play('build'); this.toast(`${n} ${esc(BUILDINGS[t.dataset.b!].name.toLowerCase())}${n > 1 ? 's' : ''} upgraded`, 'good'); A.changed(); this.renderPanel(); } else this.deny('Not enough resources'); break; }
+      case 'mQueueR': { const r = MER.queueResearch(s, t.dataset.t!); if (r.ok) { A.audio.play('tap'); this.toast('Queued with Meridian', 'good'); A.changed(); this.renderOver(); } else this.deny(r.why); break; }
+      case 'mQueueU': { const r = MER.queueUpgrade(s, s.at, t.dataset.id!); if (r.ok) { A.audio.play('tap'); this.toast('Queued with Meridian', 'good'); A.changed(); this.renderPanel(); } else this.deny(r.why); break; }
+      case 'mUnq': { MER.unqueue(s, t.dataset.k as 'r' | 'u', +t.dataset.i!); A.audio.play('tap'); A.changed(); if (this.over) this.renderOver(); this.renderPanel(); break; }
       case 'adSkip': { const id = t.dataset.job!; A.platform.rewarded().then((ok) => { if (!ok) return; const st = s as any, today = new Date().toDateString(); if (!st.adSkips || st.adSkips.d !== today) st.adSkips = { d: today, n: 0 }; st.adSkips.n++; const j = s.jobs.find((x) => x.id === id); if (j) { j.end -= 1800e3; j.start -= 1800e3; } A.audio.play('claim'); this.toast('30 minutes skipped', 'good'); A.tickNow(); this.renderPanel(); if (this.over) this.renderOver(); }); break; }
       case 'finish': { const r = G.speedup(s, t.dataset.job!); if (r.ok) { A.audio.play('done'); A.tickNow(); this.renderOver(); } else this.deny((r as any).why); break; }
       case 'cancel': if (G.cancel(s, t.dataset.job!)) { A.audio.play('tap'); this.toast('Cancelled: half the cost refunded'); A.changed(); if (this.sel && !G.itemOf(s, s.at, this.sel)) this.select(null); } break;
