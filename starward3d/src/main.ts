@@ -38,6 +38,7 @@ import { Battle, deployLive, surrender, resultOf, canDeployAt, BattleInput } fro
 import { SPECIES } from './data/species';
 import { RARITIES } from './data/rarities';
 import type { Design } from './data/rockets';
+const SOUND_OF: Record<string, 'mine' | 'refinery' | 'traffic' | 'power'> = { mine: 'mine', regolith: 'mine', ice: 'mine', he3x: 'mine', refinery: 'refinery', methane: 'refinery', skimmer: 'refinery', cellplant: 'refinery', antimatter: 'refinery', depot: 'traffic', launch: 'traffic', vab: 'traffic', hub: 'traffic', elevator: 'traffic', solar: 'power', fission: 'power', lsolar: 'power', reactor: 'power', fusion: 'power', casimir: 'power' };
 export class App {
   version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
   private last = performance.now(); private acc = 0; private saveAt = 0; private queue: (() => void)[] = []; private placing: { b: string; move?: string } | null = null;
@@ -89,6 +90,7 @@ export class App {
   private tick() {
     const notes = this.batchLand(G.advance(this.s, Date.now())); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
+    if (this.ui.tick % 2 === 0) this.soundscape();
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
     DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
@@ -106,6 +108,15 @@ export class App {
     if (k >= 3 && !BY.bey(this.s).typeIII) { BY.bey(this.s).typeIII = Date.now(); this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV TYPE III</div><h1>A galactic civilisation</h1><p class="desc">From one launch pad on Earth to the power of a galaxy: ${k.toFixed(2)} on the Kardashev scale. Every star the relays reach answers to the people you sent out from the domes and the tunnels, the robots that built them and the friends you made in the dark.</p><p class="desc good">Nobody in the Local Group has done this in a million years.</p><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
     if (Date.now() > this.saveAt) { this.saveAt = Date.now() + 10000; this.save(); }
   }
+  // what you hear: the score follows where you are, the world has its weather, and the base sounds like it is working
+  private soundscape() { const W = this.world, s = this.s, A = this.audio; const m = W.mode; A.setMood(m === 'battle' || m === 'space' ? 'battle' : m === 'base' ? 'base' : 'space');
+    if (m !== 'base') { A.setAmbient('map', 0); A.setSite({ build: 0, mine: 0, refinery: 0, traffic: 0, power: 0 }); return; }
+    const B = s.bases[s.at]; if (!B) return; A.setAmbient(B.body, LD.stormAt(s, s.at) ? 1 : 0);
+    const cam = W.cam, R = Math.max(6, cam.dist * 0.45), near = Math.min(1.2, 34 / Math.max(10, cam.dist)), o = { build: 0, mine: 0, refinery: 0, traffic: 0, power: 0 };
+    const building = new Set(s.jobs.filter((j) => j.kind === 'build' && (j.base || 'earth') === s.at).map((j) => j.item)); const on = this.R.eff > 0.5;
+    for (const it of B.items) { const d = Math.hypot(it.x - GRID / 2 - cam.tx, it.z - GRID / 2 - cam.tz); const w = near / (1 + (d / R) * (d / R)); if (w < 0.02) continue;
+      if (building.has(it.id)) o.build += w * 0.9; if (!it.lvl || !on) continue; const k = SOUND_OF[it.b]; if (k) o[k] += w * (0.45 + Math.min(0.4, it.lvl * 0.03)); }
+    for (const k of Object.keys(o) as (keyof typeof o)[]) o[k] = Math.min(1, o[k]); A.setSite(o); }
   // many surveys finishing at once (back from a break): one summary instead of a stack of toasts
   private batchLand(notes: G.Note[]) { const P = notes.filter((n) => n.kind === 'prospect'); if (P.length < 3) return notes; const found = new Set<string>(); for (const n of P) for (const t of n.found) found.add(t); const mets = P.filter((n) => n.meteor).length; if (mets) this.ui.toast(`☄ ${mets} meteorite${mets > 1 ? 's' : ''} recovered`, 'gold');
     this.ui.toast(`${P.length} surveys complete${found.size ? `: ${[...found].map((t) => esc(DEPOSITS[t].name)).join(', ')} found` : ': nothing below the surface'}`, found.size ? 'gold' : 'good'); this.audio.play('done'); this.world.sync(this.s); return notes.filter((n) => n.kind !== 'prospect'); }
