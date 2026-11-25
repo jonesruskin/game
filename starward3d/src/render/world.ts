@@ -86,9 +86,13 @@ export class World {
   private input() {
     const el = this.canvas; const pts = new Map<number, { x: number; y: number; sx: number; sy: number }>(); let moved = false, start = 0, last: { d: number; a: number } | null = null; let ghostDrag = false;
     const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x) }; };
-    el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
+    // a press whose release never arrived (let go outside the frame, the window lost focus) must not linger: a stale
+    // pointer turns every later drag into a two-finger pinch and the camera seems stuck
+    const drop = (id: number) => { pts.delete(id); if (pts.size < 2) last = null; }; const reset = () => { pts.clear(); last = null; ghostDrag = false; };
+    el.addEventListener('lostpointercapture', (e) => drop(e.pointerId)); window.addEventListener('blur', reset); document.addEventListener('visibilitychange', reset); window.addEventListener('pointerup', (e) => { if (e.target !== el) drop(e.pointerId); });
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') { for (const id of [...pts.keys()]) if (id !== e.pointerId) pts.delete(id); } else if (pts.size >= 2) pts.clear(); try { el.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
       ghostDrag = false; if (this.ghost && pts.size === 1) { const g = this.groundAt(e.clientX, e.clientY); if (g) { const [w, d] = G.dims(this.ghost.b, this.ghost.r); const gx = this.ghost.x - C, gz = this.ghost.z - C; if (g.x >= gx - 0.6 && g.x <= gx + w + 0.6 && g.z >= gz - 0.6 && g.z <= gz + d + 0.6) ghostDrag = true; } } });
-    el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; if (e.pointerType === 'mouse' && e.buttons === 0) { drop(e.pointerId); return; } /* the button came up somewhere we never heard about */ const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
       if (Math.hypot(p.x - p.sx, p.y - p.sy) > 7) moved = true; if (!moved) return;
       if (this.mode === 'galaxy' && this.galaxy) { if (pts.size === 1) this.galaxy.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.galaxy.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (this.mode === 'space' && this.space) { if (pts.size === 1) this.space.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.space.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
@@ -101,7 +105,7 @@ export class World {
         this.cam.tx -= (dx * cy + dy * sy * 1.3) * s; this.cam.tz -= (-dx * sy + dy * cy * 1.3) * s; this.clampCam(); }
       else if (pts.size === 2 && last) { const n = two(); this.cam.tdist *= last.d / Math.max(1, n.d); this.cam.tyaw -= n.a - last.a; last = n; this.clampCam(); } });
     const up = (e: PointerEvent) => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) last = null; if (!p || moved || e.button === 2) return; if (performance.now() - start > 600) return; this.tap(e.clientX, e.clientY); };
-    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => pts.delete(e.pointerId)); el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => drop(e.pointerId)); el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'system' && this.system) { this.system.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'battle' && this.battle) { this.battle.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'stars' && this.starMap) { this.starMap.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'space' && this.space) { this.space.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'galaxy' && this.galaxy) { this.galaxy.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
     window.addEventListener('keydown', (e) => { if ((e.target as HTMLElement).tagName === 'INPUT') return; if (e.key === 'q' || e.key === 'Q') this.cam.tyaw += Math.PI / 4; if (e.key === 'e' || e.key === 'E') this.cam.tyaw -= Math.PI / 4; });
   }

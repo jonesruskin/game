@@ -126,7 +126,8 @@ export function advance(s: State, t = Date.now()): Note[] {
   s.last = t; return out;
 }
 // dark-matter price of skipping the remaining time (finishing is free in the last minute)
-export const dmCost = (sec: number) => (sec <= 60 ? 0 : Math.ceil(1.2 * Math.pow(sec / 60, 0.72)));
+// finishing early costs dark matter; only the last few seconds are free, so timers (and coming back) mean something
+export const dmCost = (sec: number) => (sec <= 10 ? 0 : Math.max(1, Math.ceil(2 * Math.pow(sec / 60, 0.8))));
 export function speedup(s: State, jobId: string, t = Date.now()) { const j = s.jobs.find((x) => x.id === jobId); if (!j) return { ok: false, why: 'Gone' }; const c = dmCost((j.end - t) / 1000);
   if ((s.res.dm || 0) < c) return { ok: false, why: 'Not enough dark matter', need: c }; s.res.dm -= c; s.stats.dmSpent += c; j.end = t; return { ok: true, spent: c }; }
 export function skip(s: State, jobId: string, sec: number, t = Date.now()) { const j = s.jobs.find((x) => x.id === jobId); if (!j) return false; j.end = Math.max(t, j.end - sec * 1000); return true; }
