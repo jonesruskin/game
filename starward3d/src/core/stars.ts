@@ -10,6 +10,7 @@ import { completers, stepChecks, Check, Note } from './game';
 import { State, uid, Item } from './state';
 import { round2, ladder, curve } from './util';
 import { yardLevel, airHooks } from './solar';
+import * as F from './fund';
 export interface StarColony { star: string; p: number; lvl: number; spec: string; t: number; }
 export interface Interstellar { surveyed: Record<string, number>; colonies: Record<string, StarColony>; ships: Record<string, number>; mega: Record<string, number>; gates: Record<string, number>; story: Record<string, number>; }
 export const ist = (s: State): Interstellar => { const a = s as any; return a.stars || (a.stars = { surveyed: {}, colonies: {}, ships: {}, mega: {}, gates: {}, story: {} }); };
@@ -91,8 +92,8 @@ export function foundExoBase(s: State, key: string) { if (s.bases[key]) return; 
 export const megaCost = (id: string, stage: number) => { const d = MEGA[id]; const o: Record<string, number> = {}; for (const r in d.cost) o[r] = round2(d.cost[r] * Math.pow(d.growth, stage)); return d.fund ? o : fitMax(o); };
 export const megaTime = (id: string, stage: number) => Math.round(MEGA[id].days * 86400 * (1 + stage * 0.12));
 export function canMega(s: State, id: string): Check { const d = MEGA[id]; const n = megaStage(s, id); if (n >= d.stages) return { ok: false, why: 'Complete', done: true }; if (!s.tech[d.req]) return { ok: false, why: 'Research required', locked: true, tech: d.req };
-  if (s.jobs.some((j) => j.kind === 'mega' && j.mega === id)) return { ok: false, why: 'A stage is under construction', busy: true }; const cost = megaCost(id, n); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: megaTime(id, n) }; }
-export function startMega(s: State, id: string, t = Date.now()) { const c = canMega(s, id); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'mega', mega: id, stage: megaStage(s, id), start: t, end: t + c.time! * 1000 }); return c; }
+  if (s.jobs.some((j) => j.kind === 'mega' && j.mega === id)) return { ok: false, why: 'A stage is under construction', busy: true }; const cost = megaCost(id, n); if (d.fund) { if (!F.funded(s, 'mega:' + id, cost)) return { ok: false, why: 'Fund this stage first', fund: true, cost }; } else if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: megaTime(id, n) }; }
+export function startMega(s: State, id: string, t = Date.now()) { const c = canMega(s, id); if (!c.ok) return c; const n0 = megaStage(s, id); if (MEGA[id].fund) F.settle(s, 'mega:' + id, c.cost!, n0 + 1 < MEGA[id].stages ? { cost: megaCost(id, n0 + 1) } : null); else pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'mega', mega: id, stage: megaStage(s, id), start: t, end: t + c.time! * 1000 }); return c; }
 export const gateCost = () => ({ credits: 6e7, exotic: 500 });
 export function canGate(s: State, star: string): Check { if (!megaStage(s, 'gate')) return { ok: false, why: 'Build the Sol Wormhole Gate first (select the Sun)', locked: true }; if (ist(s).gates[star]) return { ok: false, why: 'Gate open', done: true };
   if (!Object.values(ist(s).colonies).some((C) => C.star === star)) return { ok: false, why: 'Settle the system first' }; if (s.jobs.some((j) => j.kind === 'gatebuild' && j.star === star)) return { ok: false, why: 'Under construction', busy: true };

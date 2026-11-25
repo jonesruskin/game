@@ -62,10 +62,12 @@ export function rates(s: State, m = mods(s)): Rates {
   return R;
 }
 // advance the stockpile and the collectors by dt seconds at fixed rates (never pushes above cap; never removes overflow)
+// production that full storage cannot hold (the funding pools of the endgame catch it)
+export const spillHooks: ((s: State, r: string, n: number) => void)[] = [];
 export function accrue(s: State, R: Rates, dt: number) {
   if (dt <= 0) return;
   for (const bid in R.col) { const c = R.col[bid], B = s.bases[bid]; if (!B) continue; const pop = B.pop || 0; if (pop < c.house) B.pop = Math.min(c.house, pop + (c.grow * dt) / 3600); }
-  for (const r in R.prod) { const add = (R.prod[r] * dt) / 3600; if (!add) continue; const cur = s.res[r] || 0; const cap = R.cap[r]; if (add > 0 && cur >= cap) continue; const lim = Math.max(cap, cur); s.res[r] = Math.max(0, Math.min(lim, cur + add)); }
+  for (const r in R.prod) { const add = (R.prod[r] * dt) / 3600; if (!add) continue; const cur = s.res[r] || 0; const cap = R.cap[r]; if (add > 0 && cur >= cap) { if (spillHooks.length) for (const h of spillHooks) h(s, r, add); continue; } const lim = Math.max(cap, cur); const next = Math.max(0, Math.min(lim, cur + add)); if (add > 0 && cur + add > lim && spillHooks.length) for (const h of spillHooks) h(s, r, cur + add - lim); s.res[r] = next; }
   for (const bid in s.bases) for (const it of s.bases[bid].items) { const x = R.item[it.id]; if (!x) continue; it.held = Math.min(x.hold, (it.held || 0) + (x.rate * dt) / 3600); }
 }
 export const canPay = (s: State, cost: Record<string, number>) => Object.entries(cost).every(([r, n]) => (s.res[r] || 0) >= n);

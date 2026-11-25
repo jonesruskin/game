@@ -22,6 +22,7 @@ import * as WG from './core/war';
 import * as STR from './core/stars';
 import * as AL from './core/aliens';
 import * as CF from './core/conflict';
+import * as BY from './core/beyond';
 import * as NET from './core/net';
 import { Battle, deployLive, surrender, resultOf, canDeployAt, BattleInput } from './core/battle';
 import { SPECIES } from './data/species';
@@ -42,7 +43,7 @@ export class App {
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); else this.tickNow(); }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF;
+    (window as any).__app = this; (window as any).__G = G; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
@@ -74,6 +75,8 @@ export class App {
     // Kardashev milestones pay out dark matter as the civilisation's power grows
     const k = kardashev(this.s, this.R); const m = K_MILESTONES.find((x) => x > (this.s.kMax || 0) && k >= x);
     if (m) { this.s.kMax = m; const dm = kReward(m); this.s.res.dm = (this.s.res.dm || 0) + dm; this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV MILESTONE</div><div class="big">${m.toFixed(2)}</div><p class="desc">Your civilisation now commands more power than ever. Reward:</p><div class="rewards">${costHTML({ dm })}</div><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
+    // Type III: a civilisation that commands the power of a galaxy (once, ever, per programme)
+    if (k >= 3 && !BY.bey(this.s).typeIII) { BY.bey(this.s).typeIII = Date.now(); this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">KARDASHEV TYPE III</div><h1>A galactic civilisation</h1><p class="desc">From one launch pad on Earth to the power of a galaxy: ${k.toFixed(2)} on the Kardashev scale. Every star the relays reach answers to the people you sent out from the domes and the tunnels, the robots that built them and the friends you made in the dark.</p><p class="desc good">Nobody in the Local Group has done this in a million years.</p><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
     if (Date.now() > this.saveAt) { this.saveAt = Date.now() + 10000; this.save(); }
   }
   private note(n: G.Note) {
@@ -86,6 +89,8 @@ export class App {
     else if (n.kind === 'survey') { this.audio.play('levelup'); this.ui.toast(`Survey complete: ${esc(SO.BODIES[n.body].name)} is mapped`, 'gold'); }
     else if (n.kind === 'terra') { this.audio.play('levelup'); this.platform.happytime(); const T = SO.TERRA[n.body], st = T.stages[n.stage]; if (this.s.at === n.body && this.world.mode === 'base') { this.world.setWorld(this.s, n.body); this.world.sync(this.s); }
       this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${esc(SO.BODIES[n.body].name.toUpperCase())} · STAGE ${n.stage + 1} OF ${T.stages.length}</div><h1>${esc(st.name)}</h1><p class="desc">${esc(st.desc)}</p>${n.last ? '<p class="desc good">Terraforming is complete. A new living world.</p>' : ''}${this.s.at !== n.body ? `<button class="btn gold" data-a="travel" data-k="${n.body}">See it</button> ` : ''}<button class="btn" data-a="closeModal">${this.s.at === n.body ? 'Look around' : 'Later'}</button>`, { rays: true })); this.ui.renderHud(); }
+    else if (n.kind === 'hrelay') { this.audio.play('levelup'); this.ui.toast(`A Hollow relay wakes: the network reaches ${n.stage} galax${n.stage === 1 ? 'y' : 'ies'}`, 'gold'); }
+    else if (n.kind === 'expedition') { const E = BY.EXPEDITIONS[n.gal]; this.audio.play('levelup'); this.platform.happytime(); this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${esc(BY.GALAXIES[n.gal].name.toUpperCase())}</div><h1>${esc(E.name)}</h1><p class="desc">${esc(E.story)}</p><p class="desc good">${esc(E.perkText)}, for ever.</p><button class="btn gold" data-a="closeModal">Onward</button>`, { rays: true })); }
     else if (n.kind === 'request') { const d = AL.allSpecies()[n.sp]; this.audio.play('claim'); this.ui.toast(`${esc(d.name)} has a request (Contact)`, 'gold'); }
     else if (n.kind === 'reqExpired') { this.ui.toast(`A request from ${esc(AL.allSpecies()[n.sp].name)} went unanswered`, 'bad'); }
     else if (n.kind === 'decipher') { this.audio.play('levelup'); this.ui.toast(`${esc(AL.allSpecies()[n.sp].name)}: language ${n.und}% understood`, 'gold'); }
@@ -113,9 +118,12 @@ export class App {
   // the next rocket in the hangar stands on the pad
   private syncPad() { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch' && i.lvl > 0); const S = SP.sp(this.s); const id = Object.keys(S.hangar).find((k) => S.hangar[k] > 0); const d = id ? SP.designOf(this.s, id) : null; this.world.setPadRocket(this.s.at === 'earth' && !this.s.jobs.some((j) => j.kind === 'mission' && Date.now() - j.start < 12000) ? d : null, pad ? pad.id : null); }
   launched(d: Design) { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch'); if (this.world.mode !== 'base') this.toBase(); if (pad && this.s.at === 'earth') this.world.launchFx(d, pad.id); this.audio.play('launch'); this.ui.toast(`Liftoff! ${esc(d.name)} is on its way`, 'gold'); this.changed(); this.ui.renderNav(); }
-  openMap() { this.ui.select(null); this.ui.stars.clearLabels(); this.world.openSystem(); document.body.classList.add('mapping'); this.ui.solar.sel = this.ui.solar.sel || null; this.ui.renderNav(); this.ui.renderPanel(); this.world.onPick = (b) => { this.ui.solar.sel = b; this.ui.solar.fleet = false; this.world.mapSel = b; if (b) this.world.system?.setFocus(b); this.ui.renderPanel(); if (b) this.audio.play('tap'); }; }
-  openStars() { this.ui.select(null); this.ui.solar.clearLabels(); const M = this.world.openStars(); document.body.classList.add('mapping'); this.world.onStarPick = (id) => { this.ui.stars.sel = id; M.setFocus(id); this.ui.renderPanel(); if (id) this.audio.play('tap'); }; this.ui.renderNav(); this.ui.renderPanel(); }
-  toBase() { this.world.closeOrbit(); document.body.classList.remove('orbiting', 'mapping'); this.ui.solar.clearLabels(); this.ui.stars.clearLabels(); this.ui.renderNav(); this.ui.renderPanel(); }
+  openMap() { this.ui.select(null); this.ui.stars.clearLabels(); this.ui.beyond.clearLabels(); this.world.openSystem(); document.body.classList.add('mapping'); this.ui.solar.sel = this.ui.solar.sel || null; this.ui.renderNav(); this.ui.renderPanel(); this.world.onPick = (b) => { this.ui.solar.sel = b; this.ui.solar.fleet = false; this.world.mapSel = b; if (b) this.world.system?.setFocus(b); this.ui.renderPanel(); if (b) this.audio.play('tap'); }; }
+  openGalaxy() { this.ui.select(null); this.ui.stars.clearLabels(); this.ui.solar.clearLabels(); const G = this.world.openGalaxy(); document.body.classList.add('mapping'); this.world.onGalaxyPick = (id) => { this.ui.beyond.sel = id; G.setFocus(id); this.ui.renderPanel(); if (id) this.audio.play('tap'); }; this.ui.renderNav(); this.ui.renderPanel(); }
+  megaCost(id: string, n: number) { return STR.megaCost(id, n); }
+  ascendNow() { const n = BY.ascend(this.s); if (!n) return; this.s = n as any; this.save(); location.reload(); }
+  openStars() { this.ui.select(null); this.ui.solar.clearLabels(); this.ui.beyond.clearLabels(); const M = this.world.openStars(); document.body.classList.add('mapping'); this.world.onStarPick = (id) => { this.ui.stars.sel = id; M.setFocus(id); this.ui.renderPanel(); if (id) this.audio.play('tap'); }; this.ui.renderNav(); this.ui.renderPanel(); }
+  toBase() { this.world.closeOrbit(); document.body.classList.remove('orbiting', 'mapping'); this.ui.solar.clearLabels(); this.ui.stars.clearLabels(); this.ui.beyond.clearLabels(); this.ui.renderNav(); this.ui.renderPanel(); }
   travel(base: string) { if (!this.s.bases[base]) return; this.toBase(); this.ui.select(null); this.s.at = base; this.world.setWorld(this.s, base); this.world.sync(this.s); const A = G.area(this.s, base); const c = (A.lo + A.hi) / 2 - 26; this.world.cam.x = this.world.cam.tx = c; this.world.cam.z = this.world.cam.tz = c + 2; this.world.cam.dist = this.world.cam.tdist = 26 + A.side * 0.6; this.audio.play('whoosh'); this.ui.renderHud(); this.changed(); }
   openOrbit(f: 'earth' | 'station') { this.ui.select(null); this.world.openOrbit(SP.sp(this.s)); this.world.orbit!.setFocus(f); document.body.classList.add('orbiting'); this.ui.renderNav(); }
   closeOrbit() { this.world.closeOrbit(); document.body.classList.remove('orbiting'); this.ui.renderNav(); }

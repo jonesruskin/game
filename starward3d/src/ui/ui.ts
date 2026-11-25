@@ -17,6 +17,7 @@ import { WarUI } from './war';
 import { StarsUI } from './stars';
 import { ContactUI } from './contact';
 import { FleetUI } from './fleet';
+import { BeyondUI } from './beyond';
 import { isExo } from '../core/stars';
 import * as RB from '../core/robots';
 import * as SP from '../core/space';
@@ -24,10 +25,10 @@ const HUD_RES = ['credits', 'metal', 'fuel', 'science'];
 export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.color || '#fff'}">${RES[r]?.icon || ''}</span>`;
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 export class UI {
-  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI;
+  sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' | 'ascension' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI; beyond: BeyondUI;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
-    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this);
+    this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this); this.beyond = new BeyondUI(this);
     document.addEventListener('click', (e) => { const t = (e.target as HTMLElement).closest('[data-a]') as HTMLElement | null; if (t) { e.stopPropagation(); this.act(t.dataset.a!, t); } });
     document.addEventListener('change', (e) => { const t = e.target as HTMLInputElement; if (t.id === 'aname') { const v = t.value.trim().slice(0, 24); if (v) { this.s.name = v; this.s.bases.earth.name = v; this.app.changed(); this.renderHud(); } } if (t.dataset.set) this.app.setSetting(t.dataset.set, t.type === 'range' ? +t.value : t.value); });
   }
@@ -53,7 +54,8 @@ export class UI {
   // ---------------- navigation ----------------
   renderNav() {
     const r = this.s.jobs.some((j) => j.kind === 'research') ? '' : (Object.keys(TECH).some((id) => G.canResearch(this.s, id).ok) ? '<span class="rdot"></span>' : '');
-    const s = this.s, S = SP.sp(s); if (this.app.world && this.app.world.mode === 'stars') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="map"><span class="g">🪐</span>Solar System</button><button data-a="starPick" data-b="sol"><span class="g">☀</span>Sol</button><button data-a="empire"><span class="g">👑</span>Empire</button>`; return; }
+    const s = this.s, S = SP.sp(s); if (this.app.world && this.app.world.mode === 'galaxy') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="starsOpen"><span class="g">✨</span>Stars</button><button data-a="empire"><span class="g">👑</span>Empire</button>${this.beyond && s.flags.ascendant ? '<button data-a="ascendOpen"><span class="g">♾</span>Ascension</button>' : ''}`; return; }
+    if (this.app.world && this.app.world.mode === 'stars') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="map"><span class="g">🪐</span>Solar System</button><button data-a="starPick" data-b="sol"><span class="g">☀</span>Sol</button>${this.beyond && this.beyond.available() ? '<button data-a="galaxyOpen"><span class="g">🌌</span>Beyond</button>' : '<button data-a="empire"><span class="g">👑</span>Empire</button>'}`; return; }
     if (this.app.world && this.app.world.mode === 'system') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="fleet"><span class="g">🛸</span>Fleet</button>${this.stars.starsOpen() ? '<button data-a="starsOpen"><span class="g">✨</span>Stars</button>' : '<button data-a="launchctl"><span class="g">🚀</span>Launch</button>'}<button data-a="empire"><span class="g">👑</span>Empire</button>`; return; }
     if (this.app.world && this.app.world.mode === 'orbit') { $('#nav').innerHTML = `<button data-a="base"><span class="g">🏠</span>Base</button><button data-a="orbitFocus" data-f="earth"><span class="g">🌍</span>Earth</button>${S.modules.core ? '<button data-a="orbitFocus" data-f="station"><span class="g">🛰</span>Station</button>' : ''}<button data-a="launchctl"><span class="g">🚀</span>Launch</button>`; return; }
     const pad = G.lvlOf(s, 'earth', 'launch') > 0; const ready = Object.values(S.hangar).some((n) => n > 0) && s.jobs.every((j) => j.kind !== 'mission');
@@ -68,7 +70,7 @@ export class UI {
   private hint(st: any) { if (st.kind === 'build' || st.kind === 'hq') { const b = st.kind === 'hq' ? 'hq' : st.b; const it = this.s.bases.earth.items.find((i) => i.b === b); return it ? `<div class="go" data-a="goto" data-id="${it.id}">Show me →</div>` : `<div class="go" data-a="shopFor" data-b="${b}">Open the build menu →</div>`; } if (st.kind === 'tech') return '<div class="go" data-a="research">Open research →</div>'; return ''; }
   // ---------------- bubbles over buildings ----------------
   frameBubbles() {
-    if (this.app.world.mode === 'system') { this.solar.frameLabels(); return; } if (this.app.world.mode === 'stars') { this.stars.frameLabels(); return; }
+    if (this.app.world.mode === 'system') { this.solar.frameLabels(); return; } if (this.app.world.mode === 'stars') { this.stars.frameLabels(); return; } if (this.app.world.mode === 'galaxy') { this.beyond.frameLabels(); return; }
     const s = this.s, W = this.app.world, R = this.R; const root = $('#bubbles'); const seen = new Set<string>(); const B = s.bases[s.at]; if (!B) return;
     const put = (key: string, at: { x: number; y: number; z: number } | null, html: string, cls: string, act?: string, id?: string) => { if (!at) return; const p = W.project(at); if (p.behind) return; seen.add(key); let el = this.bubbles.get(key);
       if (!el) { el = document.createElement('div'); el.className = 'bub'; if (act) { el.dataset.a = act; if (id) el.dataset.id = id; } root.appendChild(el); this.bubbles.set(key, el); }
@@ -82,14 +84,14 @@ export class UI {
   // ---------------- building panel ----------------
   select(id: string | null) { this.sel = id; this.app.world.select(id); this.renderPanel(); }
   private panelSig() { const s = this.s; const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) return ''; const j = G.jobOf(s, it.id); return [it.id, it.lvl, it.x, it.z, j ? j.id : '', G.canUpgrade(s, s.at, it.id).ok, G.crewsBusy(s), Math.floor((s.res.dm || 0) / 5), RB.operatorsAt(s, s.at, it.id).map((r) => r.id + r.lvl).join()].join('|'); }
-  refreshPanel() { if (this.app.world.mode === 'system' || this.app.world.mode === 'stars') { if (this.tick % 8 === 0) this.renderPanel(); return; } if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey) { this.renderPanel(); return; } const s = this.s;
+  refreshPanel() { if (this.app.world.mode === 'system' || this.app.world.mode === 'stars' || this.app.world.mode === 'galaxy') { if (this.tick % 8 === 0) this.renderPanel(); return; } if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey) { this.renderPanel(); return; } const s = this.s;
     $$('#panel [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); });
     $$('#panel [data-bar]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.bar); if (j) e.style.width = clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100 + '%'; });
     $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); e.innerHTML = c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'; } });
     const it = G.itemOf(s, s.at, this.sel); const x = it && this.R.item[it.id]; const h = $('#panel #held'); if (h && x && it) { h.textContent = `${fmt(it.held || 0)} / ${fmt(x.hold)}`; const b = $('#panel #heldbar') as HTMLElement; if (b) b.style.width = clamp((it.held || 0) / x.hold) * 100 + '%'; }
     $$('#panel [data-cost]').forEach((e) => { const [r, n] = e.dataset.cost!.split(':'); e.classList.toggle('short', (s.res[r] || 0) < +n); }); }
   renderPanel() {
-    const el = $('#panel'); const s = this.s; if (this.app.world && this.app.world.mode === 'stars') { el.classList.remove('hidden'); el.innerHTML = this.stars.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'system') { el.classList.remove('hidden'); el.innerHTML = this.solar.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'orbit') { el.classList.add('hidden'); return; } const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); this.panelKey = this.panelSig();
+    const el = $('#panel'); const s = this.s; if (this.app.world && this.app.world.mode === 'galaxy') { el.classList.remove('hidden'); el.innerHTML = this.beyond.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'stars') { el.classList.remove('hidden'); el.innerHTML = this.stars.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'system') { el.classList.remove('hidden'); el.innerHTML = this.solar.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'orbit') { el.classList.add('hidden'); return; } const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); this.panelKey = this.panelSig();
     const d = BUILDINGS[it.b]; const m = this.R.m; const job = G.jobOf(s, it.id); const cap = G.levelCap(s, s.at, it.b);
     let h = `<button class="ibtn x" data-a="deselect">✕</button><h2>${esc(d.name)}</h2><div class="sub">${it.lvl ? `Level ${it.lvl} of ${d.max}` : 'Under construction'}${!d.command && cap < d.max ? ` · up to ${cap} at this ${s.at === 'earth' ? 'Mission Control' : 'Colony Hub'} level` : ''} · ${CATS[d.cat] || ''}</div><p class="desc">${esc(d.desc)}</p>`;
     if (job) { const c = G.dmCost((job.end - Date.now()) / 1000); h += `<div class="box"><div class="row"><b class="grow ox">${job.from === 0 ? 'Building' : `Upgrading to level ${job.to}`}</b><b data-left="${job.id}">${fmtTime((job.end - Date.now()) / 1000)}</b></div><div class="bar" style="margin:6px 0"><i data-bar="${job.id}" style="width:0%"></i></div><div class="row"><button class="btn gold small grow" data-a="finish" data-job="${job.id}" data-dm="${job.id}">${c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'}</button><button class="btn small" data-a="cancel" data-job="${job.id}">Cancel</button></div></div>`; }
@@ -140,6 +142,7 @@ export class UI {
     if (this.over === 'empire') { el.innerHTML = this.stars.empireHTML(); return; }
     if (this.over === 'contact') { el.innerHTML = this.contact.html(); return; }
     if (this.over === 'defence') { el.innerHTML = this.fleet.html(); return; }
+    if (this.over === 'ascension') { el.innerHTML = this.beyond.ascensionHTML(); return; }
     if (this.over === 'goals') { el.innerHTML = this.goalsHTML(); return; }
   }
   private shopCard(b: string, d: (typeof BUILDINGS)[string]) {
@@ -187,7 +190,7 @@ export class UI {
       <p class="muted" style="font-size:12px">Graphics changes apply after a reload. Camera: drag to pan, scroll or pinch to zoom, right-drag, two-finger twist or Q/E to rotate.</p><div class="row" style="justify-content:center"><button class="btn red small" data-a="reset">Start over</button><button class="btn" data-a="closeModal">Close</button></div>`; }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement) {
-    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t) || this.contact.act(a, t) || this.fleet.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
+    const A = this.app, s = this.s; A.audio.unlock(); if (this.launch.act(a, t) || this.robots.act(a, t) || this.solar.act(a, t) || this.daily.act(a, t) || this.war.act(a, t) || this.stars.act(a, t) || this.contact.act(a, t) || this.fleet.act(a, t) || this.beyond.act(a, t)) return; const id = t.dataset.id; const it = id ? G.itemOf(s, s.at, id) : undefined;
     switch (a) {
       case 'orbit': A.openOrbit('earth'); A.audio.play('whoosh'); break;
       case 'base': A.toBase(); A.audio.play('whoosh'); break;
