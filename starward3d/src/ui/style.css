@@ -335,3 +335,24 @@ details.scout summary { cursor: pointer; list-style: none; } details.scout summa
 .unl1 img { width: 98px; height: 70px; object-fit: cover; border-radius: 8px; background: rgba(0, 0, 0, 0.25); display: block; } .unl1 b { display: block; font: 700 12px Oxanium; margin-top: 4px; } .unl1 i { display: inline-block; font-style: normal; font: 800 10px Oxanium; color: #0b1424; background: #ffd36a; border-radius: 999px; padding: 1px 7px; margin-top: 3px; }
 .unlock-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center; margin: 4px 0 12px; font: 700 13px Oxanium; color: #cfe6ff; } .unlock-meta span { display: inline-flex; align-items: center; gap: 4px; }
 @keyframes unlIn { from { opacity: 0; transform: translateY(10px) scale(0.9); } }
+/* Part 15e: the Standby board, the Programme Rank and its patches, Happenings */
+#standby { position: fixed; left: 12px; top: 112px; z-index: 9; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: min(300px, calc(100vw - 24px)); pointer-events: none; }
+#standby.hidden { display: none; }
+#standby .sbt { font: 700 9px Oxanium; letter-spacing: 0.16em; color: var(--muted); width: 100%; margin: 0 0 -2px 4px; text-shadow: 0 1px 3px #000; }
+#standby .sb { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); backdrop-filter: blur(8px); font: 700 12px Oxanium; color: var(--text); cursor: pointer; white-space: nowrap; }
+#standby .sb:hover { border-color: var(--cyan); } #standby .sb > span { font-size: 14px; line-height: 1; display: inline-flex; } #standby .sb svg { width: 16px; height: 16px; }
+#standby .sb em { font-style: normal; font-weight: 600; color: var(--muted); font-size: 11px; }
+#standby .sb.hot { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 14px rgba(255, 211, 106, 0.4); animation: pulse 1.6s infinite; } #standby .sb.hot em { color: #ffe7a8; }
+#standby .sb.on { border-color: rgba(124, 242, 154, 0.55); color: var(--green); }
+.rankc { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px 5px 4px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); backdrop-filter: blur(8px); cursor: pointer; }
+.rankc .patch { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); } .rankc .rbar { width: 34px; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; } .rankc .rbar i { display: block; height: 100%; background: linear-gradient(90deg, #ffbe5a, #ffd36a); transition: width .5s; }
+.rankc.gain { animation: rankgain .6s; } @keyframes rankgain { 0% { transform: scale(1); } 35% { transform: scale(1.16); box-shadow: 0 0 18px rgba(255, 211, 106, .6); } 100% { transform: scale(1); } }
+.patch.locked { filter: grayscale(1) brightness(.55) opacity(.45); }
+.patchbig { margin: 8px 0 2px; animation: zoom .6s; } .patchbig .patch { filter: drop-shadow(0 6px 18px rgba(255, 211, 106, .35)); }
+.rankhead { display: flex; gap: 14px; align-items: center; margin: 4px 0 10px; } .rankhead > div { flex: 1; min-width: 0; }
+.patches { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; margin: 6px 0 8px; } .patches .pt { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; } .patches .pt i { font: 600 10px/1.15 Barlow; font-style: normal; color: var(--muted); } .patches .pt.no i { opacity: .6; }
+.trade { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 2px; font-size: 16px; } .trade .arr { color: var(--gold); font: 700 20px Oxanium; }
+.roadbox .unlocks { gap: 6px; margin: 6px 0; } .roadbox .unl1 { width: 86px; padding: 4px; } .roadbox .unl1 img { width: 76px; height: 54px; } .roadbox .unlock-meta { font-size: 11px; }
+@media (max-width: 720px) { .rankc { padding: 2px 3px 3px; } .rankc .patch { width: 28px; height: 28px; } .rankc .rbar { width: 28px; } #standby { left: 8px; width: calc(100vw - 16px); } #standby .sbt { display: none; } #standby .sb { padding: 4px 9px 4px 7px; font-size: 11px; } }
+.rankm { position: relative; } .rankm .mx { position: absolute; top: -6px; right: -6px; } .rankhead > div { text-align: left; }
+.rsec { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; text-align: left; } .rsec .tier { margin-bottom: 6px; } .rsec .unlocks { justify-content: flex-start; }

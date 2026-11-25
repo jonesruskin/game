@@ -68,8 +68,8 @@ export class DailyUI {
       case 'daily': this.tab = D.canClaimDay(s) ? 'today' : D.attention(s).missions ? 'missions' : this.tab; ui.openOver('daily'); A.audio.play('tap'); return true;
       case 'dailyEv': this.tab = 'event'; ui.openOver('daily'); A.audio.play('tap'); return true;
       case 'dtab': this.tab = t.dataset.t as any; ui.renderOver(); A.audio.play('tap'); return true;
-      case 'claimDay': { const r = D.claimDay(s); if (!r) return true; A.audio.play('claim'); ui.closeOver(); this.reveal(`DAY ${r.day + 1}`, '📅', r.res, r.gift, 'Collect'); A.changed(); this.renderRail(); return true; }
-      case 'claimMission': { const m = D.claimMission(s, +t.dataset.i!); if (m) { A.audio.play('claim'); ui.toast(`Mission complete: ${esc(m.text)}`, 'good'); A.changed(); ui.renderOver(); this.renderRail(); } return true; }
+      case 'claimDay': { const r = D.claimDay(s); if (!r) return true; A.audio.play('claim'); A.esteem(6); ui.closeOver(); this.reveal(`DAY ${r.day + 1}`, '📅', r.res, r.gift, 'Collect'); A.changed(); this.renderRail(); return true; }
+      case 'claimMission': { const m = D.claimMission(s, +t.dataset.i!); if (m) { A.audio.play('claim'); A.esteem(8); ui.toast(`Mission complete: ${esc(m.text)}`, 'good'); A.changed(); ui.renderOver(); this.renderRail(); } return true; }
       case 'claimBonus': { const r = D.claimBonus(s); if (!r) return true; A.audio.play('levelup'); ui.closeOver(); this.reveal('BONUS CHEST', '🧰', r.res, r.gift); A.changed(); this.renderRail(); return true; }
       case 'claimAch': { const r = D.claimAch(s, t.dataset.id!); if (r) { A.audio.play('levelup'); ui.toast(`${esc(r.a.name)} tier ${r.tier + 1}: +${r.dm} Dark Matter`, 'gold'); A.changed(); ui.renderOver(); this.renderRail(); } return true; }
       case 'claimEv': { const r = D.claimEv(s, +t.dataset.i!); if (!r) return true; A.audio.play('levelup'); ui.closeOver(); this.reveal(D.themeOf().name.toUpperCase(), r.robot ? '🌟' : '🎖', r.res || {}, r.sp, r.robot ? 'Welcome aboard' : 'Nice!'); A.changed(); this.renderRail(); return true; }

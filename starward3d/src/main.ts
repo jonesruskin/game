@@ -38,15 +38,18 @@ import { Battle, deployLive, surrender, resultOf, canDeployAt, BattleInput } fro
 import { SPECIES } from './data/species';
 import { RARITIES } from './data/rarities';
 import type { Design } from './data/rockets';
+import * as RK from './core/rank';
+import * as HP from './core/happen';
 const SOUND_OF: Record<string, 'mine' | 'refinery' | 'traffic' | 'power'> = { mine: 'mine', regolith: 'mine', ice: 'mine', he3x: 'mine', refinery: 'refinery', methane: 'refinery', skimmer: 'refinery', cellplant: 'refinery', antimatter: 'refinery', depot: 'traffic', launch: 'traffic', vab: 'traffic', hub: 'traffic', elevator: 'traffic', solar: 'power', fission: 'power', lsolar: 'power', reactor: 'power', fusion: 'power', casimir: 'power' };
 export class App {
   version = '2.0-dev'; platform: PlatformAPI = Platform; audio = new Audio(); s!: State; R!: Rates; world!: World; studio!: Studio; ui!: UI;
+  private jobDur = new Map<string, [number, string]>(); /* each project's planned length, so a sped-up job still earns its full Esteem */
   private last = performance.now(); private acc = 0; private saveAt = 0; private queue: (() => void)[] = []; private placing: { b: string; move?: string } | null = null;
   async boot() {
     await this.platform.init(); this.platform.loadingStart(); (window as any).__deviceType = this.platform.device?.() || undefined;
     let raw: string | null = null; try { raw = this.platform.load(SAVE_KEY); } catch (e) { raw = null; }
     let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
-    const away = Date.now() - this.s.last; const before = { ...this.s.res }; const notes = G.advance(this.s, Date.now()); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
+    const away = Date.now() - this.s.last; const before = { ...this.s.res }; const pre = this.s.jobs.map((j) => ({ id: j.id, d: (j.end - j.start) / 1000, k: j.kind })); const notes = G.advance(this.s, Date.now()); const offXp = pre.filter((j) => !this.s.jobs.some((x) => x.id === j.id)).reduce((a, j) => a + RK.jobEsteem(j.d, j.k), 0); if (offXp) RK.gain(this.s, offXp).forEach((u) => this.enqueue(() => { this.audio.play('levelup'); this.ui.modal(this.ui.standby.rankUpHTML(u), { rays: true }); })); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
     this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
     this.world.look = STY.lookOf(this.s); STY.freshUnlocks(this.s); this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
     const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - GRID / 2; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
@@ -88,9 +91,13 @@ export class App {
     const ev = new Date(now); ev.setHours(19, 0, 0, 0); if (ev.getTime() < now + 3600e3) ev.setDate(ev.getDate() + 1); P.notify('daily', ev.getTime(), s.name, 'Your daily reward is waiting'); this.noteIds.push('daily'); }
   private cancelNotes() { for (const id of this.noteIds) this.platform.cancelNotify(id); this.noteIds = []; }
   private tick() {
-    const notes = this.batchLand(G.advance(this.s, Date.now())); this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
+    const pre = this.s.jobs.map((j) => j.id); for (const j of this.s.jobs) if (!this.jobDur.has(j.id)) this.jobDur.set(j.id, [(j.end - j.start) / 1000, j.kind]);
+    const notes = this.batchLand(G.advance(this.s, Date.now()));
+    { const live = new Set(this.s.jobs.map((j) => j.id)); let xp = 0; for (const id of pre) if (!live.has(id)) { const d = this.jobDur.get(id); if (d) xp += RK.jobEsteem(d[0], d[1]); } for (const id of [...this.jobDur.keys()]) if (!live.has(id)) this.jobDur.delete(id); if (xp) this.esteem(xp); } this.R = rates(this.s); for (const n of notes) this.note(n); if (notes.length) this.changed();
     for (const e of G.events.splice(0)) { if (e.kind === 'starters') this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">ROBOTICS WORKSHOP ONLINE</div><h1>Your first robots</h1><p class="desc">Two robot cores are waiting in the Workshop. Robots make life easier for your people: put each one to work in a building that suits its elements and it boosts that building's output.</p><p class="desc">Build a Robot Dock to house them, then open <b>Robots → Workshop</b> to activate them.</p><button class="btn gold" data-a="closeModal">Let's meet them</button>`, { rays: true })); }
     if (this.ui.tick % 2 === 0) this.soundscape();
+    for (const n of HP.tickHappen(this.s)) { const I = HP.INFO[n.h.kind]; if (n.kind === 'hap') { this.audio.play('sparkle'); this.ui.toast(`${I.icon} <b>${esc(I.name(n.h))}</b>: see the Standby board`, 'gold'); } else this.ui.toast(`${I.icon} ${esc(I.name(n.h))} is over`, ''); this.changed(); }
+    this.ui.standby.render();
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
     DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
@@ -175,7 +182,7 @@ export class App {
   changed() { this.R = rates(this.s); this.world.sync(this.s); this.syncPad(); if (this.world.orbit) this.world.orbit.sync(SP.sp(this.s)); this.ui.renderObj(); this.ui.renderPanel(); this.ui.renderNav(); this.ui.updHud(); this.saveAt = Math.min(this.saveAt, Date.now() + 1500); }
   // the next rocket in the hangar stands on the pad
   private syncPad() { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch' && i.lvl > 0); const S = SP.sp(this.s); const id = Object.keys(S.hangar).find((k) => S.hangar[k] > 0); const d = id ? SP.designOf(this.s, id) : null; this.world.setPadRocket(this.s.at === 'earth' && !this.s.jobs.some((j) => j.kind === 'mission' && Date.now() - j.start < 12000) ? d : null, pad ? pad.id : null); }
-  launched(d: Design) { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch'); if (this.world.mode !== 'base') this.toBase(); if (pad && this.s.at === 'earth') this.world.launchFx(d, pad.id); this.audio.play('launch'); this.ui.toast(`Liftoff! ${esc(d.name)} is on its way`, 'gold'); this.changed(); this.ui.renderNav(); }
+  launched(d: Design) { const pad = this.s.bases.earth.items.find((i) => i.b === 'launch'); if (this.world.mode !== 'base') this.toBase(); if (pad && this.s.at === 'earth') this.world.launchFx(d, pad.id); this.audio.play('launch'); this.esteem(25); this.ui.toast(`Liftoff! ${esc(d.name)} is on its way`, 'gold'); this.changed(); this.ui.renderNav(); }
   openMap() { this.ui.select(null); this.ui.stars.clearLabels(); this.ui.beyond.clearLabels(); this.world.openSystem(); document.body.classList.add('mapping'); this.ui.solar.sel = this.ui.solar.sel || null; this.ui.renderNav(); this.ui.renderPanel(); this.world.onPick = (b) => { this.ui.solar.sel = b; this.ui.solar.fleet = false; this.world.mapSel = b; if (b) this.world.system?.setFocus(b); this.ui.renderPanel(); if (b) this.audio.play('tap'); }; }
   openGalaxy() { this.ui.select(null); this.ui.stars.clearLabels(); this.ui.solar.clearLabels(); const G = this.world.openGalaxy(); document.body.classList.add('mapping'); this.world.onGalaxyPick = (id) => { this.ui.beyond.sel = id; G.setFocus(id); this.ui.renderPanel(); if (id) this.audio.play('tap'); }; this.ui.renderNav(); this.ui.renderPanel(); }
   megaCost(id: string, n: number) { return STR.megaCost(id, n); }
@@ -186,6 +193,8 @@ export class App {
   openOrbit(f: 'earth' | 'station') { this.ui.select(null); this.world.openOrbit(SP.sp(this.s)); this.world.orbit!.setFocus(f); document.body.classList.add('orbiting'); this.ui.renderNav(); }
   closeOrbit() { this.world.closeOrbit(); document.body.classList.remove('orbiting'); this.ui.renderNav(); }
   enqueue(fn: () => void) { this.queue.push(fn); }
+  // Esteem for the Programme Rank: the bar fills, and every rank reached is celebrated once the screen is free
+  esteem(n: number) { const ups = RK.gain(this.s, n); this.ui.standby.gained(Math.round(n)); for (const u of ups) { this.platform.happytime(); this.enqueue(() => { this.audio.play('levelup'); this.ui.modal(this.ui.standby.rankUpHTML(u), { rays: true }); }); } if (ups.length) { this.ui.renderHud(); this.changed(); } }
   // ---------------- taps ----------------
   private tapped(h: { item?: string; cell?: [number, number]; drop?: boolean }) {
     if (this.placing) return; if (h.drop) { this.openDropNow(); return; }
@@ -204,7 +213,7 @@ export class App {
     if (!canDeployAt(b.B, x, z)) { bv.flash(x, z, false); this.audio.play('deny'); const h = document.getElementById('bhint'); if (h) { h.textContent = 'Not on the base (the red land): land your robots outside it.'; h.classList.add('warn'); } return; }
     if (deployLive(b.B, this.ui.war.sel, x, z)) { bv.flash(x, z, true); this.audio.play('place'); const n = b.B.used.findIndex((u, k) => !u && k !== this.ui.war.sel); this.ui.war.sel = n < 0 ? this.ui.war.sel : n; this.ui.war.upd(b.B); document.getElementById('bhint')?.classList.add('hidden'); } }
   endAttack() { const b = this.battle; if (!b) return; if (b.live && !b.B.over) surrender(b.B); }
-  private battleOver() { const b = this.battle; if (!b) return; if (!b.live) { this.ui.toast('Replay finished', 'good'); return; } b.live = false; const r = resultOf(b.B); const opp = b.opp!; const out = WG.settle(this.s, opp, b.B.input, r);
+  private battleOver() { const b = this.battle; if (!b) return; if (!b.live) { this.ui.toast('Replay finished', 'good'); return; } b.live = false; const r = resultOf(b.B); const opp = b.opp!; const out = WG.settle(this.s, opp, b.B.input, r); this.esteem(r.stars > 0 ? 6 + r.stars * 4 : 4);
     // a real commander: the server re-runs the battle and owns the trophy count
     NET.submit(this.s, opp, b.B.input, r).then((sv) => { if (!sv) return; const Wr = WG.war(this.s); Wr.trophies = sv.trophies; Wr.best = Math.max(Wr.best, sv.trophies); if (Wr.hist[0]) Wr.hist[0].dT = sv.dT; this.save(); }); this.audio.play(r.stars ? 'levelup' : 'deny'); if (r.stars >= 2) this.platform.happytime();
     window.setTimeout(() => { this.ui.war.hideHud(); this.ui.war.result(r, out, b.who); }, 900); this.changed(); this.save(); }
@@ -216,7 +225,7 @@ export class App {
   focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
   collect(id: string) { this.ui.coach.event('collect');
     const r = G.collect(this.s, this.s.at, id, this.R); if (!r) return; if (r.n <= 0) { this.ui.toast(`${RES[r.r].name} storage is full. Build or upgrade a Logistics Depot.`, 'bad'); this.audio.play('deny'); return; }
-    this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${ri(r.r)}`, RES[r.r].color); }
+    this.audio.play('collect', r.n); this.esteem(1); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${ri(r.r)}`, RES[r.r].color); }
     if (r.full) this.ui.toast(`${RES[r.r].name} storage is full: the rest stays in the building.`, 'bad'); this.changed();
   }
   // ---------------- placement ----------------

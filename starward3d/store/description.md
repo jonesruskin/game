@@ -24,6 +24,9 @@ Helioscend is a come-back-daily space empire builder in full 3D. Build a spacepo
 - ✨ **To the stars and beyond:** a real star map, colonies under other suns, a Dyson swarm around the Sun, wormhole gates, expeditions to Andromeda and the Far Shore, and Ascension when you get there.
 - 🤖 **Aova, your programme's AI:** it never plays for you. Queue research and upgrades and it carries them out, and later it moves food between your colonies.
 - 🎨 **Make it yours:** paint schemes, banners and emblems to earn, ten decorations, and a colony card to share.
+- 🎖️ **Programme Rank:** every project you finish earns Esteem; every rank pays out and adds a mission patch, drawn for that rank, to your collection.
+- ⚡ **Happenings:** a trade barge with a great rate, a rich seam, a visiting drone crew, a night shift: something new turns up every half hour or so, and one is waiting when you come back.
+- 🎵 **A base you can hear:** an original score that follows you from the spaceport to the stars, wind and surf on Earth, dust storms on Mars, and the sound of your crews at work.
 - 🎁 **Something every day:** a login calendar that never resets, daily missions, supply capsules falling from the sky, a free daily core spin and weekly events.
 
 Everything keeps running while you are away. Dark matter, which finishes timers, is earned by playing; ads are always optional.

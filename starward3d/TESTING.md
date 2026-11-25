@@ -26,6 +26,10 @@ friend. Don't help them or explain anything: watch where they hesitate, and writ
 | Anything they tapped that did nothing, or that confused them |  |
 | Any text too small to read, anything cut off the screen |  |
 | Sound worked (after the first tap); the mute setting worked |  |
+| Did the music feel good? Did they notice the base sounds when zoomed in (hammering, mining, wind)? |  |
+| Did they notice the Standby board (idle drones, lab idle) and use it? |  |
+| Did a Happening turn up (after about 6 minutes), and did they take it? |  |
+| Did they notice the rank badge filling up, and enjoy the rank-up and its patch? |  |
 | On the phone: dragging pans, pinching zooms, tapping selects, both orientations usable |  |
 | Any error, freeze or blank screen |  |
 | Would they come back tomorrow? Why or why not? |  |
