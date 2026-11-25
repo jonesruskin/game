@@ -1,7 +1,7 @@
 // The empire stockpile (ported from Starward). cap: limited by storage. Energy is a live balance, never stockpiled.
 export interface ResDef { name: string; short: string; color: string; cap: boolean; start?: boolean; icon: string; desc: string; }
 export const RES: Record<string, ResDef> = {
-  credits: { name: 'Credits', short: 'CR', color: '#ffd166', cap: true, start: true, icon: '¢', desc: 'Funding from governments, sponsors and commerce. Spent on nearly everything.' },
+  credits: { name: 'Aurivane', short: 'AV', color: '#ffd166', cap: true, start: true, icon: '◎', desc: 'The programme\'s currency: funding from governments, sponsors and commerce, earned by offices and spent on nearly everything.' },
   metal: { name: 'Metal', short: 'MT', color: '#b8c4d6', cap: true, start: true, icon: '▣', desc: 'Steel, aluminium and titanium for structures, rockets and ships.' },
   fuel: { name: 'Fuel', short: 'FU', color: '#ff8a5b', cap: true, start: true, icon: '▲', desc: 'Rocket propellant: kerosene, liquid hydrogen and oxygen, later methane and more.' },
   science: { name: 'Science', short: 'SC', color: '#6ee7ff', cap: true, start: true, icon: '✦', desc: 'Research data. Spent to unlock technologies.' },

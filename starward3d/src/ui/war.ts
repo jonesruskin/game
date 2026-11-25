@@ -1,5 +1,6 @@
 // The Orbital Trials screens: the Defence Council overlay (why it matters, squad, three opponents, the defence log with
 // replays and bounties, the circles and their charters), the briefing, the battle HUD (timer, stars, destruction, squad cards to deploy) and the result.
+import { ri } from './icons';
 import { esc, fmt, fmtTime } from '../core/util';
 import * as W from '../core/war';
 import { Battle, pctOf, starsOf, botPower, roleOf, rIdxOf, Fighter } from '../core/battle';
@@ -13,7 +14,7 @@ import { BUILDINGS } from '../data/buildings';
 import { income, dateKey } from '../core/daily';
 import type { UI } from './ui';
 import * as NET from '../core/net';
-const resList = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${RES[k].icon}</span>${fmt(n)}</span>`).join(' ');
+const resList = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${ri(k)}</span>${fmt(n)}</span>`).join(' ');
 const starRow = (n: number, size = 18) => `<span class="stars" style="font-size:${size}px">${[0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}">★</i>`).join('')}</span>`;
 const DEF_ICON: Record<string, string> = { turret: '🔫', laser: '🔦', missile: '🚀', shield: '🛡', emp: '⚡', wall: '🧱' };
 export class WarUI {
@@ -58,7 +59,7 @@ export class WarUI {
       return `<div class="opp" style="--oc:${o.look.primary}"><div class="ot"><b class="ox">${esc(o.name)}</b>${o.academy ? '<span class="tag">ACADEMY</span>' : '<span class="tag live">COMMANDER</span>'}</div><div class="meta">✪ ${fmt(o.trophies)} · Mission Control ${o.hq} · defences avg. level ${nd ? Math.round(lv / nd) : 0}</div>
         <div class="defs">${Object.entries(defs).map(([b, n]) => `<span title="${esc(BUILDINGS[b].name)}">${DEF_ICON[b]}×${n}</span>`).join('')}</div><div class="meta">Win: <span class="good">+${win}</span> ✪ · loss: <span class="bad">${lose}</span> · 3 stars: ${resList({ credits: g.credits, metal: g.metal })}</div>
         <button class="btn ${c.ok ? 'gold' : ''} small" style="width:100%;margin-top:6px" data-a="warAttack" data-i="${i}" ${c.ok ? '' : 'disabled'}>${c.ok ? '⚔ Attack' : esc(c.why || '')}</button></div>`; }).join('');
-    return `${army.length ? this.squadHTML(army) : `<p class="why">${esc(c.why || '')}</p>`}<div class="opps">${cards}</div><div class="row" style="justify-content:center;margin-top:8px"><button class="btn small" data-a="warNext">↻ New opponents (${fmt(this.nextCost())} ¢)</button></div>`; }
+    return `${army.length ? this.squadHTML(army) : `<p class="why">${esc(c.why || '')}</p>`}<div class="opps">${cards}</div><div class="row" style="justify-content:center;margin-top:8px"><button class="btn small" data-a="warNext">↻ New opponents (${fmt(this.nextCost())} ${ri('credits')})</button></div>`; }
   nextCost() { return Math.max(50, Math.round(income(this.s, 0.08).credits)); }
   private log() { const s = this.s, Wr = W.war(s);
     const def = Wr.log.length ? Wr.log.map((e) => `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${esc(e.who)}</b> ${starRow(e.stars, 14)} <span class="muted">${e.pct}% · ${fmtTime((Date.now() - e.t) / 1000)} ago</span><div class="meta">${e.held ? `<span class="good">Defence held.</span> Bounty ${resList(e.bounty)}` : '<span class="bad">They broke through.</span> Strengthen the side they came from, or add walls to channel them.'}</div></div>
@@ -81,7 +82,7 @@ export class WarUI {
   hideHud() { document.getElementById('bhud')?.classList.add('hidden'); }
   result(r: { stars: number; pct: number }, out: { dT: number; reward: Record<string, number>; first: boolean }, who: string) {
     this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${r.stars ? 'VICTORY' : 'DEFEAT'} · ${esc(who)}</div><div class="bigstars">${[0, 1, 2].map((i) => `<i class="${i < r.stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.35}s">★</i>`).join('')}</div><h1 style="margin:2px 0">${r.pct}% destroyed</h1>
-      <p class="desc"><span class="${out.dT >= 0 ? 'good' : 'bad'}">${out.dT >= 0 ? '+' : ''}${out.dT} ✪</span>${out.first ? ` · <b class="good">first win today!</b>` : ''}</p><div class="lootrow">${Object.entries(out.reward).map(([k, n], i) => `<div class="loot" style="animation-delay:${0.9 + i * 0.12}s"><span style="color:${RES[k].color};font-size:22px">${RES[k].icon}</span><b>+${fmt(n)}</b><i>${esc(RES[k].name)}</i></div>`).join('')}</div>
+      <p class="desc"><span class="${out.dT >= 0 ? 'good' : 'bad'}">${out.dT >= 0 ? '+' : ''}${out.dT} ✪</span>${out.first ? ` · <b class="good">first win today!</b>` : ''}</p><div class="lootrow">${Object.entries(out.reward).map(([k, n], i) => `<div class="loot" style="animation-delay:${0.9 + i * 0.12}s"><span style="color:${RES[k].color};font-size:22px">${ri(k)}</span><b>+${fmt(n)}</b><i>${esc(RES[k].name)}</i></div>`).join('')}</div>
       <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><button class="btn" data-a="warReplay" data-k="hist" data-id="${W.war(this.s).hist[0]?.id || ''}">▶ Watch replay</button><button class="btn gold" data-a="bDone">Continue</button></div>`, { rays: r.stars >= 2 }); }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement): boolean { const s = this.s, A = this.A, ui = this.ui;
@@ -90,7 +91,7 @@ export class WarUI {
       case 'warWhy': ui.modal(this.briefHTML(), { wide: true }); A.audio.play('tap'); return true;
       case 'wtab': this.tab = t.dataset.t as any; ui.renderOver(); A.audio.play('tap'); return true;
       case 'warAttack': A.startAttack(+t.dataset.i!); return true;
-      case 'warNext': { const c = this.nextCost(); if ((s.res.credits || 0) < c) { ui.deny('Not enough credits'); return true; } s.res.credits -= c; W.refreshOpps(s, true); this.refreshNet(true); A.audio.play('tap'); ui.renderOver(); return true; }
+      case 'warNext': { const c = this.nextCost(); if ((s.res.credits || 0) < c) { ui.deny('Not enough Aurivane'); return true; } s.res.credits -= c; W.refreshOpps(s, true); this.refreshNet(true); A.audio.play('tap'); ui.renderOver(); return true; }
       case 'warBounty': { const e = W.claimBounty(s, t.dataset.id!); if (e) { A.audio.play('claim'); ui.toast('Bounty claimed', 'good'); A.changed(); ui.renderOver(); } return true; }
       case 'warSeason': { const p = W.claimSeason(s); if (p) { A.audio.play('levelup'); ui.toast(`${esc(p.league)} circle season reward claimed`, 'gold'); A.changed(); ui.renderOver(); } return true; }
       case 'warReplay': { const Wr = W.war(s); const e = t.dataset.k === 'log' ? Wr.log.find((x) => x.id === t.dataset.id) : Wr.hist.find((x) => x.id === t.dataset.id); if (e) { ui.closeModal(); A.replay(e.input, 'look' in e ? (e as any).look : null, e.who); } return true; }

@@ -1,5 +1,6 @@
 // The endgame screens: the Local Group (the relay network, expeditions, their stories and gifts), the funding box used
 // by every project too big for storage, the road to Type III (what the empire commands, in watts) and Ascension.
+import { ri } from './icons';
 import { esc, fmt, fmtTime, clamp } from '../core/util';
 import * as BY from '../core/beyond';
 import * as F from '../core/fund';
@@ -18,7 +19,7 @@ export class BeyondUI {
   available() { const s = this.s; return !!(s.tech.relayNetwork || s.flags.relayFound || s.tech.intergalacticDrive); }
   // a project too big for storage: a pool filled over time, by hand or with overflowing production
   fundBox(key: string, cost: Record<string, number>, startAct: string, startLabel: string, c: any, data = '') { const s = this.s; const p = F.pool(s, key); const prog = F.progress(s, key, cost); const rt = F.routed(s, key);
-    return `<div class="fund"><div class="bar ${prog >= 1 ? 'green' : 'gold'}"><i style="width:${prog * 100}%"></i></div><div class="meta">${Object.entries(cost).map(([r, n]) => `<span class="cost" style="color:${(p[r] || 0) + (s.res[r] || 0) >= n ? RES[r].color : '#ff8a8a'}">${RES[r].icon}${fmt(Math.min(n, p[r] || 0))} / ${fmt(n)}</span>`).join(' ')}</div>
+    return `<div class="fund"><div class="bar ${prog >= 1 ? 'green' : 'gold'}"><i style="width:${prog * 100}%"></i></div><div class="meta">${Object.entries(cost).map(([r, n]) => `<span class="cost" style="color:${(p[r] || 0) + (s.res[r] || 0) >= n ? RES[r].color : '#ff8a8a'}">${ri(r)}${fmt(Math.min(n, p[r] || 0))} / ${fmt(n)}</span>`).join(' ')}</div>
       <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn small" data-a="fundIn" data-k="${key}">Invest what we have</button><button class="btn small ${rt ? 'gold' : ''}" data-a="fundRoute" data-k="${key}">${rt ? '✓ Overflow routed here' : 'Route overflow here'}</button><button class="btn small ${c.ok ? 'gold' : ''}" data-a="${startAct}" ${data} ${c.ok ? '' : 'disabled'}>${c.ok ? startLabel : esc(c.why || startLabel)}</button></div></div>`; }
   private costFor(key: string): Record<string, number> | null { const s = this.s; if (key === 'relay') return BY.bey(s).relay < HRELAY.stages ? BY.relayCost(BY.bey(s).relay) : null; if (key.startsWith('exp:')) return EXPEDITIONS[key.slice(4)].cost; return null; }
   frameLabels() { const W = this.A.world; if (W.mode !== 'galaxy' || !W.galaxy) return; const G = W.galaxy; const root = document.getElementById('bubbles')!; const r = W.renderer.domElement.getBoundingClientRect(); const seen = new Set<string>();
@@ -39,7 +40,7 @@ export class BeyondUI {
         <div class="box"><div class="row"><b class="ox grow">${esc(HRELAY.name)}</b><span class="muted ox">${B.relay} / ${HRELAY.stages}</span></div><p class="desc">Each stage wakes one more relay and reaches one galaxy further.</p>${j ? this.prog(j, `WAKING RELAY ${(j.stage || 0) + 1}`) : cost ? (s.tech[HRELAY.req] ? this.fundBox('relay', cost, 'relayGo', `Wake relay ${B.relay + 1}`, c) : `<p class="why">Research ${esc(TECH[HRELAY.req]?.name || HRELAY.req)}</p>`) : '<p class="good">Every relay is awake.</p>'}</div>
         ${BY.canAscend(s) ? '<button class="btn gold" style="width:100%" data-a="ascendOpen">✨ Ascension</button>' : ''}`; }
     const G = GALAXIES[id], E = EXPEDITIONS[id]; let h = `<button class="ibtn x" data-a="galClose">✕</button><h2>${esc(G.name)}</h2><div class="sub">${ly(G.d)} away</div><p class="desc">${esc(G.fact)}</p>`;
-    if (E) { const v = B.visited[id]; const j = this.job('expedition'); const c = BY.canExpedition(s, id); h += `<div class="box"><div class="row"><b class="ox grow">Expedition: ${esc(E.name)}</b><span class="muted">${E.days} days</span></div><div class="meta">Gift: <b class="good">${esc(E.perkText)}</b> · reward ${Object.entries(E.reward).map(([r, n]) => `<span style="color:${RES[r].color}">${RES[r].icon}</span>${fmt(n)}`).join(' ')}</div>`;
+    if (E) { const v = B.visited[id]; const j = this.job('expedition'); const c = BY.canExpedition(s, id); h += `<div class="box"><div class="row"><b class="ox grow">Expedition: ${esc(E.name)}</b><span class="muted">${E.days} days</span></div><div class="meta">Gift: <b class="good">${esc(E.perkText)}</b> · reward ${Object.entries(E.reward).map(([r, n]) => `<span style="color:${RES[r].color}">${ri(r)}</span>${fmt(n)}`).join(' ')}</div>`;
       if (v) h += `<p class="desc">${esc(E.story)}</p><p class="good">Visited.</p>`; else if (j && j.gal === id) h += this.prog(j, 'EXPEDITION UNDER WAY'); else h += this.fundBox('exp:' + id, E.cost, 'expGo', 'Launch the expedition', c, `data-k="${id}"`);
       h += '</div>'; }
     return h; }

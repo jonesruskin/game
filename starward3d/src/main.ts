@@ -1,5 +1,6 @@
 // STARWARD 3D: app shell. Boots the platform, loads (and catches up) the save, runs the frame loop, routes taps,
 // handles placement and feedback, and saves. Rules live in core/, the 3D world in render/, the interface in ui/.
+import { ri } from './ui/icons';
 import './ui/style.css';
 import { Platform } from '@platform';
 import type { PlatformAPI } from './platform/types';
@@ -52,13 +53,13 @@ export class App {
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
-    (window as any).__app = this; (window as any).__G = G; (window as any).__LD = LD; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__FD = FD; (window as any).__MER = MER; (window as any).__STRF = STR; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
+    (window as any).__app = this; (window as any).__G = G; (window as any).__LD = LD; (window as any).__ri = ri; (window as any).__SO = SO; (window as any).__SP = SP; (window as any).__foundExo = (k: string) => STR.foundExoBase(this.s, k); (window as any).__AL = AL; (window as any).__CF = CF; (window as any).__BY = BY; (window as any).__LF = LF; (window as any).__FD = FD; (window as any).__MER = MER; (window as any).__STRF = STR; (window as any).__D = { TECH, BUILDINGS }; (window as any).__STY = STY; (window as any).__WG = WG; (window as any).__spec = specimen;
     requestAnimationFrame((t) => this.loop(t)); this.platform.loadingStop(); const ld = $('#load'); ld.style.opacity = '0'; setTimeout(() => ld.remove(), 500); this.platform.gameplayStart();
     if (this.s.stats.sessions === 1 && this.s.obj.i === 0) this.enqueue(() => this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">CHAPTER 1</div><h1>Humble Beginnings</h1><p class="desc">A patch of coastal scrubland, a borrowed budget and a dream. Build the programme that will carry humanity from this launch pad to the stars, and one day to a civilisation spanning the galaxy.</p><p class="desc">Tap the bubbles over your Metal Mine and Agency Office to collect, then follow the goals card: every goal pays a reward.</p><button class="btn gold" data-a="closeModal">Let's begin</button>`, { rays: true }));
     else if (away > 5 * 60e3) this.enqueue(() => this.report(away, before, notes));
   }
   private report(away: number, before: Record<string, number>, notes: G.Note[]) {
-    const gained = Object.keys(RES).filter((r) => (this.s.res[r] || 0) - (before[r] || 0) >= 1).map((r) => `<span class="cost">${RES[r].icon} +${fmt(this.s.res[r] - before[r])}</span>`).join(' ');
+    const gained = Object.keys(RES).filter((r) => (this.s.res[r] || 0) - (before[r] || 0) >= 1).map((r) => `<span class="cost">${ri(r)} +${fmt(this.s.res[r] - before[r])}</span>`).join(' ');
     const held = this.s.bases[this.s.at].items.reduce((a, it) => a + (it.held || 0), 0); const done = notes.filter((n) => n.kind === 'build' || n.kind === 'research').map((n) => n.kind === 'build' ? `${esc(BUILDINGS[n.b].name)} → level ${n.lvl}` : `Researched ${esc(TECH[n.tech].name)}`);
     this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">WELCOME BACK</div><h1>${fmtTime(away / 1000)} away</h1><div class="report"><div>${gained || 'Your stockpile is full or unchanged.'}</div>${held >= 1 ? `<div>Waiting in your collectors: <b>${fmt(held)}</b>. Tap the bubbles!</div>` : ''}${done.length ? `<div>${done.slice(0, 6).join('<br>')}</div>` : ''}</div><button class="btn gold" data-a="closeModal">Back to work</button>`);
   }
@@ -195,7 +196,7 @@ export class App {
   focusCapsule() { const p = this.world.capsulePos(); if (p) { this.world.focus(p.x, p.z, 24); this.ui.toast('A supply capsule has landed: tap it to open', 'good'); } else this.openDropNow(); }
   collect(id: string) {
     const r = G.collect(this.s, this.s.at, id, this.R); if (!r) return; if (r.n <= 0) { this.ui.toast(`${RES[r.r].name} storage is full. Build or upgrade a Logistics Depot.`, 'bad'); this.audio.play('deny'); return; }
-    this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${RES[r.r].icon}`, RES[r.r].color); }
+    this.audio.play('collect', r.n); const at = this.world.topOf(id); if (at) { this.world.burst(at, RES[r.r].color, 16 + Math.min(24, Math.floor(Math.log10(r.n) * 5))); const p = this.world.project(at); this.ui.popText(p.x, p.y - 10, `+${fmt(r.n)} ${ri(r.r)}`, RES[r.r].color); }
     if (r.full) this.ui.toast(`${RES[r.r].name} storage is full: the rest stays in the building.`, 'bad'); this.changed();
   }
   // ---------------- placement ----------------

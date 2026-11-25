@@ -1,6 +1,7 @@
 // The daily screens: the 28-day calendar, missions and the bonus chest, the core spin (a wheel that lands on a prize
 // decided in advance, with the odds shown), the weekly event track, achievements, supply-capsule reveals and the side
 // rail of daily buttons (it keeps the bottom bar short on phones).
+import { ri } from './icons';
 import { esc, fmt, fmtTime } from '../core/util';
 import * as D from '../core/daily';
 import * as RB from '../core/robots';
@@ -9,7 +10,7 @@ import { SPECIES } from '../data/species';
 import { RARITIES, RARITY_ORDER } from '../data/rarities';
 import { RES } from '../data/resources';
 import type { UI } from './ui';
-const resList = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${RES[k].icon}</span>${fmt(n)}</span>`).join(' ');
+const resList = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${ri(k)}</span>${fmt(n)}</span>`).join(' ');
 export const coreBall = (rarity: string, size = 34) => `<span class="coreball" style="width:${size}px;height:${size}px;background:radial-gradient(circle at 40% 35%, #fff, ${RARITIES[rarity].color} 45%, ${RARITIES[rarity].color}55 70%, transparent 72%)"></span>`;
 const dot = (on: boolean) => (on ? '<span class="rdot"></span>' : '');
 export class DailyUI {
@@ -28,7 +29,7 @@ export class DailyUI {
     return `<div class="head"><h1>Daily</h1><span class="chip">🔥 ${dd.streak} day streak</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n, d]) => `<button class="tab ${this.tab === k ? 'on' : ''}" data-a="dtab" data-t="${k}">${esc(n)}${d ? ' •' : ''}</button>`).join('')}</div><div class="body">${body}</div>`; }
   private calendar() { const s = this.s, dd = D.daily(s), can = D.canClaimDay(s);
     return `<p class="desc" style="text-align:center">Rewards grow every day and scale with your empire. Miss a day and the calendar waits for you: it never resets. Best streak ${dd.best} · ${dd.total} days in all${dd.cycle ? ` · cycle ${dd.cycle + 1}` : ''}.</p>
-      <div class="cal">${Array.from({ length: 28 }, (_, i) => { const r = D.dayReward(s, i); const done = i < dd.day, today = i === dd.day && can; const big = r.core ? coreBall(r.core, 26) : r.res.dm ? `<span style="font-size:20px;color:${RES.dm.color}">${RES.dm.icon}</span>` : '';
+      <div class="cal">${Array.from({ length: 28 }, (_, i) => { const r = D.dayReward(s, i); const done = i < dd.day, today = i === dd.day && can; const big = r.core ? coreBall(r.core, 26) : r.res.dm ? `<span style="font-size:20px;color:${RES.dm.color}">${ri('dm')}</span>` : '';
         return `<div class="day ${done ? 'done' : ''} ${today ? 'today' : ''} ${D.SPECIAL[i] ? 'special' : ''}" ${today ? 'data-a="claimDay"' : ''}><b>Day ${i + 1}</b>${big}<span class="dr">${resList(r.res)}</span>${r.label ? `<span class="lbl">${esc(r.label)}</span>` : ''}${done ? '<span class="tick">✓</span>' : ''}</div>`; }).join('')}</div>
       ${can ? `<div class="row" style="justify-content:center;margin-top:12px"><button class="btn gold" data-a="claimDay">Claim day ${dd.day + 1}</button></div>` : `<p class="desc" style="text-align:center;margin-top:12px">Come back tomorrow for day ${dd.day + 1}.</p>`}`; }
   private missions() { const s = this.s, dd = D.daily(s);
@@ -43,15 +44,15 @@ export class DailyUI {
   private achs() { const s = this.s;
     return `<div class="bots" style="max-width:640px;margin:0 auto">${D.ACHS.map((a) => { const t = D.achTier(s, a), v = a.stat(s), max = t >= a.tiers.length; const goal = a.tiers[Math.min(t, a.tiers.length - 1)];
       return `<div class="botc" style="grid-template-columns:40px 1fr auto"><div class="ox" style="font-size:15px;text-align:center;color:${['#9aa7b8', '#cd7f32', '#c0c8d4', '#ffd36a', '#7af7ff'][t]}">${['☆', '★', '★★', '★★★', '✦'][t]}</div><div><b>${esc(a.name)}</b> <span class="muted" style="font-size:11px">tier ${Math.min(t + 1, a.tiers.length)}/${a.tiers.length}</span><div class="bar" style="margin:5px 0 3px"><i style="width:${max ? 100 : Math.min(100, (v / goal) * 100)}%"></i></div><div class="meta">${fmt(v)} / ${fmt(goal)} ${esc(a.unit)}</div></div>
-        ${max ? '<span class="good ox">Complete</span>' : `<button class="btn ${D.achReady(s, a) ? 'gold' : ''} small" data-a="claimAch" data-id="${a.id}" ${D.achReady(s, a) ? '' : 'disabled'}><span style="color:${RES.dm.color}">${RES.dm.icon}</span>${D.ACH_DM[t]}</button>`}</div>`; }).join('')}</div>`; }
+        ${max ? '<span class="good ox">Complete</span>' : `<button class="btn ${D.achReady(s, a) ? 'gold' : ''} small" data-a="claimAch" data-id="${a.id}" ${D.achReady(s, a) ? '' : 'disabled'}><span style="color:${RES.dm.color}">${ri('dm')}</span>${D.ACH_DM[t]}</button>`}</div>`; }).join('')}</div>`; }
   // ---------------- reveals ----------------
   giftLine(sp: string | null) { if (!sp) return ''; const d = SPECIES[sp], rc = RARITIES[d.rarity]; const ws = RB.workshopLvl(this.s) > 0;
     return `<div class="gift" style="--rc:${rc.color}"><div class="pic" style="width:56px;height:56px"><img src="${this.A.studio.bot(sp)}"></div><span><b style="color:${rc.color}">${rc.name} core: ${esc(d.name)}</b><br><span class="muted" style="font-size:12px">${ws ? 'Waiting in the Workshop: activate it from Robots.' : 'It waits for your Robotics Workshop.'}</span></span></div>`; }
-  reveal(title: string, icon: string, res: Record<string, number>, sp: string | null, btn = 'Nice!') { const items = Object.entries(res).filter(([, n]) => n > 0).map(([k, n], i) => `<div class="loot" style="animation-delay:${0.2 + i * 0.18}s"><span style="color:${RES[k].color};font-size:26px">${RES[k].icon}</span><b>+${fmt(n)}</b><i>${esc(RES[k].name)}</i></div>`).join('');
+  reveal(title: string, icon: string, res: Record<string, number>, sp: string | null, btn = 'Nice!') { const items = Object.entries(res).filter(([, n]) => n > 0).map(([k, n], i) => `<div class="loot" style="animation-delay:${0.2 + i * 0.18}s"><span style="color:${RES[k].color};font-size:26px">${ri(k)}</span><b>+${fmt(n)}</b><i>${esc(RES[k].name)}</i></div>`).join('');
     this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">${esc(title)}</div><div style="font-size:60px;line-height:1;margin:6px 0;animation:zoom .5s">${icon}</div><div class="lootrow">${items}</div>${sp ? `<div style="animation:zoom .4s ${0.3 + Object.keys(res).length * 0.18}s both">${this.giftLine(sp)}</div>` : ''}<button class="btn gold" data-a="closeModal" style="min-width:160px;margin-top:12px">${esc(btn)}</button>`, { rays: !!sp }); }
   // the wheel: equal-looking segments, real odds listed underneath; the prize is decided first and the wheel lands on it
   spinModal() { const s = this.s; const n = D.SEGS.length, step = 360 / n; const grad = D.SEGS.map((g, i) => `${g.col}${i % 2 ? 'cc' : 'ff'} ${i * step}deg ${(i + 1) * step}deg`).join(', '); const tot = D.SEGS.reduce((a, g) => a + g.w, 0);
-    const labels = D.SEGS.map((g, i) => `<span class="wl" style="transform:rotate(${i * step + step / 2}deg) translateY(-96px)">${g.kind === 'core' ? coreBall(g.rarity!, 22) : `<b style="color:#0b1424">${g.res === 'dm' ? RES.dm.icon : RES[g.res!].icon}</b>`}</span>`).join('');
+    const labels = D.SEGS.map((g, i) => `<span class="wl" style="transform:rotate(${i * step + step / 2}deg) translateY(-96px)">${g.kind === 'core' ? coreBall(g.rarity!, 22) : `<b style="color:#0b1424">${g.res === 'dm' ? ri('dm') : ri(g.res!)}</b>`}</span>`).join('');
     const odds = (() => { const by: Record<string, number> = {}; for (const g of D.SEGS) by[g.label] = (by[g.label] || 0) + g.w; return Object.entries(by).map(([k, w]) => `${esc(k)} ${Math.round((w / tot) * 100)}%`).join(' · '); })();
     const can = D.canSpin(s), ad = D.canAdSpin(s) && this.A.platform.adsAvailable;
     this.ui.modal(`<div class="ox muted" style="letter-spacing:.2em">DAILY CORE SPIN</div><div class="wheelbox"><div class="wheel" id="wheel" style="background:conic-gradient(${grad})">${labels}<div class="hubc">★</div></div><div class="needle">▼</div></div><div id="spinRes" style="min-height:70px"></div>
@@ -59,7 +60,7 @@ export class DailyUI {
   runSpin(ad: boolean) { const r = D.spin(this.s, ad); if (!r) { this.ui.deny('No spin available'); return; } const n = D.SEGS.length, step = 360 / n; const w = document.getElementById('wheel'); (document.getElementById('spinBtn') as HTMLButtonElement | null)?.setAttribute('disabled', '');
     const target = 360 * 6 + (360 - (r.idx * step + step / 2)) + (Math.random() - 0.5) * step * 0.6; if (w) { w.style.transition = 'transform 4.2s cubic-bezier(.12,.62,.16,1)'; requestAnimationFrame(() => (w.style.transform = `rotate(${target}deg)`)); }
     let last = 0; const iv = window.setInterval(() => { if (!w) return; const m = new DOMMatrix(getComputedStyle(w).transform); const a = (Math.atan2(m.b, m.a) * 180) / Math.PI; const k = Math.floor((a + 360) / step); if (k !== last) { last = k; this.A.audio.play('tap'); } }, 40);
-    window.setTimeout(() => { clearInterval(iv); this.A.audio.play(r.sp && RARITY_ORDER.indexOf(SPECIES[r.sp].rarity) >= 1 ? 'levelup' : 'claim'); const el = document.getElementById('spinRes'); if (el) el.innerHTML = r.sp ? this.giftLine(r.sp) : `<div class="lootrow">${Object.entries(r.res).map(([k, v]) => `<div class="loot"><span style="color:${RES[k].color};font-size:24px">${RES[k].icon}</span><b>+${fmt(v)}</b></div>`).join('')}</div>`;
+    window.setTimeout(() => { clearInterval(iv); this.A.audio.play(r.sp && RARITY_ORDER.indexOf(SPECIES[r.sp].rarity) >= 1 ? 'levelup' : 'claim'); const el = document.getElementById('spinRes'); if (el) el.innerHTML = r.sp ? this.giftLine(r.sp) : `<div class="lootrow">${Object.entries(r.res).map(([k, v]) => `<div class="loot"><span style="color:${RES[k].color};font-size:24px">${ri(k)}</span><b>+${fmt(v)}</b></div>`).join('')}</div>`;
       const b = document.getElementById('spinBtn'); if (b) b.remove(); this.A.changed(); this.renderRail(); }, 4300); }
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement): boolean { const s = this.s, A = this.A, ui = this.ui;

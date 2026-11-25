@@ -275,3 +275,10 @@ details.scout summary { cursor: pointer; list-style: none; } details.scout summa
 .bstep:not(:last-child)::after { content: '›'; position: absolute; right: -9px; top: 40%; font: 700 20px Oxanium; color: var(--gold); }
 .botc.circ .cbadge { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.06); font-size: 13px; } .botc.circ.got .cbadge { background: var(--lc); color: #0b1424; font-weight: 800; }
 @media (max-width: 720px) { .why3 { grid-template-columns: 1fr; } .brief { grid-template-columns: 1fr 1fr; } .bstep:not(:last-child)::after { display: none; } }
+/* resource icons (SVG) and a bigger, clearer HUD */
+.ri { display: inline-block; vertical-align: -0.28em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
+.res { font-size: 16px; padding: 6px 12px 8px 6px; min-width: 104px; gap: 8px; } .res .ic { width: 32px; height: 32px; border-radius: 10px; background: rgba(255, 255, 255, 0.07); } .res .ic .ri { width: 26px; height: 26px; vertical-align: 0; }
+.res .v { min-width: 40px; letter-spacing: 0.02em; } .chip .ri { margin-right: 2px; }
+.cost { gap: 4px; } .cost .ri { width: 1.3em; height: 1.3em; }
+.pop .ri { width: 1.2em; height: 1.2em; }
+@media (max-width: 720px) { .res { font-size: 12px; padding: 4px 8px 6px 4px; min-width: 0; gap: 4px; } .res .ic { width: 22px; height: 22px; } .res .ic .ri { width: 18px; height: 18px; } }

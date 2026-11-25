@@ -71,7 +71,7 @@ export const exoName = (seed: number, rung: number) => `${PRE[(seed >>> 0) % PRE
 // small permanent gifts for catalogued exoplanet life (one per entry, chosen by its seed)
 export const EXO_GIFTS: { gift: Gift; text: string }[] = [
   { gift: { mult: { science: 0.02 } }, text: 'Gene bank: science +2%' },
-  { gift: { mult: { credits: 0.02 } }, text: 'Bio-patents: credits +2%' },
+  { gift: { mult: { credits: 0.02 } }, text: 'Bio-patents: Aurivane +2%' },
   { gift: { mult: { fuel: 0.02 } }, text: 'Bio-fuels: fuel +2%' },
   { gift: { food: 0.05 }, text: 'Hardy crops: colony food +5%' },
   { gift: { mult: { rare: 0.02 } }, text: 'Bio-assay: rare elements +2%' },

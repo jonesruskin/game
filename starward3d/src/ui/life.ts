@@ -1,6 +1,7 @@
 // The Life screen: the eight rungs of the Life Ladder, every lifeform found (and the silhouettes of those still out
 // there, with a hint of where to look), specimen plates, the real science behind each one, searches and studies, the
 // gifts that fully studied life gives, and outbreaks to contain or study.
+import { ri } from './icons';
 import { esc, fmt, fmtTime, clamp } from '../core/util';
 import * as LF from '../core/life';
 import { RUNGS } from '../data/life';
@@ -28,7 +29,7 @@ export class LifeUI {
     const list = all.filter((e) => this.rung < 0 || e.rung === this.rung); const R0 = this.rung >= 0 ? RUNGS[this.rung] : null;
     const cards = list.map((e) => `<div class="lcard ${e.id === this.sel ? 'on' : ''} ${e.state}" data-a="lsel" data-k="${esc(e.id)}">${this.plate(e, 56)}<div class="grow"><b style="color:${e.state === 'unknown' ? 'var(--muted)' : e.col}">${esc(e.name)}</b><div class="meta">${esc(RUNGS[e.rung].name)} · ${this.status(e)}</div>${this.pips(e)}</div>${this.job(e.id) ? '<span class="tag">STUDY</span>' : ''}</div>`).join('');
     const hidden = s.tech.exoplanetology ? '' : '<p class="meta">Research Exoplanetology to read the atmospheres of surveyed worlds for signs of life.</p>';
-    return `<div class="head"><h1>Life</h1><span class="chip">🧬 ${nFound} found · ${Object.keys(L.rungs).length} / 8 rungs</span><span class="chip" style="color:${RES.xeno.color}">${RES.xeno.icon} ${fmt(s.res.xeno || 0)}</span><button class="ibtn" data-a="close">✕</button></div>
+    return `<div class="head"><h1>Life</h1><span class="chip">🧬 ${nFound} found · ${Object.keys(L.rungs).length} / 8 rungs</span><span class="chip" style="color:${RES.xeno.color}">${ri('xeno')} ${fmt(s.res.xeno || 0)}</span><button class="ibtn" data-a="close">✕</button></div>
       <div class="body life">${ladder}<div class="lmain">${this.outbreaks().map((o) => this.outbreakHTML(o)).join('')}${this.sel ? this.detail(this.sel) : ''}${R0 ? `<p class="desc" style="color:${R0.col}">${R0.num} · ${esc(R0.desc)}</p>` : ''}<div class="lgrid">${cards || '<p class="desc">Nothing found on this rung yet.</p>'}</div>${hidden}</div></div>`; }
   private outbreakHTML(o: LF.Outbreak) { const s = this.s, e = LF.entry(s, o.life); const cost = LF.containCost(s, this.A.R); const j = this.job(o.life); const c = LF.canBio(s, o.life);
     const what = o.kind === 'claim' ? `Something is eating the ore at ${esc(o.name)}. Output there is halved.` : `Native spores have got into the domes at ${esc(o.name)}. The colony has stopped growing.`;

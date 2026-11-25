@@ -1,5 +1,6 @@
 // The robot screens: the crew (levels, jobs, feeding), the Workshop (cores and activation), the Fusion Lab, the
 // Botdex, and the operator stations in every building panel.
+import { ri } from './icons';
 import { esc, fmt, fmtTime, clamp, pct } from '../core/util';
 import * as RB from '../core/robots';
 import { SPECIES, SPECIES_ORDER } from '../data/species';
@@ -19,14 +20,14 @@ export class RobotsUI {
   html() {
     const s = this.s, R = RB.rb(s); const ready = R.cores.length; const tabs: [string, string][] = [['crew', `Crew (${R.list.length}/${RB.capacity(s)})`], ['cores', `Workshop${ready ? ` · ${ready} ready` : ''}`], ['fusion', 'Fusion'], ['dex', `Robot Registry ${RB.dexCount(s)}/${RB.discoverable().length}`]];
     let body = this.tab === 'crew' ? this.crew() : this.tab === 'cores' ? this.cores() : this.tab === 'fusion' ? this.fusion() : this.dex();
-    return `<div class="head"><h1>Robots</h1><span class="chip">⚡ ${fmt(s.res.cells || 0)} Power Cells</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${k === this.tab ? 'on' : ''}" data-a="rtabR" data-t="${k}">${n}</button>`).join('')}</div><div class="body">${body}</div>`;
+    return `<div class="head"><h1>Robots</h1><span class="chip">${ri('cells')} ${fmt(s.res.cells || 0)} Power Cells</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${k === this.tab ? 'on' : ''}" data-a="rtabR" data-t="${k}">${n}</button>`).join('')}</div><div class="body">${body}</div>`;
   }
   private crew() {
     const s = this.s, R = RB.rb(s); if (!R.list.length) return `<p class="desc">No robots yet. ${RB.workshopLvl(s) ? 'Assemble a core in the Workshop, then activate it.' : 'Research Industrial Automation and build a Robotics Workshop: your first two robots come with it.'}</p>`;
     const list = [...R.list].sort((a, b) => RB.rIdx(b.sp) - RB.rIdx(a.sp) || b.lvl - a.lvl);
     return `<div class="bots">${list.map((r) => { const d = SPECIES[r.sp]; const f = RB.canFeed(s, r.id); const job = r.post ? RB.robotBoost(r, (s.bases[r.post.base]?.items.find((i) => i.id === r.post!.item) || { b: '' }).b) : 0; const at = r.post ? s.bases[r.post.base]?.items.find((i) => i.id === r.post!.item) : null;
       return `<div class="botc">${this.pic(r.sp)}<div><b>${esc(d.name)}</b> ${rarTag(r.sp)} ${elPills(d.el)}<div class="meta">Level ${r.lvl}/${MAX_LVL} · ${at ? `operating the ${esc(BUILDINGS[at.b].name)} (+${pct(job)}${RB.matches(r.sp, at.b) ? ', a perfect fit' : ''})` : 'resting in a dock'}</div></div>
-        <div class="row" style="flex-direction:column;align-items:flex-end;gap:4px"><button class="btn small ${f.ok ? 'green' : ''}" data-a="feedR" data-id="${r.id}" ${f.ok || f.why === 'Not enough Power Cells' ? '' : 'disabled'}>${f.max ? 'MAX' : `⚡${fmt(f.cost?.cells || 0)} Level up`}</button>${r.post ? `<button class="btn small" data-a="unassignR" data-id="${r.id}">Recall</button>` : ''}</div></div>`; }).join('')}</div>`;
+        <div class="row" style="flex-direction:column;align-items:flex-end;gap:4px"><button class="btn small ${f.ok ? 'green' : ''}" data-a="feedR" data-id="${r.id}" ${f.ok || f.why === 'Not enough Power Cells' ? '' : 'disabled'}>${f.max ? 'MAX' : `${ri('cells')}${fmt(f.cost?.cells || 0)} Level up`}</button>${r.post ? `<button class="btn small" data-a="unassignR" data-id="${r.id}">Recall</button>` : ''}</div></div>`; }).join('')}</div>`;
   }
   private cores() {
     const s = this.s, R = RB.rb(s); const ws = RB.workshopLvl(s); let h = '';

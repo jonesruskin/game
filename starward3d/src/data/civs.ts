@@ -41,7 +41,7 @@ export const XENOTECH: Record<string, XenoDef> = {
   crystalLattice: { sp: 'veyari', name: 'Crystal Lattice Engineering', rel: 40, xeno: 3000, eff: { mult: { metal: 0.1, credits: 0.1, fuel: 0.1, science: 0.1 } }, desc: 'Structures grown atom by atom as single crystals. All production +10%.' },
   gardenersPatience: { sp: 'veyari', name: 'The Gardeners\' Patience', rel: 70, xeno: 8000, eff: { buildTime: 0.12 }, desc: 'Build as a garden grows: everything in its place, nothing wasted. Construction 12% faster.' },
   photonicSails: { sp: 'lumen', name: 'Photonic Sails', rel: 30, xeno: 4000, eff: { flag: 'photonic' }, desc: 'Sails of woven light. Light-sail range +20 light-years; warp ships twice as fast.' },
-  plasmaCommerce: { sp: 'lumen', name: 'Plasma Commerce', rel: 60, xeno: 9000, eff: { mult: { credits: 0.15 } }, desc: 'Markets that clear at the speed of light. Credits +15%.' },
+  plasmaCommerce: { sp: 'lumen', name: 'Plasma Commerce', rel: 60, xeno: 9000, eff: { mult: { credits: 0.15 } }, desc: 'Markets that clear at the speed of light. Aurivane +15%.' },
   quantumCognition: { sp: 'synod', name: 'Quantum Cognition', rel: 40, xeno: 6000, eff: { slots: 1 }, desc: 'Thinking machines that explore every branch at once. +1 research slot.' },
   machineDiplomacy: { sp: 'synod', name: 'Machine Diplomacy', rel: 70, xeno: 9000, eff: { flag: 'machineDiplo' }, desc: 'Negotiation as an optimisation problem. Influence +50%; relations decay half as fast.' },
   mycelialTerra: { sp: 'mycelar', name: 'Mycelial Terraforming', rel: 30, xeno: 4000, eff: { flag: 'mycelial' }, desc: 'Fungal networks that build soil in months. Colonists grow 50% faster; terraforming stages 30% faster.' },
@@ -52,7 +52,7 @@ export const XENOTECH: Record<string, XenoDef> = {
 };
 // requests a civilisation may make (scaled to your economy when generated)
 export const REQUESTS: { k: string; res?: string; text: string; hours?: number }[] = [
-  { k: 'give', res: 'credits', text: 'asks for a shipment of {n} credits', hours: 3 },
+  { k: 'give', res: 'credits', text: 'asks for a shipment of {n} Aurivane', hours: 3 },
   { k: 'give', res: 'metal', text: 'needs {n} metal for a construction project', hours: 3 },
   { k: 'give', res: 'science', text: 'requests {n} science: data on human biology', hours: 2 },
   { k: 'give', res: 'exotic', text: 'wants {n} exotic matter', hours: 0.03 },

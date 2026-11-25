@@ -67,7 +67,7 @@ completers.bio = (s, j): Note => { const L = life(s); const e = entry(s, j.life)
   return { kind: 'lifeStudy', life: j.life, lvl: j.lvl }; };
 // ---------------- outbreaks ----------------
 export const containCost = (s: State, R: Rates) => ({ credits: round2(Math.max(2e6, R.prod.credits * 1.5)) });
-export function contain(s: State, oid: string, R: Rates, t = Date.now()) { const L = life(s); const o = L.outbreaks.find((x) => x.id === oid); if (!o) return { ok: false, why: '' }; const cost = containCost(s, R); if (!canPay(s, cost)) return { ok: false, why: 'Not enough credits', cost };
+export function contain(s: State, oid: string, R: Rates, t = Date.now()) { const L = life(s); const o = L.outbreaks.find((x) => x.id === oid); if (!o) return { ok: false, why: '' }; const cost = containCost(s, R); if (!canPay(s, cost)) return { ok: false, why: 'Not enough Aurivane', cost };
   pay(s, cost); L.outbreaks = L.outbreaks.filter((x) => x !== o); let found = null; if (!L.found[o.life]) found = markFound(s, o.life, entry(s, o.life)?.rung ?? 1, t); return { ok: true, found }; }
 function startOutbreak(s: State, lifeId: string, where: string, name: string, kind: 'claim' | 'colony', t: number): Note { const L = life(s); L.outbreaks.push({ id: 'o' + t.toString(36), life: lifeId, where, name, kind, t, until: t + 12 * 3600e3 }); return { kind: 'outbreak', life: lifeId, where, name, okind: kind }; }
 // once a second: outbreaks start and burn out, new signals are announced, civilisations take their rungs

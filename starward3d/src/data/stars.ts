@@ -102,7 +102,7 @@ export const COLONY_MAX = 15;
 // ---- megastructures ----
 export const MEGA: Record<string, MegaDef> = {
   laser: { name: 'Lightsail Laser Array', req: 'laserSails', stages: 5, days: 3, cost: { credits: 2e7, metal: 1.5e7, rare: 6000 }, growth: 1.7, desc: 'A hundred gigawatts of phased lasers on the Moon\'s far side. It pushes gram-scale light sails to a fifth of light speed: survey a star in days. Each stage widens its reach.', effect: 'Survey range' },
-  dyson: { name: 'Dyson Swarm', req: 'dysonSwarm', stages: 10, days: 4, cost: { credits: 5e7, metal: 6e7, rare: 15000 }, growth: 1.55, gen: 6000, prod: { credits: 400000, science: 40000 }, desc: 'Millions of solar collectors circling the Sun, built from Mercury. Each stage captures more of the Sun\'s output, and power becomes almost free.', effect: 'Energy, credits and science per stage' },
+  dyson: { name: 'Dyson Swarm', req: 'dysonSwarm', stages: 10, days: 4, cost: { credits: 5e7, metal: 6e7, rare: 15000 }, growth: 1.55, gen: 6000, prod: { credits: 400000, science: 40000 }, desc: 'Millions of solar collectors circling the Sun, built from Mercury. Each stage captures more of the Sun\'s output, and power becomes almost free.', effect: 'Energy, Aurivane and science per stage' },
   gate: { name: 'Sol Wormhole Gate', req: 'wormholeGates', stages: 1, days: 6, cost: { credits: 2e8, metal: 1e8, exotic: 1500 }, growth: 1, desc: 'A throat of exotic matter held open in Sol\'s outer system. Pair it with gates at your star colonies and voyages between them take minutes.', effect: 'Opens the gate network' },
 };
 // terraforming star colonies (Worldseeding): four stages for rocky, desert, ice, super-Earth and thin-aired worlds.

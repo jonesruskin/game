@@ -1,4 +1,5 @@
 // Launch Control: missions, satellites, the space station, the hangar and assembly lines, and the rocket designer.
+import { ri } from './icons';
 import { esc, fmt, fmtTime, clamp, pct } from '../core/util';
 import * as SP from '../core/space';
 import { designStats, Design, ENGINES, TANKS, TOPS, STAGE_REQ, BOOST_REQ, CLASS_NAME } from '../data/rockets';
@@ -18,7 +19,7 @@ export class LaunchUI {
     return `<div class="head"><h1>Launch Control</h1><span class="chip">🚀 ${SP.launchesBusy(s)}/${SP.launchSlots(s)} pads · class ${SP.maxClass(s)} max</span><button class="ibtn" data-a="close">✕</button></div><div class="tabs">${tabs.map(([k, n]) => `<button class="tab ${k === this.tab ? 'on' : ''}" data-a="ltab" data-t="${k}">${n}</button>`).join('')}</div><div class="body">${fl}${body}</div>`;
   }
   private launchBtn(p: SP.Payload, label = 'Launch') { const c = SP.canLaunch(this.s, p); const pj = esc(JSON.stringify(p));
-    return `<div class="row"><span class="grow">${costHTML(c.ms.cost, this.s.res)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(c.ms.flight)}</span></div>${c.ok ? `<div class="muted" style="font-size:11px">On a ${esc(c.rocket!.name)} · ${pct(c.rel!)} success</div>` : ''}<button class="btn small ${c.ok ? 'gold' : ''}" data-a="launch" data-p="${pj}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? '🚀 ' + label : esc(c.why || '')}</button>${c.noRocket ? '<button class="btn small" data-a="ltab" data-t="rockets">Build a rocket</button>' : ''}`; }
+    return `<div class="row"><span class="grow">${costHTML(c.ms.cost, this.s.res)}</span><span class="muted" style="font-size:11px">${ri('time')} ${fmtTime(c.ms.flight)}</span></div>${c.ok ? `<div class="muted" style="font-size:11px">On a ${esc(c.rocket!.name)} · ${pct(c.rel!)} success</div>` : ''}<button class="btn small ${c.ok ? 'gold' : ''}" data-a="launch" data-p="${pj}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? '🚀 ' + label : esc(c.why || '')}</button>${c.noRocket ? '<button class="btn small" data-a="ltab" data-t="rockets">Build a rocket</button>' : ''}`; }
   private missions() {
     const s = this.s, S = SP.sp(s); const list = Object.entries(SP.MISSIONS).filter(([, m]) => m.req.every((r) => this.near(r)) && (m.flags || []).every((f) => s.flags[f]));
     return `<div class="techs">${list.map(([id, m]) => { const done = m.kind !== 'repeat' && m.flag && s.flags[m.flag];
@@ -42,7 +43,7 @@ export class LaunchUI {
     h += `<div class="row" style="margin-bottom:10px"><span class="chip">🏭 ${SP.rocketsBusy(s)}/${SP.assemblyLines(s)} assembly lines</span><span class="chip">Vehicle Assembly level ${SP.vabLevel(s)}</span><button class="btn small gold" data-a="newDesign">✚ New design</button></div>`;
     const ds = SP.allDesigns(s); h += `<div class="grid">${ds.map((d) => { const st = designStats(d); const c = SP.canBuildRocket(s, d); const n = S.hangar[d.id] || 0; const preset = !S.designs.some((x) => x.id === d.id);
       return `<div class="card"><div class="thumb" style="height:150px"><img src="${this.A.studio.rocket(d, this.A.world.look)}" alt=""></div><div class="row"><b class="grow">${esc(d.name)}</b><span class="n">${n} ready</span></div><div class="muted" style="font-size:12px">Class ${st.cls} · ${esc(CLASS_NAME[st.cls] || '')} · ${fmt(st.payload)} t · ${pct(st.rel)}${st.crew ? ' · crew' : ''}${st.lander ? ' · lander' : ''}${d.legs ? ' · reusable' : ''}${preset ? ' · template' : ''}</div>
-        <div class="row"><span class="grow">${costHTML(SP.rocketCost(s, d), s.res)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(SP.rocketTime(s, d))}</span></div><div class="row"><button class="btn small ${c.ok ? 'gold' : ''} grow" data-a="assemble" data-id="${d.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Assemble' : esc(c.why || '')}</button><button class="btn small" data-a="editDesign" data-id="${d.id}">✎</button></div></div>`; }).join('') || '<p class="muted">Research Rocketry Fundamentals to unlock your first rocket parts.</p>'}</div>`;
+        <div class="row"><span class="grow">${costHTML(SP.rocketCost(s, d), s.res)}</span><span class="muted" style="font-size:11px">${ri('time')} ${fmtTime(SP.rocketTime(s, d))}</span></div><div class="row"><button class="btn small ${c.ok ? 'gold' : ''} grow" data-a="assemble" data-id="${d.id}" ${c.ok || c.why === 'Not enough resources' ? '' : 'disabled'}>${c.ok ? 'Assemble' : esc(c.why || '')}</button><button class="btn small" data-a="editDesign" data-id="${d.id}">✎</button></div></div>`; }).join('') || '<p class="muted">Research Rocketry Fundamentals to unlock your first rocket parts.</p>'}</div>`;
     return h;
   }
   // ---------------- the designer ----------------
