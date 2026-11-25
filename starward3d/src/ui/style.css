@@ -251,3 +251,5 @@ body.mapping #bubbles .bub:not(.lbl) { display: none !important; }
 .box.mer { border-color: rgba(110, 231, 255, 0.35); background: linear-gradient(180deg, rgba(110, 231, 255, 0.07), rgba(110, 231, 255, 0.02)); margin-bottom: 10px; }
 .mqs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; } .mq { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 @media (max-width: 720px) { .mqs { grid-template-columns: 1fr; } }
+.tsteps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 6px 0; } .tstep { font-size: 11px; padding: 5px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: var(--muted); } .tstep b { font: 700 12px Oxanium; margin-right: 3px; } .tstep.done { color: var(--green); border-color: rgba(124, 242, 154, 0.4); } .tstep.next { color: #fff; border-color: var(--gold); }
+@media (max-width: 720px) { .tsteps { grid-template-columns: repeat(2, 1fr); } }

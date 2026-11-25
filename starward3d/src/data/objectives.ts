@@ -147,6 +147,7 @@ export const CHAPTERS: Chapter[] = [
       { id: 'y7', text: 'Answer the Kr\'thul: pay tribute or refuse (Contact screen)', kind: 'flag', flag: 'krthulAnswered', reward: { dm: 150, metal: 2000000000 } },
       { id: 'w7', text: 'Open the Sol Wormhole Gate', kind: 'mega', mega: 'gate', n: 1, reward: { dm: 200, exotic: 1000 } },
       { id: 'w8', text: 'Gate a star colony into the network', kind: 'gates', n: 1, reward: { dm: 200, credits: 800000000 } },
+      { id: 'w9', text: 'Begin terraforming a star colony (Worldseeding, on its Colony Hub)', kind: 'exoterra', n: 1, reward: { dm: 150, science: 400000000 } },
       { id: 'y6', text: 'Sign a research pact', kind: 'deal', deal: 'pact', reward: { dm: 150, science: 300000000 } },
       { id: 'y8', text: 'Form an alliance', kind: 'deal', deal: 'alliance', reward: { dm: 300, credits: 3000000000 } },
     ],

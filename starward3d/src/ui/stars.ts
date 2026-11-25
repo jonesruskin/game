@@ -4,7 +4,7 @@
 import { esc, fmt, fmtTime, clamp } from '../core/util';
 import * as ST from '../core/stars';
 import * as SO from '../core/solar';
-import { STARS, CLASS, PTYPE, DRIVES, DRIVE_ORDER, SPECS, MEGA, COLONY_MAX } from '../data/stars';
+import { STARS, CLASS, PTYPE, DRIVES, DRIVE_ORDER, SPECS, MEGA, COLONY_MAX, EXO_TERRA } from '../data/stars';
 import { RES } from '../data/resources';
 import { TECH } from '../data/research';
 import { BODIES } from '../data/solar';
@@ -67,7 +67,12 @@ export class StarsUI {
   colonyHTML(key: string) { const s = this.s, C = ST.ist(s).colonies[key]; if (!C) return ''; const S = STARS[C.star], pl = S.planets[C.p]; const c = ST.canDevelop(s, key), j = this.job('develop', (x) => x.key === key);
     return `<div class="box"><div class="row"><b class="ox grow">${esc(pl.name)}: the whole world</b><span class="muted ox">level ${C.lvl} / ${COLONY_MAX}</span></div><p class="desc">Your base is where the first families live. Beyond it, towns, mines and farms spread across the planet as it develops. Habitability ${Math.round(pl.hab * 100)}% under ${esc(S.name)}${ST.gated(s, C.star) ? ' · gate open (+25%)' : ''}.</p>
       <div class="meta">Produces ${perH(ST.colonyOut(s, key))}</div><div class="specs">${Object.entries(SPECS).map(([k, sp]) => `<button class="tab ${C.spec === k ? 'on' : ''}" data-a="spec" data-k="${key}" data-t="${k}" title="${esc(sp.desc)}">${esc(sp.name)}</button>`).join('')}</div>
-      ${j ? this.progress(j, `DEVELOPING TO LEVEL ${j.to}`) : C.lvl < COLONY_MAX ? `<div class="row" style="margin-top:6px"><span class="grow">${costHTML(c.cost || ST.devCost(C.lvl + 1), s.res)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(ST.devTime(C.lvl + 1))}</span></div>${this.btn(c, 'develop', `Develop to level ${C.lvl + 1}`, `data-k="${key}"`)}` : '<p class="good">Fully developed.</p>'}</div>`; }
+      ${j ? this.progress(j, `DEVELOPING TO LEVEL ${j.to}`) : C.lvl < COLONY_MAX ? `<div class="row" style="margin-top:6px"><span class="grow">${costHTML(c.cost || ST.devCost(C.lvl + 1), s.res)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(ST.devTime(C.lvl + 1))}</span></div>${this.btn(c, 'develop', `Develop to level ${C.lvl + 1}`, `data-k="${key}"`)}` : '<p class="good">Fully developed.</p>'}</div>${this.terraHTML(key)}`; }
+  // terraforming a star colony: four stages, each one visible on the world
+  private terraHTML(key: string) { const s = this.s; if (!ST.exoTerraformable(key)) return ''; const n = ST.exoTerraStage(s, key), j = this.job('exoterra', (x) => x.key === key), c = ST.canExoTerra(s, key);
+    const steps = EXO_TERRA.map((st, i) => `<div class="tstep ${i < n ? 'done' : i === n ? 'next' : ''}"><b>${i < n ? '✓' : i + 1}</b> ${esc(st.name)}</div>`).join('');
+    return `<div class="box"><div class="row"><b class="ox grow">🌍 Worldseeding</b><span class="muted ox">${n} / ${EXO_TERRA.length}</span></div><div class="tsteps">${steps}</div>${n < EXO_TERRA.length ? `<p class="desc">${esc(EXO_TERRA[n].desc)}</p>` : '<p class="good">A living world with an open sky. No more domes.</p>'}
+      ${j ? this.progress(j, `STAGE ${(j.stage || 0) + 1}: ${EXO_TERRA[j.stage || 0].name.toUpperCase()}`) : n < EXO_TERRA.length ? `<div class="row" style="margin-top:6px"><span class="grow">${costHTML(c.cost || EXO_TERRA[n].cost, s.res)}</span><span class="muted" style="font-size:11px">⏱ ${fmtTime(EXO_TERRA[n].days * 86400)}</span></div>${this.btn(c, 'exoTerra', `Begin stage ${n + 1}`, `data-k="${key}"`)}` : ''}</div>`; }
   // ---------------- the Empire overview ----------------
   empireHTML() { const s = this.s, R = this.A.R; const I = ST.ist(s); let pop = 0; const rows = Object.entries(s.bases).map(([k, B]) => { const col = R.col[k]; const p = k === 'earth' ? 0 : Math.floor(B.pop || 0); pop += p; const exo = ST.isExo(k); const where = exo ? `${STARS[k.split(':')[0]].name}` : BODIES[B.body]?.name || k;
       return `<div class="botc" style="grid-template-columns:1fr auto"><div><b>${exo ? PIC[STARS[k.split(':')[0]].planets[+k.split(':')[1]].type] : worldIcon(k)} ${esc(B.name)}</b> <span class="muted">${esc(where)}</span><div class="meta">${k === 'earth' ? 'Home: Cape Horizon' : `${fmt(p)} colonists${col ? ` / ${fmt(col.house)} housing` : ''}`} · ${B.items.length} buildings${exo && I.colonies[k] ? ` · world level ${I.colonies[k].lvl} (${perH(ST.colonyOut(s, k))})` : ''}</div></div>${s.at === k ? '<span class="good ox">Here</span>' : `<button class="btn small gold" data-a="travel" data-k="${k}">Go</button>`}</div>`; }).join('');
@@ -78,6 +83,7 @@ export class StarsUI {
   // ---------------- actions ----------------
   act(a: string, t: HTMLElement): boolean { const s = this.s, A = this.A, ui = this.ui; const done = (r: any, msg: string, snd: Parameters<typeof A.audio.play>[0] = 'build') => { if (r.ok) { A.audio.play(snd); ui.toast(msg, 'good'); A.changed(); ui.renderPanel(); } else ui.deny(r.why); return true; };
     switch (a) {
+      case 'exoTerra': { const r = ST.startExoTerra(this.s, t.dataset.k!); if (r.ok) { this.A.audio.play('build'); this.ui.toast('Worldseeding begins', 'gold'); this.A.changed(); this.ui.renderPanel(); } else this.ui.deny((r as any).why); return true; }
       case 'starsOpen': ui.closeOver(); ui.closeModal(); A.openStars(); return true;
       case 'starPick': this.sel = t.dataset.b || null; A.world.starMap?.setFocus(this.sel); ui.renderPanel(); A.audio.play('tap'); return true;
       case 'starClose': this.sel = null; A.world.starMap?.setFocus(null); ui.renderPanel(); return true;

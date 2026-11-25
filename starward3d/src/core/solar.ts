@@ -2,6 +2,7 @@
 // transfer windows open and close. Reusable ships fly voyages: founding colonies, building and upgrading outposts,
 // mining claims and gas-giant scoops, ferrying colonists. Colonies are real bases with their own ground and sky,
 // people who need housing, water and air, and traits that come from their world.
+import { EXO_TERRA } from '../data/stars';
 import { BODIES, SITES, SHIPS, SHIP_ORDER, TERRA, ZONE_CLASS, SITE_MAX, BODY_ORDER, RELAY, TerraStage } from '../data/solar';
 import { fitMax, GRID, BUILDINGS } from '../data/buildings';
 import { lvlOf, canPay, pay, rateHooks, baseHooks, Rates } from './econ';
@@ -114,7 +115,10 @@ export function canRelay(s: State, id: string): Check {
   const cost = relayCost(L + 1), time = relayTime(id); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost, time }; return { ok: true, cost, time };
 }
 export function startRelay(s: State, id: string, t = Date.now()) { const c = canRelay(s, id); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'relay', body: id, name: `Relays around ${BODIES[id].name}`, start: t, end: t + c.time! * 1000 }); return c; }
-export function terraState(s: State, body: string) { const T = TERRA[body]; if (!T) return null; const n = terraStage(s, body); const o: Record<string, number> = { ...T.start, house: 0, n, of: T.stages.length, p: n / T.stages.length }; for (let k = 0; k < n; k++) { Object.assign(o, T.stages[k].set); o.house += T.stages[k].house; } return o; }
+export function terraState(s: State, body: string) { const T = TERRA[body]; if (!T) return body.includes(':') ? exoTerraState(s, body) : null; const n = terraStage(s, body); const o: Record<string, number> = { ...T.start, house: 0, n, of: T.stages.length, p: n / T.stages.length }; for (let k = 0; k < n; k++) { Object.assign(o, T.stages[k].set); o.house += T.stages[k].house; } return o; }
+// a terraformed star colony: the same climate record as Mars and Venus, from the four Worldseeding stages
+function exoTerraState(s: State, key: string) { const n = (((s as any).stars || {}).terra || {})[key] || 0; if (!n) return null; const o: Record<string, number> = { temp: -40, pressure: 0.01, water: 0, o2: 0, n, of: EXO_TERRA.length, p: n / EXO_TERRA.length, exo: 1, house: 0.12 * n };
+  for (let k = 0; k < n; k++) Object.assign(o, EXO_TERRA[k].set); return o; }
 // ---------------- completion & hooks ----------------
 completers.ship = (s, j): Note => { const S = sol(s); S.ships[j.ship] = (S.ships[j.ship] || 0) + 1; return { kind: 'ship', ship: j.ship }; };
 completers.terra = (s, j): Note => { const S = sol(s); S.terra[j.body] = Math.max(S.terra[j.body] || 0, j.stage + 1); return { kind: 'terra', body: j.body, stage: j.stage, last: S.terra[j.body] >= TERRA[j.body].stages.length }; };

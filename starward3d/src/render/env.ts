@@ -68,6 +68,17 @@ export function terraLook(base: WorldLook, T?: Record<string, number> | null): W
     if (water > 0) { L.sea = '#2f6aa0'; if (water >= 22) L.seaSide = 1; else L.lakes = -2.6 + (water / 22) * 1.6; L.ponds = water >= 22 ? 6 : 3; }
     L.trees = kGreen > 0.1 ? kGreen : 0; L.green = kLich; L.dust = 1 - kAir;
   }
+  // a star colony being terraformed: a sky that turns blue and fills with cloud, seas, lichen, then forests
+  if (T.exo) {
+    const kAir = sstep(0.05, 0.9, p), kLich = Math.min(1, o2 / 4), kGreen = Math.min(1, o2 / 14), kWet = Math.min(1, water / 24), lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+    L.sky = base.sky.map((c, i) => mix(c, blue[i], kAir * 0.92)) as [string, string, string]; L.fog = mix(base.fog, '#d8e6f4', kAir * 0.9); L.fogNear = lerp(base.fogNear, 90, kAir); L.fogFar = lerp(base.fogFar, 420, kAir);
+    L.amb = [mix(base.amb[0], '#bcd8ff', kAir), mix(base.amb[1], '#3b5a34', kGreen), base.amb[2] + kAir * 0.3]; L.stars = (base.stars || 0) * (1 - kAir); L.craters = (base.craters || 0) * (1 - kWet * 0.8); L.craterN = Math.round((base.craterN || 0) * (1 - kAir));
+    if (p >= 0.3) { L.clouds = '#ffffff'; L.cloudN = Math.round(6 + 18 * kAir); }
+    const lich = ['#7d7550', '#8a8458', '#6e6a48', '#969060'], grn = ['#5a8a3e', '#6a9a48', '#4a7a36', '#78a852'];
+    L.ground = base.ground.map((c, i) => mix(mix(mix(c, '#6a5a48', kWet * 0.3), lich[i], kLich * 0.5), grn[i], kGreen * 0.8)); L.base = mix(mix(base.base, '#8a8458', kLich * 0.3), '#7a8a52', kGreen * 0.45);
+    if (water > 0) { L.sea = '#2f6aa0'; if (water >= 22) L.seaSide = 1; else L.lakes = -2.6 + (water / 22) * 1.6; L.ponds = water >= 22 ? 6 : 3; }
+    if (kGreen > 0.3) { L.flora = 'trees'; L.trees = kGreen; } L.green = kLich; L.dust = 1 - kAir;
+  }
   if (base.id === 'venus') {
     const cool = 1 - sstep(30, 464, T.temp ?? 464), kO2 = Math.min(1, o2 / 15);
     L.sky = base.sky.map((c, i) => mix(c, blue[i], kO2 * 0.85 + cool * 0.1)) as [string, string, string]; L.fog = mix(base.fog, '#e2ecf6', kO2 * 0.8 + cool * 0.1); L.amb = [mix(base.amb[0], '#d8e6ff', kO2), base.amb[1], base.amb[2]];

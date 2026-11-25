@@ -54,5 +54,5 @@ Details and the full API are in `server/README.md`; `npm run test:server` runs t
 - **Dark matter** (finishes timers) is earned from goals, Kardashev milestones, the calendar, missions, new rungs of the Life Ladder and expeditions; nothing is sold. On mobile, AdMob and store billing slot into `src/platform/mobile.ts` without touching game code.
 
 ## 🔁 After launch
-- Read day-1 and day-7 retention on the portal. The levers: the goal chapters and their rewards (`src/data/objectives.ts`), the calendar and daily missions (`src/core/daily.ts`), study costs and gifts on the Life Ladder (`src/data/life.ts`, `src/core/life.ts`), the Style Locker unlocks (`src/data/style.ts`) and War Games rewards and leagues (`src/data/war.ts`).
+- Read day-1 and day-7 retention on the portal. The levers: the goal chapters and their rewards (`src/data/objectives.ts`), the calendar and daily missions (`src/core/daily.ts`), study costs and gifts on the Life Ladder (`src/data/life.ts`, `src/core/life.ts`), the Style Locker unlocks (`src/data/style.ts`), food yields and supply-run prices (`src/core/food.ts`) and War Games rewards and leagues (`src/data/war.ts`).
 - Rebuild with `npm install` (once) and `npm run build` inside `starward3d/`, then regenerate the store assets with `node starward3d/tools/store-assets.cjs` from the repo root (needs Playwright and ffmpeg).

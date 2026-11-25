@@ -105,3 +105,13 @@ export const MEGA: Record<string, MegaDef> = {
   dyson: { name: 'Dyson Swarm', req: 'dysonSwarm', stages: 10, days: 4, cost: { credits: 5e7, metal: 6e7, rare: 15000 }, growth: 1.55, gen: 6000, prod: { credits: 400000, science: 40000 }, desc: 'Millions of solar collectors circling the Sun, built from Mercury. Each stage captures more of the Sun\'s output, and power becomes almost free.', effect: 'Energy, credits and science per stage' },
   gate: { name: 'Sol Wormhole Gate', req: 'wormholeGates', stages: 1, days: 6, cost: { credits: 2e8, metal: 1e8, exotic: 1500 }, growth: 1, desc: 'A throat of exotic matter held open in Sol\'s outer system. Pair it with gates at your star colonies and voyages between them take minutes.', effect: 'Opens the gate network' },
 };
+// terraforming star colonies (Worldseeding): four stages for rocky, desert, ice, super-Earth and thin-aired worlds.
+// The third stage seeds life the programme has fully studied on the Life Ladder; the fourth needs a developed world.
+export interface ExoTerraStage { name: string; days: number; cost: Record<string, number>; set: Record<string, number>; desc: string; life?: boolean; dev?: number; }
+export const EXO_TERRA: ExoTerraStage[] = [
+  { name: 'Atmosphere Factories', days: 2, cost: { credits: 1.5e8, metal: 1.2e8, he3: 15000 }, set: { pressure: 0.35, temp: -20 }, desc: 'Fusion-powered factories bake gases out of the rock: a thin, warming sky with weather in it.' },
+  { name: 'Comet Seas', days: 3, cost: { credits: 3e8, metal: 2e8, he3: 30000 }, set: { pressure: 0.8, temp: 8, water: 14 }, desc: 'Ice comets steered in from the system\'s outer belt: rain, rivers and the first shallow seas.' },
+  { name: 'Lifeseed', days: 4, cost: { credits: 5e8, science: 3e8, xeno: 5000 }, set: { o2: 5, water: 20 }, life: true, desc: 'Lichens, algae and soil microbes, some from Earth and some from the Life Ladder, spread along the new shores.' },
+  { name: 'Breathable Sky', days: 5, cost: { credits: 9e8, science: 5e8, rare: 200000 }, set: { o2: 14, pressure: 1, temp: 15, water: 24 }, dev: 5, desc: 'Forests and plankton finish the work: an open sky people can breathe. No more domes.' },
+];
+export const EXO_TERRA_TYPES = ['temperate', 'ocean', 'desert', 'super', 'rocky', 'ice'];

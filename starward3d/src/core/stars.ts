@@ -3,7 +3,7 @@
 // gates that turn voyages of days into minutes. In v2 every star colony is also a real base on its exoplanet that you
 // can visit and build in, under its own star; the planet-wide economy grows with its development level and
 // specialisation, and the base is where its people live.
-import { STARS, STAR_IDS, DRIVES, DRIVE_ORDER, SPECS, COLONY_BASE, COLONY_MAX, MEGA, PTYPE, CLASS, Planet } from '../data/stars';
+import { STARS, STAR_IDS, DRIVES, DRIVE_ORDER, SPECS, COLONY_BASE, COLONY_MAX, MEGA, PTYPE, CLASS, Planet, EXO_TERRA, EXO_TERRA_TYPES } from '../data/stars';
 import { fitMax, GRID } from '../data/buildings';
 import { canPay, pay, give, hqLevel, rateHooks, baseHooks, lvlOf, Rates } from './econ';
 import { completers, stepChecks, Check, Note } from './game';
@@ -120,3 +120,16 @@ stepChecks.starLvl = (s, st) => Object.values(ist(s).colonies).some((C) => C.lvl
 stepChecks.drive = (s, st) => (ist(s).ships[st.ship] || 0) >= 1;
 stepChecks.mega = (s, st) => megaStage(s, st.mega) >= (st.n || 1);
 export { STARS, STAR_IDS, DRIVES, DRIVE_ORDER, SPECS, MEGA, PTYPE, CLASS, COLONY_MAX };
+// ---------------- terraforming star colonies (Worldseeding) ----------------
+export const exoTerraStage = (s: State, key: string) => ((ist(s) as any).terra || {})[key] || 0;
+export const exoTerraformable = (key: string) => { const P = planetOf(key); return !!P && EXO_TERRA_TYPES.includes(P.pl.type) && !exoBreathable(key) && !exoDeck(key); };
+const studiedLife = (s: State) => Object.values(((s as any).life || {}).st || {}).filter((v: any) => v >= 3).length;
+export function canExoTerra(s: State, key: string): Check { const C = ist(s).colonies[key]; if (!C || !s.bases[key]) return { ok: false, why: 'Found a colony here first' }; if (!exoTerraformable(key)) return { ok: false, why: exoBreathable(key) ? 'Already breathable' : 'This world cannot be terraformed' };
+  const n = exoTerraStage(s, key); if (n >= EXO_TERRA.length) return { ok: false, why: 'Terraformed', done: true } as Check; if (!s.tech.worldseeding) return { ok: false, why: 'Research Worldseeding', locked: true, tech: 'worldseeding' } as Check;
+  if (s.jobs.some((j) => j.kind === 'exoterra' && j.key === key)) return { ok: false, why: 'Under way', busy: true } as Check; const st = EXO_TERRA[n];
+  if (st.life && !studiedLife(s)) return { ok: false, why: 'Fully study a lifeform on the Life Ladder first', locked: true } as Check; if (st.dev && C.lvl < st.dev) return { ok: false, why: `Develop the colony to level ${st.dev} first`, locked: true } as Check;
+  const cost = fitMax(st.cost); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: Math.round(st.days * 86400) }; }
+export function startExoTerra(s: State, key: string, t = Date.now()) { const c = canExoTerra(s, key); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'exoterra', key, stage: exoTerraStage(s, key), start: t, end: t + c.time! * 1000 }); return c; }
+completers.exoterra = (s, j): Note => { const I = ist(s) as any; I.terra = I.terra || {}; I.terra[j.key] = Math.max(I.terra[j.key] || 0, j.stage + 1); return { kind: 'exoterra', key: j.key, stage: j.stage, last: I.terra[j.key] >= EXO_TERRA.length }; };
+stepChecks.exoterra = (s, st) => Object.keys((ist(s) as any).terra || {}).some((k) => exoTerraStage(s, k) >= (st.n || 1));
+export { EXO_TERRA as EXO_TERRA_LIST };
