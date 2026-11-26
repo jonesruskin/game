@@ -57,6 +57,9 @@ function view([name, land]) {
   if (name === 'earthLow') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-7, -7, 50, Math.PI / 4); }
   if (name === 'earthClose') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-1, 3, 24, Math.PI / 4 + 0.5); }
   if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
+  if (name === 'launch') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); const pad = a.s.bases.earth.items.find((i) => i.b === 'launch'); const v = pad && w.views.get(pad.id);
+    if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, land ? 26 : 30, Math.PI / 4 + 0.25); } }
+  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 6.6 : 4.6); cam(L.x - 2.5, L.z - 0.5, 19, Math.PI / 4 + 0.45); } }
   if (name === 'system') { a.toBase(); a.openMap(); }
   if (name === 'stars') { a.toBase(); a.openStars(); }
   if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
@@ -67,12 +70,14 @@ function view([name, land]) {
     a.changed(); a.ui.land.open(); const best = free.map(([x, z]) => [x, z, Object.keys(LD.plotInfo(s, 'moon', x, z).found).length]).sort((p, q) => q[2] - p[2])[0]; if (best) a.ui.land.tapCell(best[0] * 6 + 3, best[1] * 6 + 3); cam(4, 8, 104, Math.PI / 4); }
   if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
 }
+function pin(kind) { const a = window.__app, w = a.world; let p = null; if (kind === 'rocket') { const f = w.flights[0]; if (f) { p = f.m.group.position.clone(); p.y += 1.6; } } else { const L = w.land.lander; if (L) { p = L.g.position.clone(); p.y += 0.6; } }
+  if (!p) return null; const q = w.project(p); return { x: q.x, y: q.y }; }
 function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, N = B.n; let x0 = Lr.lo, z0 = Lr.lo, x1 = Lr.hi, z1 = Lr.hi; for (const p of Lr.land || []) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0] + 6); z1 = Math.max(z1, p[1] + 6); }
   // land just outside the base, on the near edges (the camera looks from the +x +z corner)
   const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
   for (let i = 0; i < B.input.army.length; i++) { a.ui.war.sel = i; const off = ((i % 5) - 2) * 1.8; if (Math.floor(i / 2) % 2) a.world.onBattleTap(Math.min(N - 0.3, x1 + 1.1), mz + off); else a.world.onBattleTap(mx + off, Math.min(N - 0.3, z1 + 1.1)); } }
-async function boot(b, w, h) {
-  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
+async function boot(b, w, h, dsf = 1) {
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dsf }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
   await pg.clock.install({ time: START }); await pg.goto(`${base}/starward3d/dist/web/index.html`); await pg.addStyleTag({ content: '#standby, #logBadge { display: none !important; }' }); /* the showcase base, not its to-do list */
   for (let i = 0; i < 400; i++) { await pg.clock.runFor(100); if (await pg.evaluate(() => !!(window.__app && window.__app.world && window.__G && window.__D))) break; }
   await pg.clock.runFor(1500); await pg.evaluate(stage); await pg.clock.runFor(1500); await pg.evaluate(() => { const a = window.__app; window.__G.events.length = 0; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} });
@@ -81,25 +86,27 @@ async function boot(b, w, h) {
 const HIDE = '#hud,#nav,#obj,#bubbles,#toasts,#panel,#mapui,#place,#modal,#over,#rail,#bhud{display:none!important}';
 let base = '';
 async function shot(b, w, h, out, v, opts = {}) {
-  const { ctx, pg, errs } = await boot(b, w, h); if (opts.clean) await pg.addStyleTag({ content: HIDE });
-  await pg.evaluate(view, [v, w > h]); if (opts.clean) await pg.evaluate(() => { const e = window.__app.world.env; if (e && e.grid) e.grid.visible = false; if (e && e.bound) e.bound.visible = false; }); await pg.clock.runFor(2500);
+  const { ctx, pg, errs } = await boot(b, w, h, opts.dsf || 1); if (opts.clean) await pg.addStyleTag({ content: HIDE });
+  await pg.evaluate(view, [v, opts.pin ? 'cover' : w > h]); if (opts.clean) await pg.evaluate(() => { const e = window.__app.world.env; if (e && e.grid) e.grid.visible = false; if (e && e.bound) e.bound.visible = false; }); await pg.clock.runFor(2500);
   if (v === 'battle') { await pg.evaluate(deploy); await pg.clock.runFor(opts.fight || 11000); }
   await pg.evaluate(() => { const a = window.__app; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} document.querySelectorAll('#toasts > *').forEach((t) => t.remove()); }); await pg.clock.runFor(300);
-  await pg.screenshot({ path: out }); if (errs.length) console.warn('page errors:', errs.slice(0, 3)); await ctx.close();
+  const at = opts.pin ? await pg.evaluate(pin, opts.pin) : null; await pg.screenshot({ path: out }); if (errs.length) console.warn('page errors:', errs.slice(0, 3)); await ctx.close(); return at;
 }
-async function cover(b, w, h, text, out, v) {
-  const bg = path.join(ROOT, 'starward3d', 'tools', `.bg-${w}x${h}.png`); await shot(b, w, h, bg, v, { clean: true });
-  const pg = await b.newPage({ viewport: { width: w, height: h } }); await pg.goto(`${base}/starward3d/tools/covers.html?w=${w}&h=${h}&text=${text ? 1 : 0}&bg=${encodeURIComponent('.bg-' + w + 'x' + h + '.png')}`);
-  await pg.waitForFunction(() => window.coverReady, null, { timeout: 20000 }); await pg.screenshot({ path: out }); await pg.close(); fs.rmSync(bg, { force: true });
+async function cover(b, w, h, text, out) {
+  const K = 1.3, A = path.join(ROOT, 'starward3d', 'tools', `.bgA-${w}x${h}.png`), B = path.join(ROOT, 'starward3d', 'tools', `.bgB-${w}x${h}.png`);
+  const pa = await shot(b, w, h, A, 'launch', { clean: true, dsf: K, pin: 'rocket' }), pb = await shot(b, w, h, B, 'landing', { clean: true, dsf: K, pin: 'lander' });
+  const q = new URLSearchParams({ w, h, text: text ? 1 : 0, a: path.basename(A), b: path.basename(B), ax: (pa ? pa.x : w / 2) * K, ay: (pa ? pa.y : h / 2) * K, bx: (pb ? pb.x : w / 2) * K, by: (pb ? pb.y : h / 2) * K });
+  const pg = await b.newPage({ viewport: { width: w, height: h } }); await pg.goto(`${base}/starward3d/tools/covers.html?${q}`);
+  await pg.waitForFunction(() => window.coverReady, null, { timeout: 20000 }); await pg.screenshot({ path: out }); await pg.close(); fs.rmSync(A, { force: true }); fs.rmSync(B, { force: true });
 }
-// the trailer: the spaceport → Mars in green → the Solar System → the stars → the Local Group → alien life → a War Games raid
+// the trailer: a launch from the Earth spaceport → a lander touching down on Mars → the Solar System → the Local Group → alien life → an Orbital Trials assault
 async function video(b, w, h, coverPng) {
   const { ctx, pg, errs } = await boot(b, w, h); const land = w > h; await pg.addStyleTag({ content: '#obj,#toasts,#rail{display:none!important}' });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 's3d-frames-')); const FRAMES = 17 * 30;
-  const cuts = { 0: 'earth', 90: 'mars', 170: 'system', 235: 'stars', 290: 'galaxy', 345: 'life', 405: 'battle' };
+  const cuts = { 0: 'launch', 120: 'landing', 270: 'system', 315: 'galaxy', 360: 'life', 405: 'battle' };
   for (let f = 0; f < FRAMES; f++) {
     if (cuts[f]) { await pg.evaluate(view, [cuts[f], land]); if (cuts[f] === 'battle') { await pg.clock.runFor(400); await pg.evaluate(deploy); } }
-    await pg.evaluate(([f, land]) => { const a = window.__app, w = a.world; if (w.mode === 'base') { w.cam.tyaw += 0.0026; w.cam.yaw += 0.0026; if (f < 90) { w.cam.tdist -= land ? 0.05 : 0.06; } }
+    await pg.evaluate(([f, land]) => { const a = window.__app, w = a.world; if (w.mode === 'base') { w.cam.tyaw += 0.0026; w.cam.yaw += 0.0026; if (f < 120) { w.cam.tdist += land ? 0.04 : 0.05; } }
       if (w.mode === 'battle' && w.battle) w.battle.speed = 2; a.queue.length = 0; if (f % 10 === 0) { try { if (w.mode !== 'battle') a.ui.closeModal(); } catch (e) {} } }, [f, land]);
     await pg.clock.runFor(1000 / 30); await pg.screenshot({ path: path.join(tmp, `f${String(f).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 90 });
   }
@@ -114,19 +121,19 @@ async function video(b, w, h, coverPng) {
   const noVideo = process.argv.includes('--no-video'); fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve(); base = `http://localhost:${srv.address().port}`; const b = await chromium.launch(); console.log('▶ starward3d');
   if (!process.argv.includes('--video-only')) {
-    await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'), 'earth');
-    await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'), 'earth');
-    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earthLow');
-    await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'), 'earthClose');
-    console.log('  ✔ covers + thumbnail');
-    if (process.argv.includes('--fix')) { await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'), 'earthLow'); await shot(b, 1920, 1080, path.join(OUT, 'screenshot-4.png'), 'battle'); console.log('  ✔ square cover + battle screenshot'); await b.close(); srv.close(); return; }
+    await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'));
+    await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'));
+    await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png'));
+    await cover(b, 1024, 1024, false, path.join(OUT, 'poki-thumbnail-1024x1024.png'));
+    console.log('  ✔ covers + thumbnail'); if (process.argv.includes('--covers-only')) { await b.close(); srv.close(); return; }
+    if (process.argv.includes('--fix')) { await cover(b, 800, 800, true, path.join(OUT, 'cover-square-800x800.png')); await shot(b, 1920, 1080, path.join(OUT, 'screenshot-4.png'), 'battle'); console.log('  ✔ square cover + battle screenshot'); await b.close(); srv.close(); return; }
     const shots = [['earth', 'the spaceport'], ['mars', 'a terraformed Mars colony'], ['life', 'the Life Ladder'], ['battle', 'an Orbital Trials assault'], ['galaxy', 'the Local Group'], ['land', 'claiming land at Shackleton on the Moon']];
     for (let i = 0; i < shots.length; i++) await shot(b, 1920, 1080, path.join(OUT, `screenshot-${i + 1}.png`), shots[i][0]);
     console.log('  ✔ screenshots: ' + shots.map((x) => x[1]).join(', '));
   }
   if (!noVideo) {
     const cl = path.join(os.tmpdir(), 's3d-cl.png'), cp = path.join(os.tmpdir(), 's3d-cp.png');
-    if (!process.argv.includes('--portrait-only')) await cover(b, 1920, 1080, true, cl, 'earth'); await cover(b, 1080, 1620, true, cp, 'earth');
+    if (!process.argv.includes('--portrait-only')) await cover(b, 1920, 1080, true, cl); await cover(b, 1080, 1620, true, cp);
     if (!process.argv.includes('--portrait-only')) await video(b, 1920, 1080, cl); await video(b, 1080, 1620, cp); // --portrait-only: re-render just the tall video
   }
   await b.close(); srv.close();

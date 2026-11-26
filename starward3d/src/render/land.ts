@@ -199,7 +199,7 @@ export class LandLayer {
     return kk.build('truck'); }
   private roadZ: number | null = null; private roadX0 = 0; // the access corridor (kept clear of rocks and pools)
   private buildRoads(own: Uint8Array) {
-    for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.trucks = []; this.lander = null; this.ring = null; if (!this.roads.parent) this.group.add(this.roads);
+    for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.trucks = []; this.lander = null; this.tdDust = null; this.ring = null; if (!this.roads.parent) this.group.add(this.roads);
     const pts = this.ringOf(own); if (!pts) return; const earth = this.look.id === 'earth'; const tex = this.roadTex(earth);
     // where the outside world comes in: the middle of the land's eastern edge (inland on Earth)
     let e = pts[0]; for (const p of pts) if (p.x > e.x + 1e-6 || (Math.abs(p.x - e.x) < 1e-6 && Math.abs(p.z) < Math.abs(e.z))) e = p; const zs: number[] = pts.filter((p) => Math.abs(p.x - e.x) < 1e-6).map((p) => p.z).sort((a, b) => a - b); const ez = zs.length >= 2 ? (zs[0] + zs[zs.length - 1]) / 2 : e.z;
@@ -220,14 +220,19 @@ export class LandLayer {
     if (!earth) { // the landing pad at the far end of the track, and a supply lander that comes and goes
       const px = gx + far + 2.2, pz = ez; const kp = new Kit(); kp.cyl(1.9, 2.0, 0.12, 24, '#8d939b', px, this.height(px, pz), pz); kp.cyl(1.4, 1.4, 0.13, 24, '#5d636b', px, this.height(px, pz), pz); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; kp.sphere(0.07, '#ffd36a', px + Math.cos(a) * 1.8, this.height(px, pz) + 0.16, pz + Math.sin(a) * 1.8, { glow: true }); } this.roads.add(kp.build('pad'));
       const kl = new Kit(); kl.cyl(0.42, 0.55, 0.9, 10, '#eef1f5', 0, 0.35, 0); kl.add(new THREE.ConeGeometry(0.42, 0.5, 10), '#d9dde3', 0, 1.5, 0); kl.box(0.5, 0.18, 0.5, '#f5c542', 0, 0.55, 0); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; kl.cyl(0.03, 0.03, 0.55, 4, '#8d939b', Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45, { rz: Math.cos(a) * 0.4, rx: -Math.sin(a) * 0.4 }); }
-      const lg = kl.build('lander'); const fl = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, toneMapped: false })); fl.rotation.x = Math.PI; fl.position.y = 0.0; lg.add(fl); this.roads.add(lg); this.lander = { g: lg, flame: fl, x: px, z: pz, y0: this.height(px, pz) + 0.14 }; } }
-  private tmp = new THREE.Vector3();
+      const lg = kl.build('lander'); const fl = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, toneMapped: false })); fl.rotation.x = Math.PI; fl.position.y = 0.0; lg.add(fl); this.roads.add(lg); this.lander = { g: lg, flame: fl, x: px, z: pz, y0: this.height(px, pz) + 0.14 };
+      const dm = new THREE.Mesh(new THREE.RingGeometry(0.5, 1.4, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(this.look.base).lerp(new THREE.Color('#ffffff'), 0.35), transparent: true, opacity: 0, depthWrite: false })); dm.rotation.x = -Math.PI / 2; dm.position.set(px, this.height(px, pz) + 0.2, pz); dm.visible = false; this.roads.add(dm); this.tdDust = dm; } }
+  private tmp = new THREE.Vector3(); private lT0 = 0; private lastT = 0; private tdDust: THREE.Mesh | null = null;
+  // for showcase shots: put the supply lander a given number of seconds before touchdown
+  landNow(secondsToTouchdown = 4) { this.lT0 = this.lastT - (0.2 * 46 - secondsToTouchdown); }
   private traffic(t: number, dt: number) {
     for (const k of this.trucks) { const P = k.path === 'hwy' ? this.hwy : this.ring; if (!P) continue; k.s += k.v * dt * k.dir; if (k.path === 'hwy') { if (k.s > P.total) { k.s = P.total; k.dir = -1; k.side = 0.36; } if (k.s < 0) { k.s = 0; k.dir = 1; k.side = -0.36; } }
       const a = this.at(P, k.s, this.tmp); const yaw = k.dir > 0 ? a : a + Math.PI; const nx = Math.cos(a), nz = -Math.sin(a); const x = this.tmp.x + nx * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1), z = this.tmp.z + nz * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1);
       k.g.position.set(x, (k.path === 'hwy' ? this.height(x, z) : 0) + 0.06, z); k.g.rotation.y = yaw; k.g.visible = k.s > 0.9 && !(this.look.id === 'earth' && k.s > P.total * 0.92); }
-    const L = this.lander; if (L) { const T = 46, f = (t % T) / T; let y = L.y0, fl = 0; if (f < 0.25) { y = L.y0 + Math.pow(1 - f / 0.25, 2) * 40; fl = 1; } else if (f < 0.65) { y = L.y0; } else if (f < 0.9) { y = L.y0 + Math.pow((f - 0.65) / 0.25, 2) * 40; fl = 1; } else y = L.y0 + 60;
-      L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.9; L.flame.visible = fl > 0; L.flame.scale.set(1, 0.8 + Math.random() * 0.5, 1); }
+    // the supply lander: a fast drop that brakes into a gentle powered touchdown (dust kicks up), a stay, a lift-off
+    const L = this.lander; this.lastT = t; if (L) { const T = 46, f = ((((t - this.lT0) % T) + T) % T) / T; let y = L.y0, fl = 0; if (f < 0.2) { y = L.y0 + Math.pow(1 - f / 0.2, 3) * 44; fl = 1; } else if (f < 0.62) { y = L.y0; } else if (f < 0.88) { y = L.y0 + Math.pow((f - 0.62) / 0.26, 2) * 44; fl = 1; } else y = L.y0 + 60;
+      L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.88; L.flame.visible = fl > 0; L.flame.scale.set(1, (0.8 + Math.random() * 0.5) * (y - L.y0 < 3 ? 1.5 : 1), 1);
+      const since = (f - 0.2) * T; const D = this.tdDust; if (D) { const on = since > 0 && since < 2.2; D.visible = on; if (on) { const k = since / 2.2; D.scale.setScalar(0.6 + k * 3.2); (D.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - k); } } }
   }
   // ---------------- skyfall ----------------
   private fallG = new THREE.Group(); private fallKey = ''; private smoke: { p: THREE.Points; at: THREE.Vector3[]; life: Float32Array } | null = null; private strikes: { m: THREE.Mesh; trail: THREE.Mesh; t: number; from: THREE.Vector3; to: THREE.Vector3; boom: boolean; ring?: THREE.Mesh; flash?: THREE.PointLight }[] = [];
