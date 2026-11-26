@@ -76,11 +76,14 @@ export class App {
   }
   // ---------------- loop ----------------
   private loop(t: number) {
-    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt; this.s.stats.playS += dt;
+    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; if (!(window as any).__manual) this.frameStep(dt); requestAnimationFrame((tt) => this.loop(tt));
+  }
+  // one frame of the game; the store tool's capture mode (window.__manual) calls it with a fixed step per video frame,
+  // so its recordings play at true speed however long each screenshot takes
+  frameStep(dt: number) { this.acc += dt; this.s.stats.playS += dt;
     if (this.acc >= 0.25) { this.acc = 0; this.tick(); }
     this.world.frame(this.s, dt, (id) => { const it = G.itemOf(this.s, this.s.at, id); return !!it && it.lvl > 0 && this.R.eff > 0.5; }); this.ui.frameBubbles(); this.ui.refreshPanel(); if (this.placing) this.placeUi();
     if (this.queue.length && $('#modal').classList.contains('hidden') && !this.placing && !this.ui.coach.on && this.world.mode !== 'battle' && this.world.mode !== 'space') this.queue.shift()!(); // never over a battle
-    requestAnimationFrame((tt) => this.loop(tt));
   }
   tickNow() { this.tick(); this.changed(); }
   // local notifications (mobile build only; no-ops elsewhere): the next finished timers, a supply capsule, the daily reward

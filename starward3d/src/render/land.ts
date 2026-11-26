@@ -230,7 +230,7 @@ export class LandLayer {
       const a = this.at(P, k.s, this.tmp); const yaw = k.dir > 0 ? a : a + Math.PI; const nx = Math.cos(a), nz = -Math.sin(a); const x = this.tmp.x + nx * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1), z = this.tmp.z + nz * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1);
       k.g.position.set(x, (k.path === 'hwy' ? this.height(x, z) : 0) + 0.06, z); k.g.rotation.y = yaw; k.g.visible = k.s > 0.9 && !(this.look.id === 'earth' && k.s > P.total * 0.92); }
     // the supply lander: a fast drop that brakes into a gentle powered touchdown (dust kicks up), a stay, a lift-off
-    const L = this.lander; this.lastT = t; if (L) { const T = 46, f = ((((t - this.lT0) % T) + T) % T) / T; let y = L.y0, fl = 0; if (f < 0.2) { y = L.y0 + Math.pow(1 - f / 0.2, 3) * 44; fl = 1; } else if (f < 0.62) { y = L.y0; } else if (f < 0.88) { y = L.y0 + Math.pow((f - 0.62) / 0.26, 2) * 44; fl = 1; } else y = L.y0 + 60;
+    const L = this.lander; this.lastT = t; if (L) { const T = 46, f = ((((t - this.lT0) % T) + T) % T) / T; let y = L.y0, fl = 0; if (f < 0.2) { y = L.y0 + Math.pow(1 - f / 0.2, 2) * 44; fl = 1; } else if (f < 0.62) { y = L.y0; } else if (f < 0.88) { y = L.y0 + Math.pow((f - 0.62) / 0.26, 2) * 44; fl = 1; } else y = L.y0 + 60;
       L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.88; L.flame.visible = fl > 0; L.flame.scale.set(1.25, (0.8 + Math.random() * 0.5) * (f < 0.2 ? 2.2 : 1.4), 1.25);
       const since = (f - 0.2) * T; const D = this.tdDust; if (D) { const on = since > 0 && since < 2.2; D.visible = on; if (on) { const k = since / 2.2; D.scale.setScalar(0.6 + k * 3.2); (D.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - k); } } }
   }
