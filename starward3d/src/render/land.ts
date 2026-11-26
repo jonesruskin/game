@@ -50,15 +50,14 @@ export class LandLayer {
     scene.add(this.group); }
   dispose() { this.scene.remove(this.group); this.tex.dispose(); }
   showGrid(v: boolean) { this.gridOn = v; if (v) this.paintGrid(); if (this.grid) this.grid.visible = v; }
-  // the placement grid: every cell you own outlined, plot boundaries (every 6 cells) bolder, cells already taken tinted
-  // red, so where a building can go is plain at a glance. Painted once per change into one texture over the land.
+  // the placement grid: plot boundaries (every 6 cells) and the edge of your land, cells already taken softly tinted,
+  // so where a building can go is plain at a glance without a fussy cell-by-cell mesh. Painted once per change into one texture over the land.
   private static PX = 16;
   private paintGrid() { const own = this.own; if (!own) return; const P = LandLayer.PX, N = GRID * P; let h = 2166136261; for (const c of this.occ) { h ^= c; h = Math.imul(h, 16777619); } let ho = 0; for (let i = 0; i < own.length; i++) if (own[i]) ho = (ho * 31 + i) | 0; const key = this.occ.size + ':' + (h >>> 0) + ':' + ho;
     if (!this.gridCv) { this.gridCv = document.createElement('canvas'); this.gridCv.width = this.gridCv.height = N; this.gridTex = new THREE.CanvasTexture(this.gridCv); this.gridTex.colorSpace = THREE.SRGBColorSpace; this.gridTex.anisotropy = 8;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(GRID, GRID), new THREE.MeshBasicMaterial({ map: this.gridTex, transparent: true, depthWrite: false, toneMapped: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.05; m.renderOrder = 3; m.visible = this.gridOn; this.grid = m; this.group.add(m); }
     if (key === this.kGrid) return; this.kGrid = key; const g = this.gridCv.getContext('2d')!; g.clearRect(0, 0, N, N); const at = (x: number, z: number) => x >= 0 && z >= 0 && x < GRID && z < GRID && own[z * GRID + x] > 0;
     for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; const taken = this.occ.has(z * GRID + x); g.fillStyle = taken ? 'rgba(255, 92, 110, 0.34)' : 'rgba(255, 255, 255, 0.035)'; g.fillRect(x * P, z * P, P, P); }
-    g.lineWidth = 1.25; g.strokeStyle = 'rgba(235, 248, 255, 0.26)'; g.beginPath(); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; g.rect(x * P + 0.75, z * P + 0.75, P - 1.5, P - 1.5); } g.stroke();
     g.lineWidth = 2.2; g.strokeStyle = 'rgba(255, 244, 210, 0.5)'; g.beginPath(); for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) { if (!at(x, z)) continue; if (x % CHUNK === 0 || !at(x - 1, z)) { g.moveTo(x * P, z * P); g.lineTo(x * P, (z + 1) * P); } if (z % CHUNK === 0 || !at(x, z - 1)) { g.moveTo(x * P, z * P); g.lineTo((x + 1) * P, z * P); } if (!at(x + 1, z)) { g.moveTo((x + 1) * P, z * P); g.lineTo((x + 1) * P, (z + 1) * P); } if (!at(x, z + 1)) { g.moveTo(x * P, (z + 1) * P); g.lineTo((x + 1) * P, (z + 1) * P); } } g.stroke();
     this.gridTex!.needsUpdate = true; }
   setMode(on: boolean) { this.mode = on; this.marks.visible = on; this.kTex = ''; if (!on) this.sel = null; this.selFrame.visible = on && !!this.sel; }
@@ -108,7 +107,7 @@ export class LandLayer {
     for (const c of [...this.props.children]) { this.props.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.vents = []; if (this.steam) { this.group.remove(this.steam); this.steam.geometry.dispose(); this.steam = null; }
     const D = LD.deposits(s, base); const lists: Record<string, THREE.Matrix4[]> = {}; const q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const cap = this.quality === 'high' ? 500 : 240;
     const put = (k: string, x: number, y: number, z: number, ry: number, sx: number, sy: number, sz: number, rx = 0) => { const L = lists[k] || (lists[k] = []); if (L.length >= cap) return; e.set(rx, ry, 0); q.setFromEuler(e); L.push(new THREE.Matrix4().compose(v.set(x - C, y, z - C), q, sc.set(sx, sy, sz))); };
-    for (const [i, t] of D) { const x = i % GRID, z = Math.floor(i / GRID); if (occ.has(i) || !LD.surveyed(s, base, Math.floor(x / CHUNK), Math.floor(z / CHUNK))) continue; const r = h32(x, z), r2 = h32(z + 3, x + 11), px = x + 0.25 + r2 * 0.5, pz = z + 0.25 + r * 0.5;
+    for (const [i, t] of D) { const x = i % GRID, z = Math.floor(i / GRID); if (occ.has(i) || !LD.surveyed(s, base, Math.floor(x / CHUNK), Math.floor(z / CHUNK))) continue; if (this.roadZ !== null && Math.abs(z + 0.5 - C - this.roadZ) < 1.4 && x + 0.5 - C > this.roadX0 - 0.4) continue; const r = h32(x, z), r2 = h32(z + 3, x + 11), px = x + 0.25 + r2 * 0.5, pz = z + 0.25 + r * 0.5;
       if (t === 'methane') { put('pool', x + 0.5, 0.03, z + 0.5, r * 6, 1.55, 1, 1.55); continue; }
       if (r > (t === 'shelter' ? 0.3 : 0.45)) continue;
       if (t === 'ice') { for (let k = 0; k < 3; k++) put('ice', px + (h32(x + k, z) - 0.5) * 0.6, 0.1, pz + (h32(z, x + k) - 0.5) * 0.6, r * 9 + k, 0.18 + r2 * 0.16, 0.4 + h32(k, x) * 0.6, 0.18 + r * 0.12, (h32(x, k) - 0.5) * 0.7); }
@@ -167,8 +166,11 @@ export class LandLayer {
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { if (has(cx + dx, cz + dz)) continue; const ex = x + dx * (CHUNK / 2 - 0.1), ez = z + dz * (CHUNK / 2 - 0.1); k.box(dx ? 0.08 : CHUNK, 0.08, dz ? 0.08 : CHUNK, '#f4f1e8', ex, 0.86, ez); for (let p = -2; p <= 2; p++) k.box(0.06, 0.9, 0.06, '#f4f1e8', ex + (dx ? 0 : p * 1.4), 0, ez + (dz ? 0 : p * 1.4)); } }
     this.decks.add(k.build('decks')); }
   // ---------------- roads and traffic ----------------
-  // A ring road runs just outside the land you hold (it moves out as you claim plots); on Earth a highway comes in from
-  // inland and trucks bring the supplies, elsewhere a graded track leads to a landing pad where supply landers set down.
+  // How the outside world reaches the base, as it would for real. Earth: one access road comes in from inland and ends at
+  // the security gate on the edge of the land you hold (the gate moves out as you claim); trucks drive in through it and
+  // back out. Everywhere else: the landing pad sits well away from the habitats (blast and flying regolith), a graded
+  // track with marker lights runs from it to an airlock gate at the base edge, and cargo rovers shuttle between them.
+  // No road rings the base: nothing walls in the plots around it.
   private roads = new THREE.Group(); private ring: { pts: THREE.Vector3[]; len: number[]; total: number } | null = null; private hwy: { pts: THREE.Vector3[]; len: number[]; total: number } | null = null;
   private trucks: { g: THREE.Group; path: 'ring' | 'hwy'; s: number; v: number; side: number; dir: number }[] = []; private lander: { g: THREE.Group; flame: THREE.Object3D; x: number; z: number; y0: number } | null = null;
   private roadTex(earth: boolean) { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d')!;
@@ -195,22 +197,35 @@ export class LandLayer {
     if (earth) { kk.box(0.34, 0.3, 0.3, cols[k % cols.length], 0, 0.1, 0.36); kk.box(0.36, 0.36, 0.78, '#dfe5ec', 0, 0.1, -0.2); kk.box(0.3, 0.12, 0.02, '#9fd0ff', 0, 0.28, 0.52, { glass: true }); for (const z of [0.36, -0.05, -0.45]) for (const x of [-0.17, 0.17]) kk.cyl(0.07, 0.07, 0.06, 8, '#20242a', x, 0.03, z, { rz: Math.PI / 2 }); kk.box(0.06, 0.04, 0.02, '#fff6c8', -0.11, 0.18, 0.52, { glow: true }); kk.box(0.06, 0.04, 0.02, '#fff6c8', 0.11, 0.18, 0.52, { glow: true }); }
     else { kk.box(0.46, 0.18, 0.7, '#eef1f5', 0, 0.12, 0); kk.box(0.4, 0.2, 0.36, '#f5c542', 0, 0.3, -0.1); kk.box(0.36, 0.1, 0.18, '#9fd0ff', 0, 0.32, 0.22, { glass: true }); for (const z of [0.24, -0.24]) for (const x of [-0.25, 0.25]) kk.cyl(0.1, 0.1, 0.08, 8, '#2b2f36', x, 0.06, z, { rz: Math.PI / 2 }); kk.sphere(0.04, '#6ee7ff', 0, 0.44, 0.1, { glow: true }); }
     return kk.build('truck'); }
+  private roadZ: number | null = null; private roadX0 = 0; // the access corridor (kept clear of rocks and pools)
   private buildRoads(own: Uint8Array) {
-    for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.trucks = []; this.lander = null; if (!this.roads.parent) this.group.add(this.roads);
-    const pts = this.ringOf(own); if (!pts) return; const earth = this.look.id === 'earth'; const tex = this.roadTex(earth); this.ring = this.path(pts, true); this.roads.add(this.ribbon(this.ring, earth ? 0.92 : 0.85, tex, 0.04, false));
-    // where the outside world comes in: the middle of the ring's eastern side
-    let e = pts[0]; for (const p of pts) if (p.x > e.x + 1e-6 || (Math.abs(p.x - e.x) < 1e-6 && Math.abs(p.z) < Math.abs(e.z))) e = p; let zs: number[] = pts.filter((p) => Math.abs(p.x - e.x) < 1e-6).map((p) => p.z).sort((a, b) => a - b); const ez = zs.length >= 2 ? (zs[0] + zs[zs.length - 1]) / 2 : e.z;
-    const far = earth ? 300 : 9; const hp: THREE.Vector3[] = []; for (let d = 0; d <= far; d += d < 20 ? 1 : 3) hp.push(new THREE.Vector3(e.x + d, 0, ez)); this.hwy = this.path(hp, false); this.roads.add(this.ribbon(this.hwy, earth ? 1.5 : 0.85, earth ? this.roadTex(true) : tex, 0.05, true));
-    const nT = earth ? 7 : 3; for (let k = 0; k < nT; k++) { const g = this.truck(earth, k); this.roads.add(g); const hw = earth && k < 4; this.trucks.push({ g, path: hw ? 'hwy' : 'ring', s: hw ? (k / 4) * this.hwy.total : (k / nT) * this.ring.total, v: hw ? 3.2 + (k % 2) * 0.6 : 1.6 + k * 0.2, side: hw ? (k % 2 ? 0.36 : -0.36) : 0.22, dir: hw ? (k % 2 ? 1 : -1) : 1 }); }
-    if (!earth) { // the landing pad at the end of the track, and a supply lander that comes and goes
-      const px = e.x + far + 2.2, pz = ez; const kp = new Kit(); kp.cyl(1.9, 2.0, 0.12, 24, '#8d939b', px, this.height(px, pz), pz); kp.cyl(1.4, 1.4, 0.13, 24, '#5d636b', px, this.height(px, pz), pz); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; kp.sphere(0.07, '#ffd36a', px + Math.cos(a) * 1.8, this.height(px, pz) + 0.16, pz + Math.sin(a) * 1.8, { glow: true }); } this.roads.add(kp.build('pad'));
+    for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); } this.trucks = []; this.lander = null; this.ring = null; if (!this.roads.parent) this.group.add(this.roads);
+    const pts = this.ringOf(own); if (!pts) return; const earth = this.look.id === 'earth'; const tex = this.roadTex(earth);
+    // where the outside world comes in: the middle of the land's eastern edge (inland on Earth)
+    let e = pts[0]; for (const p of pts) if (p.x > e.x + 1e-6 || (Math.abs(p.x - e.x) < 1e-6 && Math.abs(p.z) < Math.abs(e.z))) e = p; const zs: number[] = pts.filter((p) => Math.abs(p.x - e.x) < 1e-6).map((p) => p.z).sort((a, b) => a - b); const ez = zs.length >= 2 ? (zs[0] + zs[zs.length - 1]) / 2 : e.z;
+    const gx = e.x - 0.3, far = earth ? 300 : 16; this.roadZ = ez; this.roadX0 = gx; const hp: THREE.Vector3[] = []; for (let d = 0; d <= far; d += d < 20 ? 1 : 3) hp.push(new THREE.Vector3(gx + d, 0, ez)); this.hwy = this.path(hp, false); this.roads.add(this.ribbon(this.hwy, earth ? 1.5 : 1.0, tex, 0.05, true));
+    const gy = this.height(gx + 0.8, ez); const k = new Kit();
+    if (earth) { // the security gate: a sign gantry, two booths, barrier arms, lamps
+      k.box(1.9, 0.03, 2.9, '#4a4f56', gx + 0.6, gy + 0.03, ez); k.box(0.06, 0.03, 2.9, '#e9e4d6', gx - 0.3, gy + 0.065, ez);
+      for (const side of [-1, 1]) { const bz = ez + side * 1.2; k.box(0.46, 0.46, 0.46, '#eef1f5', gx + 0.75, gy + 0.05, bz); k.box(0.52, 0.06, 0.52, '#2f5d8f', gx + 0.75, gy + 0.51, bz); k.box(0.4, 0.16, 0.02, '#9fd0ff', gx + 0.75, gy + 0.28, bz - side * 0.24, { glass: true });
+        k.box(0.04, 0.04, 0.62, '#d64545', gx + 0.55, gy + 0.36, ez + side * 0.62); k.box(0.042, 0.042, 0.16, '#ffffff', gx + 0.55, gy + 0.36, ez + side * 0.5); k.box(0.042, 0.042, 0.16, '#ffffff', gx + 0.55, gy + 0.36, ez + side * 0.78);
+        k.cyl(0.03, 0.03, 1.5, 6, '#c9d1dc', gx + 1.4, gy, ez + side * 1.45); k.sphere(0.07, '#fff6c8', gx + 1.4, gy + 1.52, ez + side * 1.45, { glow: true }); }
+      k.box(0.08, 1.7, 0.08, '#c9d1dc', gx + 1.05, gy, ez - 1.0); k.box(0.08, 1.7, 0.08, '#c9d1dc', gx + 1.05, gy, ez + 1.0); k.box(0.1, 0.36, 2.1, '#1f4f8a', gx + 1.05, gy + 1.62, ez); k.box(0.11, 0.06, 1.7, '#ffd36a', gx + 1.05, gy + 1.62, ez); }
+    else { // the airlock gate: two pylons, a lit arch, floor chevrons; marker lights along the track
+      for (const side of [-1, 1]) { k.box(0.26, 1.25, 0.26, '#b9c0c9', gx + 0.6, gy, ez + side * 0.78); k.box(0.3, 0.08, 0.3, '#f5c542', gx + 0.6, gy + 0.6, ez + side * 0.78); k.sphere(0.06, '#6ee7ff', gx + 0.6, gy + 1.32, ez + side * 0.78, { glow: true }); }
+      k.box(0.24, 0.2, 1.82, '#d9dde3', gx + 0.6, gy + 1.25, ez); k.box(0.25, 0.05, 1.5, '#6ee7ff', gx + 0.6, gy + 1.22, ez, { glow: true });
+      for (let d = 3; d < far - 1; d += 2.5) for (const side of [-1, 1]) { const x = gx + d, z = ez + side * 0.72, y = this.height(x, z); k.cyl(0.03, 0.04, 0.32, 5, '#8d939b', x, y, z); k.sphere(0.045, side > 0 ? '#ffd36a' : '#6ee7ff', x, y + 0.34, z, { glow: true }); } }
+    this.roads.add(k.build('gate'));
+    const nT = earth ? 6 : 3; for (let i = 0; i < nT; i++) { const g = this.truck(earth, i); this.roads.add(g); this.trucks.push({ g, path: 'hwy', s: (i / nT) * (earth ? 120 : this.hwy.total), v: earth ? 3.0 + (i % 3) * 0.5 : 1.2 + i * 0.2, side: i % 2 ? 0.36 : -0.36, dir: i % 2 ? 1 : -1 }); }
+    if (!earth) { // the landing pad at the far end of the track, and a supply lander that comes and goes
+      const px = gx + far + 2.2, pz = ez; const kp = new Kit(); kp.cyl(1.9, 2.0, 0.12, 24, '#8d939b', px, this.height(px, pz), pz); kp.cyl(1.4, 1.4, 0.13, 24, '#5d636b', px, this.height(px, pz), pz); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; kp.sphere(0.07, '#ffd36a', px + Math.cos(a) * 1.8, this.height(px, pz) + 0.16, pz + Math.sin(a) * 1.8, { glow: true }); } this.roads.add(kp.build('pad'));
       const kl = new Kit(); kl.cyl(0.42, 0.55, 0.9, 10, '#eef1f5', 0, 0.35, 0); kl.add(new THREE.ConeGeometry(0.42, 0.5, 10), '#d9dde3', 0, 1.5, 0); kl.box(0.5, 0.18, 0.5, '#f5c542', 0, 0.55, 0); for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; kl.cyl(0.03, 0.03, 0.55, 4, '#8d939b', Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45, { rz: Math.cos(a) * 0.4, rx: -Math.sin(a) * 0.4 }); }
       const lg = kl.build('lander'); const fl = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 8), new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.85, toneMapped: false })); fl.rotation.x = Math.PI; fl.position.y = 0.0; lg.add(fl); this.roads.add(lg); this.lander = { g: lg, flame: fl, x: px, z: pz, y0: this.height(px, pz) + 0.14 }; } }
   private tmp = new THREE.Vector3();
   private traffic(t: number, dt: number) {
     for (const k of this.trucks) { const P = k.path === 'hwy' ? this.hwy : this.ring; if (!P) continue; k.s += k.v * dt * k.dir; if (k.path === 'hwy') { if (k.s > P.total) { k.s = P.total; k.dir = -1; k.side = 0.36; } if (k.s < 0) { k.s = 0; k.dir = 1; k.side = -0.36; } }
       const a = this.at(P, k.s, this.tmp); const yaw = k.dir > 0 ? a : a + Math.PI; const nx = Math.cos(a), nz = -Math.sin(a); const x = this.tmp.x + nx * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1), z = this.tmp.z + nz * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1);
-      k.g.position.set(x, (k.path === 'hwy' ? this.height(x, z) : 0) + 0.06, z); k.g.rotation.y = yaw; k.g.visible = !(k.path === 'hwy' && k.s > P.total * 0.92); }
+      k.g.position.set(x, (k.path === 'hwy' ? this.height(x, z) : 0) + 0.06, z); k.g.rotation.y = yaw; k.g.visible = k.s > 0.9 && !(this.look.id === 'earth' && k.s > P.total * 0.92); }
     const L = this.lander; if (L) { const T = 46, f = (t % T) / T; let y = L.y0, fl = 0; if (f < 0.25) { y = L.y0 + Math.pow(1 - f / 0.25, 2) * 40; fl = 1; } else if (f < 0.65) { y = L.y0; } else if (f < 0.9) { y = L.y0 + Math.pow((f - 0.65) / 0.25, 2) * 40; fl = 1; } else y = L.y0 + 60;
       L.g.position.set(L.x, y, L.z); L.g.visible = f < 0.9; L.flame.visible = fl > 0; L.flame.scale.set(1, 0.8 + Math.random() * 0.5, 1); }
   }

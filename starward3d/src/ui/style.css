@@ -378,9 +378,6 @@ details.deps > summary { cursor: pointer; font: 700 12px Oxanium; color: var(--c
 #landbar { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 150px); pointer-events: none; }
 #landbar.hidden { display: none; } #landbar .lb { pointer-events: auto; padding: 6px 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); backdrop-filter: blur(8px); font: 600 12px Barlow; color: var(--text); white-space: nowrap; }
 #landbar .lb.ok b { color: var(--green); } #landbar .lb.hot { border-color: var(--gold); color: var(--gold); cursor: pointer; font-weight: 700; animation: pulse 1.6s infinite; } #landbar .lb.tip { color: var(--muted); }
-#tip { position: fixed; z-index: 30; pointer-events: none; max-width: 280px; padding: 8px 11px; border-radius: 10px; background: rgba(8, 15, 28, 0.94); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.4); font-size: 12.5px; line-height: 1.35; }
-#tip.hidden { display: none; } #tip b { font: 700 13px Oxanium; } #tip i { display: block; font-style: normal; color: #cfe2f5; margin-top: 2px; } #tip i.muted { color: var(--muted); font-size: 11px; } #tip .bad { color: var(--red); }
 @media (max-width: 720px) { #landbar { top: 132px; max-width: calc(100vw - 70px); } #landbar .lb { font-size: 11px; padding: 5px 9px; } #landbar .lb.tip { display: none; } }
-@media (pointer: coarse) { #tip { display: none !important; } }
 #panel > .verdict { order: -3; }
 #nav button.pulse { animation: objPulse 1.2s ease-in-out 7; }

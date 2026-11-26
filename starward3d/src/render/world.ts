@@ -47,7 +47,6 @@ export class World {
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostH = 2; private ghostOkShown: boolean | null = null; private blockers = new THREE.Group(); selRing: THREE.Mesh; selected: string | null = null; t = 0;
   private ray = new THREE.Raycaster(); private ptr = new THREE.Vector2(); private fx: { pts: THREE.Points; v: Float32Array; life: number }[] = []; private area = { lo: 0, hi: 0 };
   onTap: (hit: { item?: string; cell?: [number, number]; drop?: boolean }) => void = () => {}; onGhostMove: () => void = () => {};
-  onHover: (hit: { item?: string; cell?: [number, number] } | null, x: number, y: number) => void = () => {}; private hoverT = 0;
   private shF = 0; private shX = 1e9; private shZ = 1e9;
   constructor(private canvas: HTMLCanvasElement, quality: 'auto' | 'high' | 'low') {
     const dev = (window as any).__deviceType as string | undefined; const mobile = dev ? dev !== 'desktop' : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); // the portal's own device info where it gives one, never touch detection
@@ -99,10 +98,9 @@ export class World {
     // pointer turns every later drag into a two-finger pinch and the camera seems stuck
     const drop = (id: number) => { pts.delete(id); if (pts.size < 2) last = null; }; const reset = () => { pts.clear(); last = null; ghostDrag = false; };
     el.addEventListener('lostpointercapture', (e) => drop(e.pointerId)); window.addEventListener('blur', reset); document.addEventListener('visibilitychange', reset); window.addEventListener('pointerup', (e) => { if (e.target !== el) drop(e.pointerId); });
-    el.addEventListener('pointerdown', (e) => { this.onHover(null, 0, 0); if (e.pointerType === 'mouse') { for (const id of [...pts.keys()]) if (id !== e.pointerId) pts.delete(id); } else if (pts.size >= 2) pts.clear(); try { el.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') { for (const id of [...pts.keys()]) if (id !== e.pointerId) pts.delete(id); } else if (pts.size >= 2) pts.clear(); try { el.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false; start = performance.now(); if (pts.size === 2) last = two();
       ghostDrag = false; if (this.ghost && pts.size === 1) { const g = this.groundAt(e.clientX, e.clientY); if (g) { const [w, d] = G.dims(this.ghost.b, this.ghost.r); const gx = this.ghost.x - C, gz = this.ghost.z - C; if (g.x >= gx - 0.6 && g.x <= gx + w + 0.6 && g.z >= gz - 0.6 && g.z <= gz + d + 0.6) ghostDrag = true; } } });
-    el.addEventListener('pointerleave', () => this.onHover(null, 0, 0));
-    el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) { if (e.pointerType === 'mouse' && e.buttons === 0) this.hover(e.clientX, e.clientY); return; } if (e.pointerType === 'mouse' && e.buttons === 0) { drop(e.pointerId); return; } /* the button came up somewhere we never heard about */ const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    el.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; if (e.pointerType === 'mouse' && e.buttons === 0) { drop(e.pointerId); return; } /* the button came up somewhere we never heard about */ const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
       if (Math.hypot(p.x - p.sx, p.y - p.sy) > 7) moved = true; if (!moved) return;
       if (this.mode === 'galaxy' && this.galaxy) { if (pts.size === 1) this.galaxy.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.galaxy.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
       if (this.mode === 'space' && this.space) { if (pts.size === 1) this.space.drag(dx, dy); else if (pts.size === 2 && last) { const n = two(); this.space.zoom(last.d / Math.max(1, n.d)); last = n; } return; }
@@ -119,11 +117,6 @@ export class World {
     el.addEventListener('wheel', (e) => { e.preventDefault(); if (this.mode === 'orbit' && this.orbit) { this.orbit.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'system' && this.system) { this.system.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'battle' && this.battle) { this.battle.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'stars' && this.starMap) { this.starMap.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'space' && this.space) { this.space.zoom(Math.pow(1.0015, e.deltaY)); return; } if (this.mode === 'galaxy' && this.galaxy) { this.galaxy.zoom(Math.pow(1.0015, e.deltaY)); return; } this.cam.tdist *= Math.pow(1.0015, e.deltaY); this.clampCam(); }, { passive: false });
     window.addEventListener('keydown', (e) => { if ((e.target as HTMLElement).tagName === 'INPUT') return; if (e.key === 'q' || e.key === 'Q') this.cam.tyaw += Math.PI / 4; if (e.key === 'e' || e.key === 'E') this.cam.tyaw -= Math.PI / 4; });
   }
-  // desktop: what is under the mouse (a building, or a cell of ground), at most every 60 ms
-  private hover(cx: number, cy: number) { const now = performance.now(); if (now - this.hoverT < 60) return; this.hoverT = now; if (this.mode !== 'base' || this.ghost) { this.onHover(null, 0, 0); return; }
-    const r = this.canvas.getBoundingClientRect(); this.ptr.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); this.ray.setFromCamera(this.ptr, this.camera);
-    const hit = this.land.mode ? null : this.ray.intersectObjects([...this.views.values()].map((v) => v.pick), false)[0]; if (hit) { this.onHover({ item: hit.object.userData.item }, cx, cy); return; }
-    const g = this.groundAt(cx, cy); this.onHover(g ? { cell: [Math.floor(g.x + C), Math.floor(g.z + C)] } : null, cx, cy); }
   private tap(cx: number, cy: number) {
     if (this.mode === 'galaxy' && this.galaxy) { const r = this.canvas.getBoundingClientRect(); this.onGalaxyPick(this.galaxy.pick(cx - r.left, cy - r.top, r.width, r.height)); return; }
     if (this.mode === 'stars' && this.starMap) { const r = this.canvas.getBoundingClientRect(); this.onStarPick(this.starMap.pick(cx - r.left, cy - r.top, r.width, r.height)); return; }
