@@ -12,13 +12,11 @@ const q = new URLSearchParams(location.search); const W = +q.get('w') || 1920, H
 const land = W / H > 1.3, port = H / W > 1.2, S = Math.min(W, H);
 await document.fonts.load('700 120px Oxanium');
 const c = document.getElementById('c'); c.width = W; c.height = H; const g = c.getContext('2d');
-const load = async (src) => { const i = new Image(); i.src = src; await i.decode(); return i; }; const A = await load(q.get('a')), B0 = await load(q.get('b'));
-// the Mars render, mirrored: the colony sits up-left of the pad in the shot; mirrored it shows up-right, inside the Mars half
-const B = document.createElement('canvas'); B.width = B0.width; B.height = B0.height; { const bg = B.getContext('2d'); bg.translate(B.width, 0); bg.scale(-1, 1); bg.drawImage(B0, 0, 0); }
-const ax = +q.get('ax'), ay = +q.get('ay'), bx = B0.width - +q.get('bx'), by = +q.get('by');
+const load = async (src) => { const i = new Image(); i.src = src; await i.decode(); return i; }; const A = await load(q.get('a')), B = await load(q.get('b'));
+const ax = +q.get('ax'), ay = +q.get('ay'), bx = +q.get('bx'), by = +q.get('by');
 // where each moment sits, and the seam between them (top-left stays scenery: CrazyGames' badges go there)
 let tA, tB, seam;
-if (land) { tA = [0.3 * W, 0.4 * H]; tB = [0.72 * W, 0.47 * H]; seam = [[0.6 * W, 0], [0.44 * W, H]]; }
+if (land) { tA = [0.3 * W, 0.4 * H]; tB = [0.7 * W, 0.5 * H]; seam = [[0.6 * W, 0], [0.44 * W, H]]; }
 else if (port) { tA = [0.6 * W, 0.26 * H]; tB = [0.42 * W, 0.58 * H]; seam = [[0, 0.47 * H], [W, 0.37 * H]]; }
 else { tA = [0.33 * W, 0.35 * H]; tB = [0.68 * W, 0.56 * H]; seam = [[0.66 * W, 0], [0.4 * W, H]]; }
 // place an image so its subject lands on the target, without ever leaving an edge uncovered

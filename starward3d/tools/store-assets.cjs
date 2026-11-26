@@ -59,7 +59,7 @@ function view([name, land]) {
   if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
   if (name === 'launch') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); const pad = a.s.bases.earth.items.find((i) => i.b === 'launch'); const v = pad && w.views.get(pad.id);
     if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, land === 'cover' ? 40 : 34, Math.PI / 4 + 0.25); } }
-  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 8.0 : 4.8, w.t); cam(L.x - 9, L.z - 1.5, land === 'cover' ? 32 : 26, Math.PI / 4 + 0.3); } }
+  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 8.0 : 4.8, w.t); const y = Math.PI * 0.75 + 0.12; cam(L.x - Math.cos(y) * 2.5, L.z + Math.sin(y) * 2.5, land === 'cover' ? 34 : 28, y); } }
   if (name === 'system') { a.toBase(); a.openMap(); }
   if (name === 'stars') { a.toBase(); a.openStars(); }
   if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
