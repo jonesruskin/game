@@ -16,6 +16,8 @@ Everything you need is in this folder. You don't need to build anything.
 | Square cover | `starward3d/store/cover-square-800x800.png` | 800×800 |
 | Landscape preview video | `starward3d/store/preview-landscape-1920x1080.mp4` | 18 s, silent, opens on the cover |
 | Portrait preview video | `starward3d/store/preview-portrait-1080x1620.mp4` | 18 s, 2:3 |
+
+**Submission form answers (CrazyGames):** category **Strategy**; tags **Building, Management, Idle, Tycoon, Robot** (if one is missing from the form: 3D, Incremental, Defense, Alien, in that order; skip Multiplayer and Leaderboards while the Orbital Trials server is off); works well in fullscreen: **yes** (tested at every listed size, no custom fullscreen button, no Escape binding); Terms & Conditions / Privacy Policy: **N/A** while the Orbital Trials server is off (no personal data leaves the device). Covers carry only the title, kept clear of the top-left badges; each video opens on its cover.
 | Square thumbnail (no text) | `starward3d/store/poki-thumbnail-1024x1024.png` | 1024×1024, full-bleed |
 | Screenshots | `starward3d/store/screenshot-1..6.png` | 1920×1080: the spaceport, a terraformed Mars colony, the Life Ladder, an Orbital Trials assault, the Local Group, claiming land on the Moon |
 | Title, descriptions, controls, tags | `starward3d/store/description.md` | Copy and paste |
