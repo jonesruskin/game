@@ -58,8 +58,8 @@ function view([name, land]) {
   if (name === 'earthClose') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-1, 3, 24, Math.PI / 4 + 0.5); }
   if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
   if (name === 'launch') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); const pad = a.s.bases.earth.items.find((i) => i.b === 'launch'); const v = pad && w.views.get(pad.id);
-    if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, land === 'cover' ? 40 : 34, Math.PI / 4 + 0.25); } }
-  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 8.0 : 4.8, w.t); const y = Math.PI * 0.75 + 0.12; cam(L.x - Math.cos(y) * 2.5, L.z + Math.sin(y) * 2.5, land === 'cover' ? 34 : 28, y); } }
+    if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, String(land).startsWith('cover') ? 40 : 34, Math.PI / 4 + 0.25); } }
+  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { const cv = String(land).startsWith('cover'), k = land === 'coverP' ? 6 : 0; w.land.landNow(cv ? 8.0 : 4.8, w.t); const y = Math.PI * 0.75 + 0.12; cam(L.x - Math.cos(y) * 2.5 - Math.sin(y) * k, L.z + Math.sin(y) * 2.5 - Math.cos(y) * k, cv ? 34 : 28, y); } } // portrait covers: framed further up-screen so the lander sits lower
   if (name === 'system') { a.toBase(); a.openMap(); }
   if (name === 'stars') { a.toBase(); a.openStars(); }
   if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
@@ -87,7 +87,7 @@ const HIDE = '#hud,#nav,#obj,#bubbles,#toasts,#panel,#mapui,#place,#modal,#over,
 let base = '';
 async function shot(b, w, h, out, v, opts = {}) {
   const { ctx, pg, errs } = await boot(b, w, h, opts.dsf || 1); if (opts.clean) await pg.addStyleTag({ content: HIDE });
-  await pg.evaluate(view, [v, opts.pin ? 'cover' : w > h]); if (opts.clean) await pg.evaluate(() => { const e = window.__app.world.env; if (e && e.grid) e.grid.visible = false; if (e && e.bound) e.bound.visible = false; }); await pg.clock.runFor(2500);
+  await pg.evaluate(view, [v, opts.pin ? (h > w * 1.2 ? 'coverP' : 'cover') : w > h]); if (opts.clean) await pg.evaluate(() => { const e = window.__app.world.env; if (e && e.grid) e.grid.visible = false; if (e && e.bound) e.bound.visible = false; }); await pg.clock.runFor(2500);
   if (v === 'battle') { await pg.evaluate(deploy); await pg.clock.runFor(opts.fight || 11000); }
   await pg.evaluate(() => { const a = window.__app; a.queue.length = 0; try { a.ui.closeModal(); } catch (e) {} document.querySelectorAll('#toasts > *').forEach((t) => t.remove()); }); await pg.clock.runFor(300);
   const at = opts.pin ? await pg.evaluate(pin, opts.pin) : null; await pg.screenshot({ path: out }); if (errs.length) console.warn('page errors:', errs.slice(0, 3)); await ctx.close(); return at;
@@ -120,6 +120,7 @@ async function video(b, w, h, coverPng) {
   if (!fs.existsSync(path.join(ROOT, 'starward3d', 'dist', 'web', 'index.html'))) { console.error('Build first: cd starward3d && npm run build'); process.exit(1); }
   const noVideo = process.argv.includes('--no-video'); fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve(); base = `http://localhost:${srv.address().port}`; const b = await chromium.launch(); console.log('▶ starward3d');
+  if (process.argv.includes('--cover-portrait')) { await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png')); console.log('  ✔ portrait cover'); await b.close(); srv.close(); return; }
   if (process.argv.includes('--cover1')) { await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png')); console.log('  ✔ landscape cover'); await b.close(); srv.close(); return; } // quick look at one cover
   if (!process.argv.includes('--video-only')) {
     await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'));
