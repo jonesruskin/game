@@ -56,7 +56,7 @@ export class App {
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
     document.addEventListener('pointerdown', () => { this.audio.unlock(); this.audio.startMusic(); }, { once: true });
-    window.addEventListener('keydown', (e) => { if (!this.placing || (e.target as HTMLElement).tagName === 'INPUT') return; const k = e.key.toLowerCase(); if (k === 'r') this.world.rotateGhost(); else if (k === 'escape') this.cancelPlace(); else if (k === 'enter') { e.preventDefault(); this.confirmPlace(); } }); /* placing: R rotates, Enter builds, Esc cancels */
+    window.addEventListener('keydown', (e) => { if (!this.placing || (e.target as HTMLElement).tagName === 'INPUT') return; const k = e.key.toLowerCase(); if (k === 'r') this.world.rotateGhost(); else if (k === 'enter') { e.preventDefault(); this.confirmPlace(); } }); /* placing: R rotates, Enter builds (no Esc: on the web it leaves fullscreen) */
     for (const ev of ['click', 'touchend']) document.addEventListener(ev, () => this.audio.unlock(), { passive: true }); // iOS only lets audio start inside a click or touchend
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.save(); this.scheduleNotes(); } else { this.cancelNotes(); this.tickNow(); } }); window.addEventListener('pagehide', () => this.save());
     // draw the build-menu thumbnails in idle moments, one at a time, so opening the menu never stalls the game
@@ -238,7 +238,7 @@ export class App {
   startPlacing(b: string, move?: string, at?: [number, number]) {
     const s = this.s; let x = 0, z = 0, r = 0; if (move) { const it = G.itemOf(s, s.at, move)!; x = it.x; z = it.z; r = it.r; } else { const cam = this.world.cam; const sp = at || G.freeSpot(s, s.at, b, 0, [cam.tx + GRID / 2, cam.tz + GRID / 2]); if (!sp) { this.ui.deny('No room left: claim more land (Land) or raise the command level'); return; } [x, z] = sp; }
     this.placing = { b, move }; this.ui.select(null); this.world.startGhost({ b, r, x, z, move, ok: true }); this.ghostMoved(); const [w, d] = G.dims(b, r); this.world.focus(x + w / 2 - GRID / 2, z + d / 2 - GRID / 2, clamp(this.world.cam.tdist, 20, 38)); document.body.classList.add('placing');
-    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}<i class="gnd"></i></span><span class="phint">Drag it or tap the ground where it should go${matchMedia('(pointer: fine)').matches ? ' · R rotate · Enter build · Esc cancel' : ''}</span>`;
+    const el = $('#place'); el.classList.remove('hidden'); el.innerHTML = `<span class="lbl">${move ? 'Move' : 'Place'} ${esc(BUILDINGS[b].name)}<i class="gnd"></i></span><span class="phint">Drag it or tap the ground where it should go${matchMedia('(pointer: fine)').matches ? ' · R rotates · Enter builds' : ''}</span>`;
     let gu = document.getElementById('ghostUi'); if (!gu) { gu = document.createElement('div'); gu.id = 'ghostUi'; document.body.appendChild(gu); } gu.innerHTML = `<button class="gb x" data-a="unplace" title="Cancel">✕</button><button class="gb r" data-a="rotate" title="Rotate">⟳</button><button class="gb ok" data-a="place" id="placeOk" title="${move ? 'Move here' : 'Build here'}">✓</button>`; gu.classList.remove('hidden'); this.ghostMoved(); this.placeUi();
     this.world.sync(s);
   }
