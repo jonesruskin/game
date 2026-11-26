@@ -126,8 +126,8 @@ async function video(b, w, h, coverPng) {
   }
   if (!noVideo) {
     const cl = path.join(os.tmpdir(), 's3d-cl.png'), cp = path.join(os.tmpdir(), 's3d-cp.png');
-    await cover(b, 1920, 1080, true, cl, 'earth'); await cover(b, 1080, 1620, true, cp, 'earth');
-    await video(b, 1920, 1080, cl); await video(b, 1080, 1620, cp);
+    if (!process.argv.includes('--portrait-only')) await cover(b, 1920, 1080, true, cl, 'earth'); await cover(b, 1080, 1620, true, cp, 'earth');
+    if (!process.argv.includes('--portrait-only')) await video(b, 1920, 1080, cl); await video(b, 1080, 1620, cp); // --portrait-only: re-render just the tall video
   }
   await b.close(); srv.close();
 })().catch((e) => { console.error(e); process.exit(1); });
