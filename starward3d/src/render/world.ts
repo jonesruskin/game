@@ -37,11 +37,18 @@ const HOLO = { ok: new THREE.MeshLambertMaterial({ color: '#a6f2ff', emissive: '
   arrow: new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true, opacity: 0.92, depthWrite: false, side: THREE.DoubleSide }), block: new THREE.MeshBasicMaterial({ color: '#ff5a6a', toneMapped: false, transparent: true, opacity: 0.22, depthWrite: false }) };
 function frameOf(w: number, d: number, t: number, mat: THREE.Material) { const g = new THREE.Group(); const bar = (bw: number, bd: number, x: number, z: number) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(bw, bd), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, 0, z); m.renderOrder = 5; g.add(m); };
   bar(w + t, t, 0, -d / 2); bar(w + t, t, 0, d / 2); bar(t, d + t, -w / 2, 0); bar(t, d + t, w / 2, 0); return g; }
+// contact shadow: a footprint-sized core that fades to nothing over a fixed half cell (same softness for any size)
+const AO_MAT = new THREE.MeshBasicMaterial({ color: '#0b170e', vertexColors: true, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false });
+const aoCache = new Map<string, THREE.BufferGeometry>(); const aoGeo = (w: number, d: number) => { const k = w + 'x' + d; let g = aoCache.get(k); if (g) return g; const m = 0.55, a = w / 2 - 0.1, b = d / 2 - 0.1, A = w / 2 + m, B = d / 2 + m;
+  const P = [-a, -b, a, -b, a, b, -a, b, -A, -B, A, -B, A, B, -A, B]; const pos: number[] = [], col: number[] = []; for (let i = 0; i < 8; i++) { pos.push(P[i * 2], P[i * 2 + 1], 0); col.push(1, 1, 1, i < 4 ? 1 : 0); }
+  g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 1, 4, 1, 0, 5, 6, 2, 5, 2, 1, 6, 7, 3, 6, 3, 2, 7, 4, 0, 7, 0, 3]); aoCache.set(k, g); return g; };
 const CHEVRON = (() => { const sh = new THREE.Shape(); sh.moveTo(0, -0.26); sh.lineTo(0.34, 0); sh.lineTo(0, 0.26); sh.lineTo(0.1, 0); sh.closePath(); return new THREE.ShapeGeometry(sh); })();
 export class World {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; env!: Env; land!: LandLayer; sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight;
   views = new Map<string, View>(); drones = new Map<string, Drone>(); baseId = ''; look: Look = { primary: '#e9eef5', accent: '#22c7e8', banner: { bg: '#1b6fd8', fg: '#ffd23a', emblem: 'rocket' } };
-  cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low';
+  cam = { x: 0, z: 2, y: 0, dist: 44, yaw: Math.PI / 4, tx: 0, tz: 2, ty: 0, tdist: 44, tyaw: Math.PI / 4 }; quality: 'high' | 'low'; autoOrbit = false;
+  // photo mode: draw this frame and hand it back as a picture
+  snapshot() { this.renderer.render(this.scene, this.camera); return this.canvas.toDataURL('image/jpeg', 0.92); }
   mode: 'base' | 'orbit' | 'system' | 'battle' | 'stars' | 'space' | 'galaxy' = 'base'; space: SpaceBattleView | null = null; galaxy: GalaxyView | null = null; onGalaxyPick: (id: string | null) => void = () => {}; starMap: StarMap | null = null; onStarPick: (id: string | null) => void = () => {}; battle: BattleView | null = null; onBattleTap: (x: number, z: number) => void = () => {}; system: SystemView | null = null; onPick: (body: string | null) => void = () => {}; walkers: Walkers | null = null; private walkKey = ''; orbit: OrbitView | null = null; private padRocket: { key: string; m: RocketModel; item: string } | null = null;
   private flights: { m: RocketModel; t: number; x: number; z: number; smoke: THREE.Points; v: Float32Array; life: Float32Array }[] = []; private saved: { x: number; z: number; dist: number } | null = null;
   ghost: Ghost | null = null; private ghostObj: THREE.Group | null = null; private ghostH = 2; private ghostOkShown: boolean | null = null; private blockers = new THREE.Group(); selRing: THREE.Mesh; selected: string | null = null; t = 0;
@@ -53,7 +60,7 @@ export class World {
     this.quality = quality === 'auto' ? (mobile ? 'low' : 'high') : quality;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality === 'high', powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.quality === 'high' ? 2 : 1.5)); this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0; this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0; this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = this.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.5, 6000);
     this.sun = new THREE.DirectionalLight('#fff1d6', 2.8); this.sun.castShadow = true; const sz = this.quality === 'high' ? 2048 : 1024; this.sun.shadow.mapSize.set(sz, sz);
     const sc = this.sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 34; sc.bottom = -34; sc.near = 1; sc.far = 160; this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.03;
@@ -200,6 +207,7 @@ export class World {
   private makeView(id: string, b: string, lvl: number, r: number, building: boolean, key: string): View {
     const root = new THREE.Group(); const m = buildModel(b, Math.max(1, lvl), this.look); m.group.rotation.y = (-r * Math.PI) / 2; root.add(m.group); const [w, d] = G.dims(b, r);
     const ph = Math.max(0.8, m.height); const pick = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, ph, d * 0.96), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = ph / 2; pick.userData.item = id; root.add(pick);
+    if (b !== 'wall') { const ao = new THREE.Mesh(aoGeo(w, d), AO_MAT); ao.rotation.x = -Math.PI / 2; ao.position.y = 0.035; ao.renderOrder = 2; root.add(ao); }
     let scaf; if (building) { scaf = scaffold(w, d, Math.max(1, m.height * 0.8)); root.add(scaf); if (lvl === 0) m.group.scale.y = 0.3; }
     this.scene.add(root); return { key, root, model: m, pick, scaf };
   }
@@ -238,7 +246,7 @@ export class World {
   // draw the current view now (for snapshots: the WebGL buffer is readable until the browser composites)
   renderNow() { const m = this.mode; const v: any = m === 'orbit' ? this.orbit : m === 'galaxy' ? this.galaxy : m === 'space' ? this.space : m === 'stars' ? this.starMap : m === 'battle' ? this.battle : m === 'system' ? this.system : null; if (v) this.renderer.render(v.scene, v.camera); else this.renderer.render(this.scene, this.camera); }
   frame(s: State, dt: number, working: (id: string) => boolean) {
-    this.t += dt; const t = this.t; this.animGhost(t);
+    this.t += dt; const t = this.t; this.animGhost(t); if (this.autoOrbit && this.mode === 'base') this.cam.tyaw += dt * 0.09;
     if (this.mode === 'orbit' && this.orbit) { this.orbit.frame(dt); this.renderer.render(this.orbit.scene, this.orbit.camera); return; }
     if (this.mode === 'galaxy' && this.galaxy) { this.galaxy.frame(dt); this.renderer.render(this.galaxy.scene, this.galaxy.camera); return; }
     if (this.mode === 'space' && this.space) { this.space.frame(dt); this.renderer.render(this.space.scene, this.space.camera); return; }

@@ -27,6 +27,7 @@ Helioscend is a come-back-daily space empire builder in full 3D. Build a spacepo
 - 🎖️ **Programme Rank:** every project you finish earns Esteem; every rank pays out and adds a mission patch, drawn for that rank, to your collection.
 - ⚡ **Happenings:** a trade barge with a great rate, a rich seam, a visiting drone crew, a night shift: something new turns up every half hour or so, and one is waiting when you come back.
 - 🎵 **A base you can hear:** an original score that follows you from the spaceport to the stars, wind and surf on Earth, dust storms on Mars, and the sound of your crews at work.
+- 📷 **Photo mode:** hide the interface, frame your spaceport or your Mars colony, and save a picture to share.
 - 🎁 **Something every day:** a login calendar that never resets, daily missions, supply capsules falling from the sky, a free daily core spin and weekly events.
 
 Everything keeps running while you are away. Dark matter, which finishes timers, is earned by playing; ads are always optional.

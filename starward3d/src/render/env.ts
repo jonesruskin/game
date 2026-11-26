@@ -13,8 +13,8 @@ export interface WorldLook {
   deck?: boolean; cloudFloor?: string; gap?: number; trees?: number; lakes?: number; curve?: number; green?: number; dust?: number; salt?: number; ponds?: number; island?: boolean; sunPow?: number; craterN?: number;
 }
 export const WORLDS: Record<string, WorldLook> = {
-  earth: { id: 'earth', ground: ['#4a8f3e', '#5ea34a', '#3a7a36', '#6cad52'], base: '#5aa648', rim: '#c9b98c', rock: '#8a8478', sky: ['#2f6fd0', '#8fc3f2', '#e8f2ff'], fog: '#cfe2f6', fogNear: 90, fogFar: 420,
-    sun: '#fff1d6', sunI: 2.4, amb: ['#bcd8ff', '#3b5a34', 0.75], sea: '#2a78b8', seaSide: 1, hills: 9, flora: 'trees', clouds: '#ffffff', cloudN: 26, stars: 0 },
+  earth: { id: 'earth', ground: ['#57893f', '#679849', '#4a7b39', '#76a353'], base: '#669f4b', rim: '#d2c39a', rock: '#8a8478', sky: ['#3573cf', '#9cc8ee', '#f1ede0'], fog: '#dde4e6', fogNear: 110, fogFar: 470,
+    sun: '#ffe9c8', sunI: 2.55, amb: ['#cddfff', '#465d34', 0.72], sea: '#2a78b8', seaSide: 1, hills: 9, flora: 'trees', clouds: '#ffffff', cloudN: 26, stars: 0 },
   moon: { id: 'moon', ground: ['#86868a', '#97979b', '#727276', '#a4a4a8'], base: '#9a9a9e', rim: '#9a9a9e', rock: '#66666a', sky: ['#000000', '#010204', '#05060b'], fog: '#05060b', fogNear: 500, fogFar: 2600,
     sun: '#ffffff', sunI: 3.1, amb: ['#8a9bb5', '#2a2a2e', 0.32], hills: 5, flora: 'rocks', stars: 1, craters: 70, skyBody: 'earth' },
   mars: { id: 'mars', ground: ['#b4643a', '#c27447', '#9e5532', '#cc8656'], base: '#bd7247', rim: '#c98a5e', rock: '#8a4a2e', sky: ['#a8724c', '#d2a074', '#ecc8a0'], fog: '#dcae86', fogNear: 80, fogFar: 420,
@@ -131,11 +131,11 @@ export class Env {
     const g = new THREE.PlaneGeometry(span, span, seg, seg); g.rotateX(-Math.PI / 2); const p = g.attributes.position; const col = new Float32Array(p.count * 3); const c = new THREE.Color(), cg = L.ground.map((x) => new THREE.Color(x)), cb = new THREE.Color(L.base), cr = new THREE.Color(L.rim), ck = new THREE.Color(L.rock);
     for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i); const y = this.height(x, z); p.setY(i, y); const r = Math.max(Math.abs(x), Math.abs(z));
       const k = n(x * 0.09 + 3, z * 0.09); c.copy(cg[0]).lerp(cg[1], k).lerp(cg[2], n(x * 0.03, z * 0.03 + 5) * 0.8);
-      if (r < C + 2) { c.lerp(cb, 0.6); if (L.id === 'earth') { const st = Math.floor((x + z + 400) / 2) % 2; c.offsetHSL(0, 0, st ? 0.025 : -0.015); } } // a mown field with stripes on Earth, packed regolith elsewhere
+      if (r < C + 2) c.lerp(cb, 0.55 + (n(x * 0.21, z * 0.21 + 9) - 0.5) * 0.2); // the base's field (or packed regolith), with a soft natural mottle
       if (y > L.hills * 1.4) c.lerp(ck, THREE.MathUtils.smoothstep(y, L.hills * 1.4, L.hills * 2.6));
       if (L.seaSide) { const d = sea(x, z); if (d < -C - 8 && y < 1.2) c.lerp(cr, THREE.MathUtils.smoothstep(-d, C + 8, C + 16) * THREE.MathUtils.smoothstep(-y, -1.2, 0.2)); } col.set([c.r, c.g, c.b], i * 3); }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-    const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true })); ground.receiveShadow = true; ground.name = 'ground'; this.group.add(ground); this.detail();
+    const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })); ground.receiveShadow = true; ground.name = 'ground'; this.group.add(ground); this.detail();
     if (L.sea && (L.seaSide || L.lakes !== undefined)) { const w = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.ShaderMaterial({ transparent: true, fog: true, uniforms: { t: { value: 0 }, col: { value: new THREE.Color(L.sea) }, deep: { value: new THREE.Color(L.sea).multiplyScalar(0.5) }, sky: { value: new THREE.Color(L.sky[2]) }, sunDir: { value: new THREE.Vector3(-0.55, 0.62, 0.42).normalize() }, ...THREE.UniformsLib.fog },
         vertexShader: '#include <fog_pars_vertex>\nvarying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition;\n#include <fog_vertex>\n}',
         fragmentShader: `#include <fog_pars_fragment>
@@ -170,6 +170,7 @@ export class Env {
     // clouds: flat soft puffs drifting high above
     if (L.clouds) { const tex = cloudTexture(); for (let i = 0; i < (L.cloudN || 0); i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: L.clouds, transparent: true, opacity: 0.75, depthWrite: false, fog: false }));
         const a = R() * Math.PI * 2, d = 120 + R() * 900; sp.position.set(Math.cos(a) * d, 60 + R() * 70, Math.sin(a) * d); const s = 60 + R() * 110; sp.scale.set(s, s * 0.38, 1); sp.userData.v = 0.6 + R() * 1.2; this.clouds.add(sp); } this.group.add(this.clouds); }
+    if (L.flora === 'trees' && L.clouds) this.makeBirds(); // living worlds: a small flock wheeling over the base
     this.scene.add(this.group);
   }
   // Venus: the city deck (an octagon wide enough for the whole grid) on its lifting envelopes, guard rails, distant
@@ -252,7 +253,7 @@ export class Env {
   }
   update(t: number, dt: number) { for (const m of this.sats.children) { const d = m.userData; d.a += d.s * dt; const p = (d.u as THREE.Vector3).clone().multiplyScalar(Math.cos(d.a)).add((d.v as THREE.Vector3).clone().multiplyScalar(Math.sin(d.a))).multiplyScalar(1500); m.position.copy(p); ((m as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = p.y > 40 ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 3 + d.ph)) : 0; }
     for (const c of this.cloudSea) (c.material as THREE.ShaderMaterial).uniforms.t.value = t; if (this.drift) this.drift.children.forEach((g) => { g.position.y += Math.sin(t * 0.3 + g.userData.ph) * dt * 0.4; g.rotation.y += dt * 0.02; });
-    if (this.earthSky) { this.earthSky.mesh.rotation.y = t * 0.01; if (this.earthSky.uniforms) this.earthSky.uniforms.uTime.value = t; } if (this.water) (this.water.material as THREE.ShaderMaterial).uniforms.t.value = t; for (const c of this.clouds.children) { c.position.x += (c.userData.v as number) * dt; if (c.position.x > 1000) c.position.x = -1000; } }
+    if (this.earthSky) { this.earthSky.mesh.rotation.y = t * 0.01; if (this.earthSky.uniforms) this.earthSky.uniforms.uTime.value = t; } if (this.water) (this.water.material as THREE.ShaderMaterial).uniforms.t.value = t; for (const c of this.clouds.children) { c.position.x += (c.userData.v as number) * dt; if (c.position.x > 1000) c.position.x = -1000; } this.flock(t); }
   // settlements beyond the spaceport: towns that spread over the land as the programme grows (houses with lit windows
   // under an open sky; domes and tunnels on airless worlds). One cluster per step of growth, golden-angle spiral outward.
   private towns: THREE.Group | null = null; private townKey = '';
@@ -269,6 +270,14 @@ export class Env {
     const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, list: THREE.Matrix4[]) => { if (!list.length) return; const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((mm, k) => im.setMatrixAt(k, mm)); im.castShadow = this.quality === 'high'; im.receiveShadow = true; g.add(im); };
     inst(box, new THREE.MeshStandardMaterial({ color: '#e8e4dc', roughness: 0.9 }), walls); inst(open ? box : dome, new THREE.MeshStandardMaterial({ color: open ? accent : '#cfe3ef', roughness: open ? 0.7 : 0.3, metalness: open ? 0 : 0.2 }), roofs);
     inst(box, new THREE.MeshBasicMaterial({ color: '#ffe2a0', toneMapped: false }), lights); this.towns = g; this.group.add(g); }
+  // a flock of birds circling lazily over the base, flapping and gliding (one instanced mesh, a V of two wings each)
+  private birds: { m: THREE.InstancedMesh; b: { r: number; h: number; a: number; w: number; ph: number }[] } | null = null;
+  private makeBirds() { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-0.62, 0.16, -0.05, 0, 0, 0.14, 0, 0, -0.1, 0.62, 0.16, -0.05, 0, 0, -0.1, 0, 0, 0.14], 3)); g.computeVertexNormals();
+    const n = this.quality === 'high' ? 11 : 7; const m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#4a525e', side: THREE.DoubleSide }), n); m.frustumCulled = false; const R = rng(91);
+    const b = Array.from({ length: n }, (_, i) => ({ r: 28 + R() * 20 + (i % 3) * 2, h: 24 + R() * 8, a: R() * 0.9, w: 0.11 + R() * 0.03, ph: R() * 6 })); this.group.add(m); this.birds = { m, b }; }
+  private birdM = new THREE.Matrix4(); private birdQ = new THREE.Quaternion(); private birdE = new THREE.Euler(); private birdV = new THREE.Vector3(); private birdS = new THREE.Vector3();
+  private flock(t: number) { const B = this.birds; if (!B) return; B.b.forEach((d, i) => { const a = d.a + t * d.w, x = Math.cos(a) * d.r, z = Math.sin(a) * d.r, y = d.h + Math.sin(t * 0.7 + d.ph) * 1.2; const glide = Math.sin(t * 0.45 + d.ph) > 0.35; const flap = glide ? 0.35 : Math.sin(t * 9 + d.ph * 3);
+    this.birdE.set(0, -a, Math.sin(t * 0.7 + d.ph) * 0.15); this.birdQ.setFromEuler(this.birdE); this.birdM.compose(this.birdV.set(x, y, z), this.birdQ, this.birdS.set(0.55, flap * 0.55, 0.55)); B.m.setMatrixAt(i, this.birdM); }); B.m.instanceMatrix.needsUpdate = true; }
   dispose() { this.scene.remove(this.group); this.scene.remove(this.sky); this.scene.remove(this.sats); for (const o of this.skyObjs) this.scene.remove(o); }
 }
 let ctex: THREE.Texture | null = null;

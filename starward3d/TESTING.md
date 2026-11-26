@@ -32,6 +32,7 @@ friend. Don't help them or explain anything: watch where they hesitate, and writ
 | Did they notice the rank badge filling up, and enjoy the rank-up and its patch? |  |
 | Did they try tapping bare ground? Was the plot card clear (what the plot is, what is under that spot)? |  |
 | Did they find Explore and send a survey team? Could they see when it would finish? |  |
+| Did they open the 📜 Logbook or try 📷 Photo mode? |  |
 | On the phone: dragging pans, pinching zooms, tapping selects, both orientations usable |  |
 | Any error, freeze or blank screen |  |
 | Would they come back tomorrow? Why or why not? |  |

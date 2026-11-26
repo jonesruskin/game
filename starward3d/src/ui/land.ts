@@ -102,7 +102,7 @@ export class LandUI {
       case 'land': this.open(); return true;
       case 'plotClose': this.ui.inspect(null); return true;
       case 'plotExplore': { const p = this.ui.plot; this.ui.inspect(null); this.open(); if (p) { this.cell = p.cell; this.W.land.select(p.cx, p.cz); this.W.focus((p.cx + 0.5) * CHUNK - GRID / 2, (p.cz + 0.5) * CHUNK - GRID / 2, 70); this.W.land.sync(s, s.at); this.ui.renderPanel(); } return true; }
-      case 'buildHere': { const c = this.ui.plot?.cell || this.cell; if (!c) return true; this.ui.placeAt = c; if (this.on) this.close(); this.ui.inspect(null); this.ui.openOver('shop'); A.audio.play('tap'); this.ui.toast('Pick a building: it goes where you tapped', 'good'); return true; }
+      case 'buildHere': { const c = this.ui.plot?.cell || this.cell; if (!c) return true; this.ui.placeAt = c; if (this.on) this.close(); this.ui.inspect(null); this.ui.openOver('shop'); A.audio.play('tap'); this.ui.toast('Pick a building: it goes where you tapped', 'good', false); return true; }
       case 'inspect': { const [cx, cz] = String(t.dataset.id).split(',').map(Number); if (this.on) { this.cell = null; this.W.land.select(cx, cz); this.W.land.sync(s, s.at); this.ui.renderPanel(); } else this.ui.inspect({ cx, cz, cell: null }); A.audio.play('tap'); return true; }
       case 'landDone': this.close(); return true;
       case 'landSite': this.W.land.sel = null; this.W.land.setMode(true); this.W.land.sync(s, s.at); this.ui.renderPanel(); return true;
