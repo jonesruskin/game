@@ -58,8 +58,8 @@ function view([name, land]) {
   if (name === 'earthClose') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); cam(-1, 3, 24, Math.PI / 4 + 0.5); }
   if (name === 'mars') { a.travel('mars'); cam(0, 0, land ? 30 : 40, Math.PI / 4 - 0.3); }
   if (name === 'launch') { if (a.s.at !== 'earth' || w.mode !== 'base') a.travel('earth'); const pad = a.s.bases.earth.items.find((i) => i.b === 'launch'); const v = pad && w.views.get(pad.id);
-    if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, land ? 26 : 30, Math.PI / 4 + 0.25); } }
-  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 6.6 : 4.6); cam(L.x - 2.5, L.z - 0.5, 19, Math.PI / 4 + 0.45); } }
+    if (v) { const d = window.__SP.designOf(a.s, 'colossus') || window.__SP.designOf(a.s, 'meridian'); w.launchFx(d, pad.id); const p = v.root.position; cam(p.x - 1.5, p.z + 1.5, land === 'cover' ? 40 : 34, Math.PI / 4 + 0.25); } }
+  if (name === 'landing') { const S = window.__SO.sol(a.s); S.terra.mars = 0; a.travel('mars'); const L = w.land.lander; if (L) { w.land.landNow(land === 'cover' ? 6.4 : 4.8, w.t); cam(L.x - 7, L.z - 1.5, land === 'cover' ? 30 : 26, Math.PI / 4 + 0.3); } }
   if (name === 'system') { a.toBase(); a.openMap(); }
   if (name === 'stars') { a.toBase(); a.openStars(); }
   if (name === 'galaxy') { a.toBase(); a.openGalaxy(); }
@@ -70,7 +70,7 @@ function view([name, land]) {
     a.changed(); a.ui.land.open(); const best = free.map(([x, z]) => [x, z, Object.keys(LD.plotInfo(s, 'moon', x, z).found).length]).sort((p, q) => q[2] - p[2])[0]; if (best) a.ui.land.tapCell(best[0] * 6 + 3, best[1] * 6 + 3); cam(4, 8, 104, Math.PI / 4); }
   if (name === 'battle') { a.toBase(); a.travel('earth'); const W = window.__WG.war(a.s); W.sorties = 9; a.ui.openOver('war'); const b = document.createElement('button'); b.dataset.a = 'warAttack'; b.dataset.i = '0'; a.ui.act('warAttack', b); }
 }
-function pin(kind) { const a = window.__app, w = a.world; let p = null; if (kind === 'rocket') { const f = w.flights[0]; if (f) { p = f.m.group.position.clone(); p.y += 1.6; } } else { const L = w.land.lander; if (L) { p = L.g.position.clone(); p.y += 0.6; } }
+function pin(kind) { const a = window.__app, w = a.world; let p = null; if (kind === 'rocket') { const f = w.flights[0]; if (f) { p = f.m.group.position.clone(); p.y += 3.2; } } else { const L = w.land.lander; if (L) { p = L.g.position.clone(); p.y += 0.6; } }
   if (!p) return null; const q = w.project(p); return { x: q.x, y: q.y }; }
 function deploy() { const a = window.__app; if (!a.battle) return; const B = a.battle.B, Lr = B.input.layout, N = B.n; let x0 = Lr.lo, z0 = Lr.lo, x1 = Lr.hi, z1 = Lr.hi; for (const p of Lr.land || []) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0] + 6); z1 = Math.max(z1, p[1] + 6); }
   // land just outside the base, on the near edges (the camera looks from the +x +z corner)
@@ -120,6 +120,7 @@ async function video(b, w, h, coverPng) {
   if (!fs.existsSync(path.join(ROOT, 'starward3d', 'dist', 'web', 'index.html'))) { console.error('Build first: cd starward3d && npm run build'); process.exit(1); }
   const noVideo = process.argv.includes('--no-video'); fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve(); base = `http://localhost:${srv.address().port}`; const b = await chromium.launch(); console.log('▶ starward3d');
+  if (process.argv.includes('--cover1')) { await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png')); console.log('  ✔ landscape cover'); await b.close(); srv.close(); return; } // quick look at one cover
   if (!process.argv.includes('--video-only')) {
     await cover(b, 1920, 1080, true, path.join(OUT, 'cover-landscape-1920x1080.png'));
     await cover(b, 800, 1200, true, path.join(OUT, 'cover-portrait-800x1200.png'));

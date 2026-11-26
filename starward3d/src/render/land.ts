@@ -224,7 +224,7 @@ export class LandLayer {
       const dm = new THREE.Mesh(new THREE.RingGeometry(0.5, 1.4, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(this.look.base).lerp(new THREE.Color('#ffffff'), 0.35), transparent: true, opacity: 0, depthWrite: false })); dm.rotation.x = -Math.PI / 2; dm.position.set(px, this.height(px, pz) + 0.2, pz); dm.visible = false; this.roads.add(dm); this.tdDust = dm; } }
   private tmp = new THREE.Vector3(); private lT0 = 0; private lastT = 0; private tdDust: THREE.Mesh | null = null;
   // for showcase shots: put the supply lander a given number of seconds before touchdown
-  landNow(secondsToTouchdown = 4) { this.lT0 = this.lastT - (0.2 * 46 - secondsToTouchdown); }
+  landNow(secondsToTouchdown = 4, now = this.lastT) { this.lT0 = now - (0.2 * 46 - secondsToTouchdown); }
   private traffic(t: number, dt: number) {
     for (const k of this.trucks) { const P = k.path === 'hwy' ? this.hwy : this.ring; if (!P) continue; k.s += k.v * dt * k.dir; if (k.path === 'hwy') { if (k.s > P.total) { k.s = P.total; k.dir = -1; k.side = 0.36; } if (k.s < 0) { k.s = 0; k.dir = 1; k.side = -0.36; } }
       const a = this.at(P, k.s, this.tmp); const yaw = k.dir > 0 ? a : a + Math.PI; const nx = Math.cos(a), nz = -Math.sin(a); const x = this.tmp.x + nx * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1), z = this.tmp.z + nz * k.side * (k.dir > 0 ? 1 : -1) * (k.path === 'hwy' ? -1 : 1);
