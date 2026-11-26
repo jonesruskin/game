@@ -47,7 +47,7 @@ export class WarUI {
     return `<h1>Orbital Trials: who we defend against</h1><p class="desc">Earth has never been attacked. The Defence Council is not waiting to find out how it would go.</p>
       <div class="brief">${step('🤖<span>⚔</span>🏰', 'Attack a hologram', 'Your strike squad (your strongest robots) attacks a holographic copy of another commander\'s whole base. Nothing is destroyed; grants, Power Cells and merit are real.')}
         ${step('🏰<span>🛡</span>', 'Defend yours', 'Other commanders and the Academy attack a copy of your base. Every building on your land counts: walls, turrets and outposts on claimed plots too. Hold and you earn bounties.')}
-        ${step('✪<span>→</span>🏛', 'Rise through the circles', 'Merit climbs seven circles. Each one grants a charter for good: cheaper land, a third rover, Swarm Guard, a seat on the Council.')}
+        ${step('✪<span>→</span>🏛', 'Rise through the circles', 'Merit climbs seven circles. Each one grants a charter for good: cheaper land, an extra survey team, Swarm Guard, a seat on the Council.')}
         ${step('👾', 'The real test', esc(sw.t), 'swarm')}</div>
       <p class="meta">Tip: claim land and wall it in, put turrets out on your plots, and keep Mission Control deep inside. Watch the replays of attacks on you to see where they broke through.</p><div class="row" style="justify-content:center"><button class="btn gold" data-a="closeModal">To the Trials</button></div>`; }
   private squadHTML(army: Fighter[]) { const s = this.s; const n = army.length, N = Math.max(n, 4 + Math.ceil(W.warroomLvl(this.s) / 2));

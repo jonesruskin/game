@@ -15,6 +15,8 @@ import { BUILDINGS } from '../data/buildings';
 import { SORTIES } from '../data/war';
 import { RARITIES } from '../data/rarities';
 import { patchSVG } from './patch';
+import { plotName } from './land';
+import { GRID } from '../data/buildings';
 import { coreBall } from './daily';
 import type { UI } from './ui';
 const cost = (r: Record<string, number>) => Object.entries(r).filter(([, n]) => n > 0).map(([k, n]) => `<span class="cost"><span style="color:${RES[k].color}">${ri(k)}</span>${fmt(n)}</span>`).join(' ');
@@ -24,6 +26,8 @@ export class Standby {
   constructor(private ui: UI) {}
   get s() { return this.ui.app.s; } get A() { return this.ui.app; }
   // ---------------- the Standby board ----------------
+  // survey teams (Earth) or rovers free at this base, when there is somewhere they could go
+  scoutsIdle() { const s = this.s, free = LD.maxRovers(s) - LD.roversOut(s, s.at); return free > 0 && this.canRove() ? free : 0; }
   private canRove() { const s = this.s, now = Date.now(); if (now - this.roverAt < 5000) return this.roverOk; this.roverAt = now; this.roverOk = false; if (LD.noGround(s, s.at)) return false;
     for (let cx = 0; cx < LD.NCH && !this.roverOk; cx++) for (let cz = 0; cz < LD.NCH; cz++) { const c = LD.canSurvey(s, s.at, cx, cz); if (c.ok || c.cost) { this.roverOk = true; break; } } return this.roverOk; }
   private labIdle() { const s = this.s; if (G.slotsBusy(s) >= G.slotsTotal(s)) return false; if (!Object.values(s.bases).some((B) => B.items.some((i) => i.b === 'research' && i.lvl > 0))) return false; const L = hqLevel(s);
@@ -33,7 +37,9 @@ export class Standby {
     for (const b of H.act) if (b.until > now) { const I = HP.INFO[b.kind]; out.push({ a: 'hapInfo', cls: 'on', html: `<span>${I.icon}</span>${esc(I.name(b))}<em>${fmtTime((b.until - now) / 1000)}</em>`, title: 'A bonus is running' }); }
     const idle = G.crewsTotal(s) - G.crewsBusy(s); if (idle > 0) out.push({ a: 'shop', cls: '', html: `${ri('crews', '16px')}${idle} drone${idle > 1 ? 's' : ''} idle`, title: 'Construction drones waiting for work: build or upgrade something' });
     if (this.labIdle()) out.push({ a: 'research', cls: '', html: `<span style="color:${RES.science.color}">${ri('science', '16px')}</span>Lab idle`, title: 'The research lab is free: pick a technology' });
-    if (this.ui.land.available()) { const free = LD.maxRovers(s) - s.jobs.filter((j) => j.kind === 'prospect').length; if (free > 0 && this.canRove()) out.push({ a: 'land', cls: '', html: `<span>🛰</span>${free} rover${free > 1 ? 's' : ''} idle`, title: 'Rovers waiting: survey a plot of land' }); }
+    if (this.ui.land.available()) { const sc = LD.scout(s.at), free = this.scoutsIdle(); const fall = LD.openFalls(s, s.at)[0];
+      if (fall) out.push({ a: 'meteor', cls: 'hot', html: `<span>☄</span>Meteorite in ${plotName(fall.cx, fall.cz)}`, title: `A meteorite came down: send a ${sc.one} to recover it` });
+      if (free > 0) out.push({ a: 'land', cls: '', html: `<span>${sc.icon}</span>${free} ${free > 1 ? sc.many : sc.one} idle`, title: `${sc.Many} waiting: survey a plot of land (Explore)` }); }
     if (W.unlocked(s) && W.war(s).sorties >= SORTIES) out.push({ a: 'war', cls: '', html: `<span>⚔</span>${SORTIES} sorties ready`, title: 'Orbital Trials sorties are full: use one so the next can recharge' });
     return out; }
   render() { const el = document.getElementById('standby') || (() => { const d = document.createElement('div'); d.id = 'standby'; document.body.appendChild(d); return d; })(); const A = this.A;
@@ -86,6 +92,7 @@ export class Standby {
       case 'rankGoto': ui.closeModal(); ui.act('goto', t); return true;
             case 'hapYes': { const r = HP.accept(s); if (!r.ok) { ui.deny(r.why || 'Not now'); return true; } ui.closeModal(); const h = r.h!; A.audio.play(h.kind === 'cache' || h.kind === 'barge' ? 'claim' : 'levelup'); A.esteem(8);
         ui.toast(h.kind === 'barge' ? `Trade done: ${cost(h.get!)}` : h.kind === 'cache' ? `Collected: ${cost(h.get!)}` : h.kind === 'night' ? '🌙 The night shift is on: every running project jumped ahead' : `${HP.INFO[h.kind].icon} ${esc(HP.INFO[h.kind].name(h))} is on`, 'gold'); A.changed(); ui.renderPanel(); this.render(); return true; }
+      case 'meteor': { const f = LD.openFalls(s, s.at)[0]; if (!f) return true; A.world.focus(f.x - GRID / 2, f.z - GRID / 2, Math.min(A.world.cam.tdist, 34)); ui.inspect({ cx: f.cx, cz: f.cz, cell: [Math.floor(f.x), Math.floor(f.z)] }); A.audio.play('tap'); return true; }
       case 'hapInfo': { const now = Date.now(); for (const b of HP.hp(s).act.filter((x) => x.until > now)) ui.toast(`${HP.INFO[b.kind].icon} ${esc(HP.INFO[b.kind].name(b))}: ${fmtTime((b.until - now) / 1000)} left`, 'good'); return true; }
     }
     return false; }

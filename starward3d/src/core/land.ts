@@ -66,7 +66,12 @@ export const ownedChunk = (s: State, base: string, cx: number, cz: number) => co
 export function hintLevel(s: State, base: string) { if (base === 'earth') return (sp(s).sats || []).length >= 3 ? 2 : (sp(s).sats || []).length ? 1 : 0; if (isExo(base)) { const C = ist(s).colonies[base]; return C ? (C.lvl >= 6 ? 2 : C.lvl >= 3 ? 1 : 0) : 0; } const r = relayLevel(s, base); return r >= 3 ? 2 : r >= 1 ? 1 : 0; }
 // rovers reach this many plots beyond owned land
 export const roverRange = (s: State, base: string) => 2 + hintLevel(s, base) + (charter(s, 'land2') ? 1 : 0);
-export const maxRovers = (s: State) => (charter(s, 'rover') ? 3 : 2);
+export const maxRovers = (s: State) => (charter(s, 'rover') ? 3 : 2); // per base: each world has its own
+export const roversOut = (s: State, base: string) => s.jobs.filter((j) => j.kind === 'prospect' && j.base === base).length;
+// who does the surveying: on Earth a survey team (geologists with a drill truck and a drone) drives out; everywhere
+// else, where nobody walks about outside, a rover goes
+export const scout = (base: string) => base === 'earth' ? { one: 'survey team', many: 'survey teams', Cap: 'Survey team', Many: 'Survey teams', icon: '🦺', how: 'Geologists drive out with a drill truck and a drone and map the ground metre by metre.' }
+  : { one: 'rover', many: 'rovers', Cap: 'Rover', Many: 'Rovers', icon: '🚙', how: 'A rover drives survey lines across the plot with ground radar and a drill.' };
 function distToOwned(s: State, base: string, cx: number, cz: number) { let best = 99; for (let z = 0; z < NCH; z++) for (let x = 0; x < NCH; x++) if (ownedChunk(s, base, x, z)) best = Math.min(best, Math.max(Math.abs(x - cx), Math.abs(z - cz))); return best; }
 // deposits visible in a plot (surveyed), or hinted from orbit
 export function plotInfo(s: State, base: string, cx: number, cz: number) { const D = deposits(s, base); const found: Record<string, number> = {};
@@ -79,7 +84,7 @@ export const surveyCost = (s: State, base: string) => { const e = era(s, base); 
 export const surveyTime = (s: State, base: string) => Math.round(ladder(3 + era(s, base) * 0.35 + Math.min(5, nSurveyed(s, base) * 0.06)));
 export function canSurvey(s: State, base: string, cx: number, cz: number): Check { if (!s.bases[base] || cx < 0 || cz < 0 || cx >= NCH || cz >= NCH) return { ok: false, why: 'Off the map' };
   if (surveyed(s, base, cx, cz)) return { ok: false, why: 'Surveyed', done: true }; if (s.jobs.some((j) => j.kind === 'prospect' && j.base === base && j.key === cx + ',' + cz)) return { ok: false, why: 'Rover on its way', busy: true };
-  if (s.jobs.filter((j) => j.kind === 'prospect').length >= maxRovers(s)) return { ok: false, why: 'Every rover is out', busy: true }; if (distToOwned(s, base, cx, cz) > roverRange(s, base)) return { ok: false, why: 'Too far for the rovers: claim land closer first', locked: true };
+  if (roversOut(s, base) >= maxRovers(s)) return { ok: false, why: `Every ${scout(base).one} is out`, busy: true }; if (distToOwned(s, base, cx, cz) > roverRange(s, base)) return { ok: false, why: `Too far for the ${scout(base).many}: claim land closer first`, locked: true };
   const cost = surveyCost(s, base); if (!canPay(s, cost)) return { ok: false, why: 'Not enough resources', cost }; return { ok: true, cost, time: surveyTime(s, base) }; }
 export function startSurvey(s: State, base: string, cx: number, cz: number, t = Date.now()) { const c = canSurvey(s, base, cx, cz); if (!c.ok) return c; pay(s, c.cost!); s.jobs.push({ id: uid(s), kind: 'prospect', base, key: cx + ',' + cz, start: t, end: t + c.time! * 1000 }); return c; }
 // ---------------- claiming land ----------------

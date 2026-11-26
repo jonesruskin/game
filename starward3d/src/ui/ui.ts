@@ -5,7 +5,7 @@ import { ri } from './icons';
 import { $, $$, esc, fmt, fmtTime, clamp } from '../core/util';
 import * as G from '../core/game';
 import { rates, kardashev, K_MILESTONES, kTitle, bStats, collectsOf, Rates } from '../core/econ';
-import { BUILDINGS, CATS, allowedCount, allowedLevel, holdHours, kindOf, crewsFromHq, areaSide } from '../data/buildings';
+import { BUILDINGS, CATS, allowedCount, allowedLevel, holdHours, kindOf, crewsFromHq, areaSide, CHUNK, GRID } from '../data/buildings';
 import { TECH, BRANCHES, techCost } from '../data/research';
 import { RES } from '../data/resources';
 import { CHAPTERS } from '../data/objectives';
@@ -21,7 +21,7 @@ import { FleetUI } from './fleet';
 import { BeyondUI } from './beyond';
 import { LifeUI } from './life';
 import { StyleUI } from './style';
-import { LandUI } from './land';
+import { LandUI, plotName } from './land';
 import { Coach } from './coach';
 import { Standby } from './standby';
 import * as LD from '../core/land';
@@ -37,7 +37,7 @@ export const icon = (r: string) => `<span class="ci" style="color:${RES[r]?.colo
 export function costHTML(cost: Record<string, number>, have?: Record<string, number>) { return `<span class="costs">${Object.entries(cost).filter(([, n]) => n > 0).map(([r, n]) => `<span class="cost ${have && (have[r] || 0) < n ? 'short' : ''}" title="${RES[r]?.name || r}">${icon(r)}${fmt(n)}</span>`).join('')}</span>`; }
 const AD_SKIPS = 8; // rewarded timer skips per day
 export class UI {
-  standby!: Standby; sel: string | null = null; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' | 'ascension' | 'life' | 'style' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI; beyond: BeyondUI; life: LifeUI; style: StyleUI; land: LandUI; coach: Coach;
+  standby!: Standby; sel: string | null = null; plot: { cx: number; cz: number; cell: [number, number] | null } | null = null; placeAt: [number, number] | null = null; private landKey = ''; private mapTick = -1; over: '' | 'shop' | 'research' | 'goals' | 'launch' | 'designer' | 'robots' | 'daily' | 'war' | 'empire' | 'contact' | 'defence' | 'ascension' | 'life' | 'style' = ''; tab = 'production'; rtab = 'avail'; launch: LaunchUI; robots: RobotsUI; solar: SolarUI; daily: DailyUI; war: WarUI; stars: StarsUI; contact: ContactUI; fleet: FleetUI; beyond: BeyondUI; life: LifeUI; style: StyleUI; land: LandUI; coach: Coach;
   private bubbles = new Map<string, HTMLElement>(); private lastRes: Record<string, number> = {}; private panelKey = ''; tick = 0;
   constructor(public app: App) {
     this.standby = new Standby(this); this.launch = new LaunchUI(this); this.robots = new RobotsUI(this); this.solar = new SolarUI(this); this.daily = new DailyUI(this); this.war = new WarUI(this); this.stars = new StarsUI(this); this.contact = new ContactUI(this); this.fleet = new FleetUI(this); this.beyond = new BeyondUI(this); this.life = new LifeUI(this); this.style = new StyleUI(this); this.land = new LandUI(this); this.coach = new Coach(this);
@@ -74,7 +74,7 @@ export class UI {
     const W = this.app.world; if (W && W.land) { if (W.mode !== 'base' && W.land.mode) W.land.setMode(false); if (!W.land.mode) document.body.classList.remove('landmode'); if (W.mode === 'base' && W.land.mode) { $('#nav').innerHTML = this.land.navHTML(); return; } }
     const pad = G.lvlOf(s, 'earth', 'launch') > 0; const ready = Object.values(S.hangar).some((n) => n > 0) && s.jobs.every((j) => j.kind !== 'mission');
     const bots = RB.workshopLvl(s) > 0 || RB.rb(s).list.length > 0; const cores = RB.rb(s).cores.length > 0;
-    $('#nav').innerHTML = `<button data-a="shop"><span class="g">🏗</span>Build</button>${this.land.available() ? '<button data-a="land"><span class="g">🧭</span>Land</button>' : ''}<button data-a="research"><span class="g">🔬</span>Research${r}</button>${bots ? `<button data-a="robots"><span class="g">🤖</span>Robots${cores ? '<span class="rdot"></span>' : ''}</button>` : ''}${pad ? `<button data-a="launchctl"><span class="g">🚀</span>Launch${ready ? '<span class="rdot"></span>' : ''}</button>` : ''}${S.sats.length || S.modules.core ? '<button data-a="orbit"><span class="g">🛰</span>Orbit</button>' : ''}${pad || Object.keys(s.bases).length > 1 ? '<button data-a="map"><span class="g">🪐</span>Map</button>' : ''}<button data-a="goals"><span class="g">🎯</span>Goals</button><button data-a="kard"><span class="g">☀</span>Kardashev</button>`;
+    $('#nav').innerHTML = `<button data-a="shop"><span class="g">🏗</span>Build</button>${this.land.available() ? (() => { const n = this.standby.scoutsIdle(), m = LD.openFalls(s, s.at).length; return `<button data-a="land" title="Explore: survey and claim the land around you"><span class="g">🧭</span>Explore${m ? '<span class="nbadge hot">☄</span>' : n ? `<span class="nbadge">${n}</span>` : ''}</button>`; })() : ''}<button data-a="research"><span class="g">🔬</span>Research${r}</button>${bots ? `<button data-a="robots"><span class="g">🤖</span>Robots${cores ? '<span class="rdot"></span>' : ''}</button>` : ''}${pad ? `<button data-a="launchctl"><span class="g">🚀</span>Launch${ready ? '<span class="rdot"></span>' : ''}</button>` : ''}${S.sats.length || S.modules.core ? '<button data-a="orbit"><span class="g">🛰</span>Orbit</button>' : ''}${pad || Object.keys(s.bases).length > 1 ? '<button data-a="map"><span class="g">🪐</span>Map</button>' : ''}<button data-a="goals"><span class="g">🎯</span>Goals</button><button data-a="kard"><span class="g">☀</span>Kardashev</button>`;
   }
   // ---------------- objective card ----------------
   renderObj() {
@@ -87,14 +87,17 @@ export class UI {
     this.coach.frame();
     { const W = this.app.world, fx = $('#stormfx') as HTMLElement | null; if (fx) { const k = W.mode === 'base' && W.land ? W.land.storm * (W.land.mode ? 0.3 : 1) : 0; const o = k > 0.01 ? (k * 0.62).toFixed(3) : '0'; if (fx.style.opacity !== o) { fx.style.opacity = o; if (k > 0.01) fx.style.setProperty('--dust', W.land.dustCol); } } }
     if (this.app.world.mode === 'system') { this.solar.frameLabels(); return; } if (this.app.world.mode === 'stars') { this.stars.frameLabels(); return; } if (this.app.world.mode === 'galaxy') { this.beyond.frameLabels(); return; }
-    if (this.app.world.land?.mode) { for (const el of this.bubbles.values()) el.remove(); this.bubbles.clear(); return; }
+    const landOn = !!this.app.world.land?.mode;
     const s = this.s, W = this.app.world, R = this.R; const root = $('#bubbles'); const seen = new Set<string>(); const B = s.bases[s.at]; if (!B) return;
     const put = (key: string, at: { x: number; y: number; z: number } | null, html: string, cls: string, act?: string, id?: string) => { if (!at) return; const p = W.project(at); if (p.behind) return; seen.add(key); let el = this.bubbles.get(key);
       if (!el) { el = document.createElement('div'); el.className = 'bub'; if (act) { el.dataset.a = act; if (id) el.dataset.id = id; } root.appendChild(el); this.bubbles.set(key, el); }
       if (el.dataset.h !== html + cls) { el.innerHTML = html; el.className = 'bub ' + cls; el.dataset.h = html + cls; } el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; };
-    if (!W.ghost) for (const it of B.items) { const top = W.topOf(it.id); const job = G.jobOf(s, it.id);
-      if (job) { const f = clamp(1 - (job.end - Date.now()) / (job.end - job.start)); put('t' + it.id, top, `<span>${fmtTime((job.end - Date.now()) / 1000)}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer'); continue; }
+    if (!W.ghost && !landOn) for (const it of B.items) { const top = W.topOf(it.id); const job = G.jobOf(s, it.id);
+      if (job) { const f = clamp(1 - (job.end - Date.now()) / (job.end - job.start)); put('t' + it.id, top, `<span>${fmtTime((job.end - Date.now()) / 1000)}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer', 'goto', it.id); continue; }
       const x = R.item[it.id], held = it.held || 0; if (x && held >= Math.max(1, x.hold * 0.03)) { const full = held >= x.hold * 0.98; put('c' + it.id, top, `<span class="bi" style="color:${RES[x.r].color}">${ri(x.r)}</span>${fmt(held)}`, full ? 'full' : '', 'collect', it.id); } }
+    // surveys and claims under way: a countdown over the plot (tap it for the plot card)
+    if (!W.ghost) { const sc = LD.scout(s.at); for (const j of s.jobs) { if (j.base !== s.at || (j.kind !== 'prospect' && j.kind !== 'claim')) continue; const [cx, cz] = String(j.key).split(',').map(Number); const f = clamp(1 - (j.end - Date.now()) / (j.end - j.start));
+      put('p' + j.id, { x: (cx + 0.5) * CHUNK - GRID / 2, y: landOn ? 2.5 : 1.8, z: (cz + 0.5) * CHUNK - GRID / 2 }, `<span>${j.kind === 'prospect' ? sc.icon : '🚩'} ${fmtTime((j.end - Date.now()) / 1000)}</span><div class="bar"><i style="width:${f * 100}%"></i></div>`, 'timer ptimer', 'inspect', cx + ',' + cz); } }
     for (const [k, el] of this.bubbles) if (!seen.has(k)) { el.remove(); this.bubbles.delete(k); }
   }
   // a finished upgrade: a gold badge rises from the building
@@ -111,14 +114,31 @@ export class UI {
       <button class="btn gold" data-a="closeModal">Let's build</button>`; }
   popText(x: number, y: number, txt: string, color = '#fff') { const el = document.createElement('div'); el.className = 'pop'; el.innerHTML = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.color = color; document.body.appendChild(el); setTimeout(() => el.remove(), 1100); }
   // ---------------- building panel ----------------
-  select(id: string | null) { this.sel = id; this.app.world.select(id); this.renderPanel(); }
+  select(id: string | null) { if (this.plot) { this.plot = null; this.app.world.land?.inspect(null); } this.sel = id; this.app.world.select(id); this.renderPanel(); }
+  // desktop hover card: what a building is doing, or what a patch of ground is, without clicking
+  private tipKey = '';
+  hover(h: { item?: string; cell?: [number, number] } | null, x: number, y: number) { let el = document.getElementById('tip'); if (!el) { el = document.createElement('div'); el.id = 'tip'; document.body.appendChild(el); }
+    const busy = !h || this.over || !$('#modal').classList.contains('hidden') || (this.app as any).placing || this.coach.on; if (busy) { el.classList.add('hidden'); this.tipKey = ''; return; } const s = this.s; let html = '';
+    if (h!.item) { const it = G.itemOf(s, s.at, h!.item); if (!it) { el.classList.add('hidden'); return; } const d = BUILDINGS[it.b], j = G.jobOf(s, it.id), x2 = this.R.item[it.id];
+      const st = j ? `${j.from === 0 ? 'Being built' : `Upgrading to level ${j.to}`} · ${fmtTime((j.end - Date.now()) / 1000)}` : x2 && it.lvl ? `${icon(x2.r)} ${fmt(it.held || 0)} / ${fmt(x2.hold)} stored${(it.held || 0) >= x2.hold * 0.98 ? ' · <b class="bad">full</b>' : ''}` : it.lvl ? `Level ${it.lvl} of ${d.max}` : '';
+      html = `<b>${esc(d.name)}</b>${it.lvl ? ` <span class="muted">Lv ${it.lvl}</span>` : ''}<i>${st}</i><i class="muted">Click to open</i>`; }
+    else { const [x0, z0] = h!.cell!; if (x0 < 0 || z0 < 0 || x0 >= GRID || z0 >= GRID) { el.classList.add('hidden'); return; } const cx = Math.floor(x0 / CHUNK), cz = Math.floor(z0 / CHUNK); const V = this.land.verdict(cx, cz), I = LD.plotInfo(s, s.at, cx, cz);
+      const job = s.jobs.find((j) => j.base === s.at && j.key === cx + ',' + cz && (j.kind === 'prospect' || j.kind === 'claim')); const fall = LD.openFalls(s, s.at).some((f) => f.cx === cx && f.cz === cz);
+      html = `<b><span style="color:${V.col}">${V.icon}</span> ${esc(V.title)}</b> <span class="muted">${plotName(cx, cz)}</span><i>${I.core || I.claimed ? 'Your land' : I.surveyed ? 'Surveyed, not yet yours' : 'Not surveyed yet'}${job ? ` · ${job.kind === 'prospect' ? LD.scout(s.at).icon + ' surveying' : '🚩 being claimed'} ${fmtTime((job.end - Date.now()) / 1000)}` : ''}${fall ? ' · ☄ meteorite here' : ''}</i><i class="muted">Click for details</i>`; }
+    if (html !== this.tipKey) { this.tipKey = html; el.innerHTML = html; } el.classList.remove('hidden'); const w = el.offsetWidth, hh = el.offsetHeight; el.style.left = Math.min(innerWidth - w - 8, x + 16) + 'px'; el.style.top = Math.min(innerHeight - hh - 8, y + 18) + 'px'; }
+  // the plot card in the normal view: tap any bare ground to ask what it is
+  inspect(p: { cx: number; cz: number; cell: [number, number] | null } | null) { this.plot = p; if (p) { this.sel = null; this.app.world.select(null); } this.app.world.land?.inspect(p ? [p.cx, p.cz] : null, p?.cell || undefined); this.landKey = ''; this.renderPanel(); }
   private panelSig() { const s = this.s; const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) return ''; const j = G.jobOf(s, it.id); return [it.id, it.lvl, it.x, it.z, j ? j.id : '', G.canUpgrade(s, s.at, it.id).ok, G.crewsBusy(s), Math.floor((s.res.dm || 0) / 5), RB.operatorsAt(s, s.at, it.id).map((r) => r.id + r.lvl).join()].join('|'); }
-  refreshPanel() { if (this.app.world.mode === 'system' || this.app.world.mode === 'stars' || this.app.world.mode === 'galaxy' || this.app.world.land?.mode) { if (this.tick % 8 === 0) this.renderPanel(); return; } if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey || (this.tick % 6 === 0 && document.querySelector('#panel .afford:not(.ok)'))) { this.renderPanel(); return; } const s = this.s;
-    $$('#panel [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); });
-    $$('#panel [data-bar]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.bar); if (j) e.style.width = clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100 + '%'; });
-    $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); e.innerHTML = c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'; } });
+  refreshPanel() { const W = this.app.world; if (W.mode === 'system' || W.mode === 'stars' || W.mode === 'galaxy') { if (this.tick % 8 === 0 && this.mapTick !== this.tick) { this.mapTick = this.tick; this.renderPanel(); } return; }
+    if (W.land?.mode || (this.plot && !this.sel && W.mode === 'base')) { const k = this.land.sig() + '|' + (this.tick % 6 === 0 && document.querySelector('#panel .afford:not(.ok)') ? this.tick : ''); if (k !== this.landKey) { this.landKey = k; this.renderPanel(); } else this.liveTimers(); return; }
+    if (!this.sel) return; const sig = this.panelSig(); if (sig !== this.panelKey || (this.tick % 6 === 0 && document.querySelector('#panel .afford:not(.ok)'))) { this.renderPanel(); return; } const s = this.s;
+    this.liveTimers();
     const it = G.itemOf(s, s.at, this.sel); const x = it && this.R.item[it.id]; const h = $('#panel #held'); if (h && x && it) { h.textContent = `${fmt(it.held || 0)} / ${fmt(x.hold)}`; const b = $('#panel #heldbar') as HTMLElement; if (b) b.style.width = clamp((it.held || 0) / x.hold) * 100 + '%'; }
     $$('#panel [data-cost]').forEach((e) => { const [r, n] = e.dataset.cost!.split(':'); e.classList.toggle('short', (s.res[r] || 0) < +n); }); }
+  // countdowns, progress bars and finish prices tick in place (no redraw, so a tap is never lost)
+  liveTimers() { const s = this.s; $$('#panel [data-left]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.left); if (j) e.textContent = fmtTime((j.end - Date.now()) / 1000); });
+    $$('#panel [data-bar]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.bar); if (j) e.style.width = clamp(1 - (j.end - Date.now()) / (j.end - j.start)) * 100 + '%'; });
+    $$('#panel [data-dm]').forEach((e) => { const j = s.jobs.find((x) => x.id === e.dataset.dm); if (j) { const c = G.dmCost((j.end - Date.now()) / 1000); const h = c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'; if (e.innerHTML !== h) e.innerHTML = h; } }); }
   // Meridian carries out orders: queue this building's next upgrade (it starts when a crew and the resources are free)
   private merUpBtn(id: string) { const s = this.s; if (!MER.level(s)) return ''; const M = MER.mer(s); const mine = M.uq.filter((o) => o.base === s.at && o.id === id).length; const c = MER.canQueueUpgrade(s, s.at, id);
     return `<div class="row" style="gap:6px;margin-top:6px;align-items:center">${c.ok ? `<button class="btn small" data-a="mQueueU" data-id="${id}">⏳ Queue with Aova</button>` : ''}<span class="muted" style="font-size:12px">${mine ? `🤖 ${mine} upgrade${mine > 1 ? 's' : ''} queued here · ` : ''}Aova queue ${M.uq.length}/${MER.capacity(s)}</span></div>`; }
@@ -132,7 +152,7 @@ export class UI {
   adBtn(j: { id: string; end: number }) { const s = this.s as any; if (!this.app.platform.adsAvailable || j.end - Date.now() < 120e3) return ''; const today = new Date().toDateString(); const A = s.adSkips && s.adSkips.d === today ? s.adSkips : { d: today, n: 0 }; if (A.n >= AD_SKIPS) return '';
     return `<button class="btn small" data-a="adSkip" data-job="${j.id}" title="${AD_SKIPS - A.n} left today">▶ Ad: −30 min</button>`; }
   renderPanel() {
-    const el = $('#panel'); const s = this.s; if (this.app.world && this.app.world.mode === 'galaxy') { el.classList.remove('hidden'); el.innerHTML = this.beyond.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'stars') { el.classList.remove('hidden'); el.innerHTML = this.stars.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'system') { el.classList.remove('hidden'); el.innerHTML = this.solar.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'orbit') { el.classList.add('hidden'); return; } if (this.app.world?.land?.mode) { el.classList.remove('hidden'); el.innerHTML = this.land.panelHTML(); return; } const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); this.panelKey = this.panelSig();
+    const el = $('#panel'); const s = this.s; if (this.app.world && this.app.world.mode === 'galaxy') { el.classList.remove('hidden'); el.innerHTML = this.beyond.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'stars') { el.classList.remove('hidden'); el.innerHTML = this.stars.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'system') { el.classList.remove('hidden'); el.innerHTML = this.solar.panelHTML(); return; } if (this.app.world && this.app.world.mode === 'orbit') { el.classList.add('hidden'); return; } if (this.app.world?.land?.mode) { el.classList.remove('hidden'); el.innerHTML = this.land.panelHTML(); this.land.renderBar(); return; } if (!this.sel && this.plot && this.app.world.mode === 'base') { el.classList.remove('hidden'); el.innerHTML = this.land.plotHTML(this.plot.cx, this.plot.cz, this.plot.cell, true); return; } const it = this.sel ? G.itemOf(s, s.at, this.sel) : null; if (!it) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); this.panelKey = this.panelSig();
     const d = BUILDINGS[it.b]; const m = this.R.m; const job = G.jobOf(s, it.id); const cap = G.levelCap(s, s.at, it.b);
     let h = `<button class="ibtn x" data-a="deselect">✕</button><h2>${esc(d.name)}</h2><div class="sub">${it.lvl ? `Level ${it.lvl} of ${d.max}` : 'Under construction'}${!d.command && cap < d.max ? ` · up to ${cap} at this ${s.at === 'earth' ? 'Mission Control' : 'Colony Hub'} level` : ''} · ${CATS[d.cat] || ''}</div><p class="desc">${esc(d.desc)}</p>${it.lvl ? this.land.groundLine(s.at, it) : ''}`;
     if (job) { const c = G.dmCost((job.end - Date.now()) / 1000); h += `<div class="box upbox"><div class="row"><b class="grow ox">${job.from === 0 ? 'Building' : `Upgrading to level ${job.to}`}</b><b data-left="${job.id}">${fmtTime((job.end - Date.now()) / 1000)}</b></div><div class="bar" style="margin:6px 0"><i data-bar="${job.id}" style="width:0%"></i></div><div class="row"><button class="btn gold small grow" data-a="finish" data-job="${job.id}" data-dm="${job.id}">${c ? `${icon('dm')}${c} Finish now` : 'Finish (free)'}</button>${this.adBtn(job)}<button class="btn small" data-a="cancel" data-job="${job.id}">Cancel</button></div></div>`; }
@@ -183,7 +203,7 @@ export class UI {
   }
   // ---------------- overlays ----------------
   openOver(kind: UI['over'], tab?: string) { this.over = kind; if (tab) { if (kind === 'shop') this.tab = tab; else this.rtab = tab; } this.select(null); this.renderOver(); this.app.platform.gameplayStop(); }
-  closeOver() { this.over = ''; $('#over').classList.add('hidden'); this.app.platform.gameplayStart(); }
+  closeOver() { this.over = ''; this.placeAt = null; $('#over').classList.add('hidden'); this.app.platform.gameplayStart(); }
   renderOver() {
     const el = $('#over'); if (!this.over) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); const s = this.s;
     if (this.over === 'shop') { const base = s.at; const cats = ['core', 'production', 'power', 'storage', 'science', 'spaceflight', 'defense', 'decor'].filter((c) => Object.values(BUILDINGS).some((d) => d.cat === c && d.bases.includes(kindOf(base))));
@@ -280,7 +300,7 @@ export class UI {
       case 'adSkip': { const id = t.dataset.job!; A.platform.rewarded().then((ok) => { if (!ok) return; const st = s as any, today = new Date().toDateString(); if (!st.adSkips || st.adSkips.d !== today) st.adSkips = { d: today, n: 0 }; st.adSkips.n++; const j = s.jobs.find((x) => x.id === id); if (j) { j.end -= 1800e3; j.start -= 1800e3; } A.audio.play('claim'); this.toast('30 minutes skipped', 'good'); A.tickNow(); this.renderPanel(); if (this.over) this.renderOver(); }); break; }
       case 'finish': { const r = G.speedup(s, t.dataset.job!); if (r.ok) { A.audio.play('done'); A.tickNow(); this.renderOver(); } else this.deny((r as any).why); break; }
       case 'cancel': if (G.cancel(s, t.dataset.job!)) { A.audio.play('tap'); this.toast('Cancelled: half the cost refunded'); A.changed(); if (this.sel && !G.itemOf(s, s.at, this.sel)) this.select(null); } break;
-      case 'buy': { const b = t.dataset.b!; const c = G.canBuild(s, s.at, b); if (!c.ok) { this.deny(c.why); break; } this.closeOver(); A.startPlacing(b); break; }
+      case 'buy': { const b = t.dataset.b!; const c = G.canBuild(s, s.at, b); if (!c.ok) { this.deny(c.why); break; } const at = this.placeAt; this.closeOver(); A.startPlacing(b, undefined, at ? A.spotAt(b, at) : undefined); break; }
       case 'study': { const r = G.startResearch(s, t.dataset.t!); if (r.ok) { A.audio.play('buy'); A.changed(); this.renderOver(); this.renderNav(); } else this.deny(r.why); break; }
       case 'move': if (it) A.startPlacing(it.b, it.id); break;
       case 'demolish': if (it) this.modal(`<h1>Demolish?</h1><p class="desc">${esc(BUILDINGS[it.b].name)} (level ${it.lvl}) will be cleared. Nothing is refunded.</p><div class="row" style="justify-content:center"><button class="btn" data-a="closeModal">Keep it</button><button class="btn red" data-a="demolishYes" data-id="${it.id}">Demolish</button></div>`); break;

@@ -32,7 +32,7 @@ Helioscend is a come-back-daily space empire builder in full 3D. Build a spacepo
 Everything keeps running while you are away. Dark matter, which finishes timers, is earned by playing; ads are always optional.
 
 ## Controls / instructions
-**Desktop:** Click a building to open it, click a bubble to collect. Drag to pan, scroll to zoom, right-drag to rotate. The bottom bar has Build, Land (survey and claim plots), Research, Robots, Launch, Orbit, the Map and your Goals; the right-hand rail has the daily rewards, Contact, Life, Defence and Orbital Trials; 🎨 opens the Style Studio. Follow the goal card: every goal pays a reward.
+**Desktop:** Click a building to open it, click a bubble to collect, click any ground to see what it is. Drag to pan, scroll to zoom, right-drag to rotate. The bottom bar has Build, Explore (survey and claim plots), Research, Robots, Launch, Orbit, the Map and your Goals; the right-hand rail has the daily rewards, Contact, Life, Defence and Orbital Trials; 🎨 opens the Style Studio. Follow the goal card: every goal pays a reward.
 **Mobile:** Tap to select and collect, drag to pan, pinch to zoom, twist with two fingers to rotate. Portrait and landscape are both supported.
 
 ## Tags

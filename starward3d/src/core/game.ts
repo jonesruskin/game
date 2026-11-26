@@ -36,7 +36,7 @@ export function owned(s: State, base: string, x: number, z: number) { if (x < 0 
 export function ownedBox(s: State, base: string) { const A = area(s, base); let lo = A.lo, hi = A.hi; for (const k in s.bases[base]?.claims || {}) { const [cx, cz] = k.split(',').map(Number); lo = Math.min(lo, cx * CHUNK, cz * CHUNK); hi = Math.max(hi, (cx + 1) * CHUNK, (cz + 1) * CHUNK); } return { lo: Math.max(0, lo), hi: Math.min(GRID, hi) }; }
 export function fits(s: State, base: string, b: string, x: number, z: number, r: number, ignore?: string): Check {
   const [w, d] = dims(b, r);
-  for (let zz = z; zz < z + d; zz++) for (let xx = x; xx < x + w; xx++) if (!owned(s, base, xx, zz)) return { ok: false, why: 'Not your land yet: claim it first (Land), or raise the command level' };
+  for (let zz = z; zz < z + d; zz++) for (let xx = x; xx < x + w; xx++) if (!owned(s, base, xx, zz)) return { ok: false, why: 'Not your land yet: claim it first (🧭 Explore), or raise the command level' };
   for (const it of s.bases[base].items) { if (it.id === ignore) continue; const [iw, id] = dims(it.b, it.r); if (x < it.x + iw && x + w > it.x && z < it.z + id && z + d > it.z) return { ok: false, why: 'Something is in the way' }; }
   return { ok: true };
 }

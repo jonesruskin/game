@@ -31,7 +31,7 @@ export class LandLayer {
   private edge: THREE.Mesh | null = null; private grid: THREE.Mesh | null = null; private gridOn = false; private gridCv: HTMLCanvasElement | null = null; private gridTex: THREE.CanvasTexture | null = null; private kGrid = ''; private own: Uint8Array | null = null; private occ: Set<number> = new Set(); private selFrame: THREE.Mesh;
   private props = new THREE.Group(); private marks = new THREE.Group(); private work = new THREE.Group(); private decks = new THREE.Group();
   private kTex = ''; private kEdge = ''; private kProps = ''; private kWork = ''; private kMarks = ''; private kDeck = '';
-  private rovers: { g: THREE.Group; beam: THREE.Mesh; cx: number; cz: number; ph: number }[] = []; private drones: { g: THREE.Group; cx: number; cz: number; ph: number; ring: THREE.Mesh }[] = [];
+  private rovers: { g: THREE.Group; beam: THREE.Mesh; cx: number; cz: number; ph: number; dr?: THREE.Object3D }[] = []; private drones: { g: THREE.Group; cx: number; cz: number; ph: number; ring: THREE.Mesh }[] = [];
   private steam: THREE.Points | null = null; private vents: THREE.Vector3[] = []; private life = new Float32Array(0);
   private dust: THREE.Points; private dustV: Float32Array; private stormTo = 0; storm = 0; private clouds: THREE.Sprite[] = [];
   sun: { light: THREE.DirectionalLight; base: number } | null = null; // dimmed in a storm
@@ -72,7 +72,7 @@ export class LandLayer {
     const occ = new Set<number>(); for (const it of B.items) { const [w, d] = dims(it.b, it.r); for (let z = it.z; z < it.z + d; z++) for (let x = it.x; x < it.x + w; x++) occ.add(z * GRID + x); } this.own = own; this.occ = occ; if (this.gridOn) this.paintGrid();
     const kP = surv + '|' + site + '|' + B.items.map((i) => i.x + ',' + i.z + ',' + i.r + i.b).join(';'); if (kP !== this.kProps) { this.kProps = kP; this.buildProps(s, base, occ); }
     const kM = kT; if (kM !== this.kMarks) { this.kMarks = kM; this.buildMarks(s, base); }
-    const jobs = s.jobs.filter((j) => (j.kind === 'prospect' || j.kind === 'claim') && j.base === base); const kW = jobs.map((j) => j.id).join(); if (kW !== this.kWork) { this.kWork = kW; this.buildWork(jobs); }
+    const jobs = s.jobs.filter((j) => (j.kind === 'prospect' || j.kind === 'claim') && j.base === base); const kW = base + '|' + jobs.map((j) => j.id).join(); if (kW !== this.kWork) { this.kWork = kW; this.buildWork(jobs, base === 'earth'); }
     const st = LD.stormAt(s, base); this.stormTo = st ? Math.min(1, 0.35 + st.k * 0.22) : 0; }
   // the boundary of the land you own, and the placement grid over it
   private buildEdge(own: Uint8Array) {
@@ -131,9 +131,10 @@ export class LandLayer {
     for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const I = LD.plotInfo(s, base, x, z); const met = LD.openFalls(s, base).some((f) => f.cx === x && f.cz === z); const types = [...(met ? ['meteor'] : []), ...(I.surveyed ? Object.keys(I.found).sort((a, b) => I.found[b] - I.found[a]) : I.hints)]; if (!types.length) continue;
       types.slice(0, 3).forEach((t, k) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: pill(t, t !== 'meteor' && !I.surveyed), transparent: true, depthWrite: false, depthTest: false, opacity: I.surveyed || t === 'meteor' ? 0.95 : 0.8 })); sp.scale.set(4.4, 1.54, 1); sp.position.set((x + 0.5) * CHUNK - C, 1.4 + k * 1.7, (z + 0.5) * CHUNK - C); sp.renderOrder = 5; this.marks.add(sp); }); } }
   // rovers on survey and crews laying out new plots
-  private buildWork(jobs: { kind: string; key?: any }[]) {
+  private buildWork(jobs: { kind: string; key?: any }[], earth = false) {
     for (const c of [...this.work.children]) this.work.remove(c); this.rovers = []; this.drones = [];
     jobs.forEach((j, i) => { const [cx, cz] = String(j.key).split(',').map(Number);
+      if (j.kind === 'prospect' && earth) { this.work.add(this.surveyTeam(i, cx, cz)); return; }
       if (j.kind === 'prospect') { const k = new Kit(); k.box(0.78, 0.2, 0.5, '#f2f4f7', 0, 0.2, 0); k.box(0.5, 0.12, 0.42, '#f5c542', -0.08, 0.4, 0); for (const sx of [-0.28, 0, 0.28]) for (const sz of [-0.29, 0.29]) k.cyl(0.11, 0.11, 0.08, 8, '#2c323c', sx, 0.11, sz, { rx: Math.PI / 2 });
         k.cyl(0.02, 0.02, 0.42, 4, '#c9d1dc', 0.24, 0.52, 0); k.cyl(0.14, 0.04, 0.05, 8, '#e6ebf2', 0.24, 0.94, 0, { rz: 0.5 }); k.sphere(0.04, '#6ee7ff', -0.3, 0.46, 0, { glow: true }); const g = k.build('rover');
         const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.22, 9, 8, 1, true).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: '#6ee7ff', transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); g.add(beam);
@@ -142,6 +143,22 @@ export class LandLayer {
         const st = k.build('stakes'); this.work.add(st); const sh = new THREE.Shape(); const o = CHUNK / 2, w = CHUNK / 2 - 0.16; sh.moveTo(-o, -o); sh.lineTo(o, -o); sh.lineTo(o, o); sh.lineTo(-o, o); sh.lineTo(-o, -o); const h = new THREE.Path(); h.moveTo(-w, -w); h.lineTo(-w, w); h.lineTo(w, w); h.lineTo(w, -w); h.lineTo(-w, -w); sh.holes.push(h);
         const rg = new THREE.ShapeGeometry(sh); rg.rotateX(-Math.PI / 2); const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: '#ff9a3c', transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false })); ring.position.set((cx + 0.5) * CHUNK - C, 0.08, (cz + 0.5) * CHUNK - C); this.work.add(ring);
         const d = droneModel(); this.work.add(d); this.drones.push({ g: d, cx, cz, ph: i * 1.3, ring }); } }); }
+  // Earth's survey team: a drill truck driving the survey lines, two geologists in hi-vis walking beside it with a
+  // tripod, and a little drone mapping from above (it reuses the rover's route and animation)
+  private surveyTeam(i: number, cx: number, cz: number) { const k = new Kit(); const W = '#f2f4f7', O = '#ff7a1a';
+    k.box(0.92, 0.26, 0.46, W, 0, 0.2, 0); k.box(0.34, 0.24, 0.44, '#dfe6ee', 0.32, 0.46, 0); k.box(0.3, 0.12, 0.45, '#7fb9e6', 0.36, 0.5, 0); k.box(0.94, 0.05, 0.47, O, 0, 0.3, 0);
+    for (const sx of [-0.3, 0.3]) for (const sz of [-0.24, 0.24]) k.cyl(0.11, 0.11, 0.08, 10, '#2c323c', sx, 0.11, sz, { rx: Math.PI / 2 });
+    k.box(0.05, 0.62, 0.05, '#c9d1dc', -0.3, 0.46, 0.1); k.box(0.05, 0.62, 0.05, '#c9d1dc', -0.3, 0.46, -0.1); k.box(0.07, 0.05, 0.26, O, -0.3, 1.06, 0); k.cyl(0.025, 0.025, 0.5, 6, '#8a929c', -0.3, 0.1, 0); k.sphere(0.04, '#ffd36a', 0.48, 0.4, 0.2, { glow: true });
+    for (const [px, pz] of [[-0.15, 0.62], [0.35, 0.7]]) { k.cyl(0.07, 0.08, 0.26, 8, O, px, 0.08, pz); k.cyl(0.05, 0.06, 0.12, 8, '#2f3640', px, 0, pz); k.sphere(0.06, '#e8b48a', px, 0.42, pz); k.cyl(0.07, 0.07, 0.03, 10, '#ffd36a', px, 0.47, pz); }
+    for (const a of [0, 2.1, 4.2]) k.cyl(0.012, 0.012, 0.42, 4, '#c9d1dc', 0.85 + Math.cos(a) * 0.08, 0.02, 0.7 + Math.sin(a) * 0.08, { rz: Math.cos(a) * 0.25, rx: -Math.sin(a) * 0.25 }); k.box(0.08, 0.06, 0.06, '#3b4350', 0.85, 0.42, 0.7);
+    const g = k.build('surveyteam'); const dr = droneModel(); dr.scale.setScalar(0.7); dr.position.set(0, 1.5, 0); dr.name = 'drone'; g.add(dr);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.5, 1.4, 10, 1, true).translate(0, 0.75, 0), new THREE.MeshBasicMaterial({ color: '#ffd36a', transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); g.add(beam);
+    this.rovers.push({ g, beam, cx, cz, ph: i * 0.37, dr }); return g; }
+  // the plot (and the exact cell) the player tapped in the normal view
+  private insp: THREE.Group | null = null;
+  inspect(c: [number, number] | null, cell?: [number, number]) { if (!this.insp) { this.insp = new THREE.Group(); const f = this.selFrame.clone(); f.visible = true; f.name = 'f'; this.insp.add(f);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false })); m.rotation.x = -Math.PI / 2; m.name = 'cell'; m.renderOrder = 6; this.insp.add(m); this.group.add(this.insp); }
+    this.insp.visible = !!c; if (!c) return; const f = this.insp.getObjectByName('f')!; f.position.set((c[0] + 0.5) * CHUNK - C, 0.1, (c[1] + 0.5) * CHUNK - C); const m = this.insp.getObjectByName('cell')!; m.visible = !!cell; if (cell) m.position.set(cell[0] + 0.5 - C, 0.11, cell[1] + 0.5 - C); }
   // Venus: a new plot is a new deck module with its own lifting envelope
   private buildDecks(s: State, base: string) {
     for (const c of [...this.decks.children]) this.decks.remove(c); const B = s.bases[base]; const keys = Object.keys(B.claims || {}); if (!keys.length) return; const k = new Kit(); const has = (x: number, z: number) => !!B.claims?.[x + ',' + z] || LD.ownedChunk(s, base, x, z);
@@ -217,7 +234,7 @@ export class LandLayer {
   frame(t: number, dt: number, cx: number, cz: number, fog: THREE.Fog | null) {
     this.traffic(t, dt); this.fallsFrame(t, dt);
     for (const r of this.rovers) { const f = ((t / 46 + r.ph) % 1) * 3, row = Math.floor(f), u = f - row; const along = row % 2 ? 1 - u : u; const x = r.cx * CHUNK + 0.8 + along * (CHUNK - 1.6), z = r.cz * CHUNK + 1 + row * 2 + (u > 0.92 ? (u - 0.92) / 0.08 * 2 : 0);
-      r.g.position.set(x - C, Math.abs(Math.sin(t * 9 + r.ph)) * 0.015, Math.min(z, r.cz * CHUNK + 5.2) - C); r.g.rotation.y = u > 0.92 ? -Math.PI / 2 : row % 2 ? Math.PI : 0; (r.beam.material as THREE.MeshBasicMaterial).opacity = 0.14 + Math.sin(t * 3 + r.ph) * 0.08; }
+      r.g.position.set(x - C, Math.abs(Math.sin(t * 9 + r.ph)) * 0.015, Math.min(z, r.cz * CHUNK + 5.2) - C); r.g.rotation.y = u > 0.92 ? -Math.PI / 2 : row % 2 ? Math.PI : 0; (r.beam.material as THREE.MeshBasicMaterial).opacity = 0.14 + Math.sin(t * 3 + r.ph) * 0.08; if (r.dr) { r.dr.position.y = 1.5 + Math.sin(t * 2.2 + r.ph) * 0.12; r.dr.rotation.y = t * 1.6; } }
     for (const d of this.drones) { const a = t * 0.9 + d.ph; d.g.position.set((d.cx + 0.5) * CHUNK - C + Math.cos(a) * 1.8, 1.6 + Math.sin(t * 2.4 + d.ph) * 0.2, (d.cz + 0.5) * CHUNK - C + Math.sin(a) * 1.8); d.g.rotation.y = -a; (d.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + Math.sin(t * 3 + d.ph) * 0.3; }
     if (this.selFrame.visible) (this.selFrame.material as THREE.MeshBasicMaterial).opacity = 0.65 + Math.sin(t * 4) * 0.3;
     if (this.steam) { const p = this.steam.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < p.count; i++) { const v = this.vents[Math.floor(i / 6)]; let l = this.life[i] + dt * 0.35; if (l >= 1) l = 0; this.life[i] = l; p.setXYZ(i, v.x + Math.sin(l * 5 + i) * 0.25 * l, v.y + l * 2.6, v.z + Math.cos(l * 4 + i) * 0.25 * l); } p.needsUpdate = true; }

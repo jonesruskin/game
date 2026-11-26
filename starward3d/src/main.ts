@@ -12,7 +12,7 @@ import { Studio } from './render/studio';
 import { UI, costHTML, kReward } from './ui/ui';
 import { Audio } from './audio';
 import { $, fmt, esc, fmtTime, clamp } from './core/util';
-import { BUILDINGS, areaSide, GRID } from './data/buildings';
+import { BUILDINGS, areaSide, GRID, CHUNK } from './data/buildings';
 import { DEPOSITS } from './data/sites';
 import { TECH } from './data/research';
 import { RES } from './data/resources';
@@ -51,7 +51,7 @@ export class App {
     let s: State | null = null; try { s = raw ? JSON.parse(raw) : null; } catch (e) { s = null; } this.s = s && s.v ? migrate(s) : fresh();
     const away = Date.now() - this.s.last; const before = { ...this.s.res }; const pre = this.s.jobs.map((j) => ({ id: j.id, d: (j.end - j.start) / 1000, k: j.kind })); const notes = G.advance(this.s, Date.now()); const offXp = pre.filter((j) => !this.s.jobs.some((x) => x.id === j.id)).reduce((a, j) => a + RK.jobEsteem(j.d, j.k), 0); if (offXp) RK.gain(this.s, offXp).forEach((u) => this.enqueue(() => { this.audio.play('levelup'); this.ui.modal(this.ui.standby.rankUpHTML(u), { rays: true }); })); AL.drift(this.s, Math.max(0, away / 1000)); this.R = rates(this.s); this.s.stats.sessions++;
     this.world = new World($('#gl') as HTMLCanvasElement, this.s.settings.quality); this.studio = new Studio(this.world.renderer); this.ui = new UI(this);
-    this.world.look = STY.lookOf(this.s); STY.freshUnlocks(this.s); this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved();
+    this.world.look = STY.lookOf(this.s); STY.freshUnlocks(this.s); this.world.setWorld(this.s, this.s.at); this.world.sync(this.s); this.world.onTap = (h) => this.tapped(h); this.world.onGhostMove = () => this.ghostMoved(); this.world.onHover = (h, x, y) => this.ui.hover(h, x, y);
     const A = G.area(this.s, this.s.at); const c = (A.lo + A.hi) / 2 - GRID / 2; this.world.focus(c, c + 2, 30 + A.side * 0.55); this.world.cam.dist = 30 + A.side * 0.55;
     this.ui.renderHud(); this.ui.renderNav(); this.ui.renderObj(); this.audio.setVolume(this.s.settings.sfx); this.audio.mvol = this.s.settings.music;
     this.platform.onMute = (m) => this.audio.setMuted(m); this.audio.setMuted(this.platform.muted());
@@ -86,7 +86,7 @@ export class App {
   // local notifications (mobile build only; no-ops elsewhere): the next finished timers, a supply capsule, the daily reward
   private noteIds: string[] = [];
   private scheduleNotes() { const P = this.platform, s = this.s; this.cancelNotes(); const now = Date.now();
-    const jobs = s.jobs.filter((j) => j.end > now + 60e3).sort((a, b) => a.end - b.end).slice(0, 3); const label = (j: any) => j.kind === 'research' ? `Research complete: ${TECH[j.tech]?.name || 'a new technology'}` : j.kind === 'bio' ? 'The xenobiologists have results' : j.kind === 'prospect' ? 'A rover has finished its survey' : j.kind === 'claim' ? 'New land is ready to build on' : j.kind === 'build' || j.b ? `${BUILDINGS[j.b]?.name || 'A building'} is ready` : 'A project is complete';
+    const jobs = s.jobs.filter((j) => j.end > now + 60e3).sort((a, b) => a.end - b.end).slice(0, 3); const label = (j: any) => j.kind === 'research' ? `Research complete: ${TECH[j.tech]?.name || 'a new technology'}` : j.kind === 'bio' ? 'The xenobiologists have results' : j.kind === 'prospect' ? (j.base === 'earth' ? 'A survey team is back with its findings' : 'A rover has finished its survey') : j.kind === 'claim' ? 'New land is ready to build on' : j.kind === 'build' || j.b ? `${BUILDINGS[j.b]?.name || 'A building'} is ready` : 'A project is complete';
     jobs.forEach((j, i) => { const id = 'job' + i; P.notify(id, j.end, s.name, label(j)); this.noteIds.push(id); });
     const dd = DY.daily(s); if (dd.drop > now) { P.notify('capsule', dd.drop, s.name, 'A supply capsule has landed at the spaceport'); this.noteIds.push('capsule'); }
     const ev = new Date(now); ev.setHours(19, 0, 0, 0); if (ev.getTime() < now + 3600e3) ev.setDate(ev.getDate() + 1); P.notify('daily', ev.getTime(), s.name, 'Your daily reward is waiting'); this.noteIds.push('daily'); }
@@ -99,6 +99,7 @@ export class App {
     if (this.ui.tick % 2 === 0) this.soundscape();
     for (const n of HP.tickHappen(this.s)) { const I = HP.INFO[n.h.kind]; if (n.kind === 'hap') { this.audio.play('sparkle'); this.ui.toast(`${I.icon} <b>${esc(I.name(n.h))}</b>: see the Standby board`, 'gold'); } else this.ui.toast(`${I.icon} ${esc(I.name(n.h))} is over`, ''); this.changed(); }
     this.ui.standby.render();
+    if (!this.s.flags.exploreSeen && this.ui.tick > 12 && this.ui.land.available() && !this.ui.coach.on && this.world.mode === 'base' && !this.placing) { this.s.flags.exploreSeen = 1; const sc = LD.scout(this.s.at); this.ui.renderNav(); this.ui.toast(`🧭 <b>Explore</b> is open: send ${sc.many} out to map the land around you. Tip: tap any patch of ground to see what it is.`, 'gold'); const btn = document.querySelector('#nav [data-a="land"]'); if (btn) { btn.classList.add('pulse'); setTimeout(() => btn.classList.remove('pulse'), 9000); } }
     this.ui.updHud(); this.ui.tick++; if (this.ui.tick % 4 === 0) this.ui.renderObj(); if (this.ui.tick % 12 === 0) this.ui.renderNav();
     // the daily loop: capsules land every 4 hours, missions roll over at midnight, the rail shows what is waiting
     DY.tickDrops(this.s); if (this.ui.tick % 5 === 0) DY.refreshMissions(this.s); WG.tickWar(this.s);
@@ -130,9 +131,9 @@ export class App {
     this.ui.toast(`${P.length} surveys complete${found.size ? `: ${[...found].map((t) => esc(DEPOSITS[t].name)).join(', ')} found` : ': nothing below the surface'}`, found.size ? 'gold' : 'good'); this.audio.play('done'); this.world.sync(this.s); return notes.filter((n) => n.kind !== 'prospect'); }
   private note(n: G.Note) {
     if (n.kind === 'fall') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; const here = n.base === this.s.at && this.world.mode === 'base'; this.audio.play('whoosh');
-      this.ui.toast(`☄ A meteorite came down in plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''}! Send a rover to recover it (🧭 Land).`, 'gold');
+      this.ui.toast(`☄ A meteorite came down in plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''}! Send a ${LD.scout(n.base).one} to recover it: tap the crater, or 🧭 Explore.`, 'gold');
       if (here) { const f = LD.openFalls(this.s, n.base).find((x) => x.cx === cx && x.cz === cz); if (f) { this.world.land.strike(f.x, f.z); window.setTimeout(() => this.audio.play('build'), 1500); } } this.world.sync(this.s); this.changed(); return; }
-    if (n.kind === 'prospect') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; this.audio.play('done'); if (n.meteor) { this.ui.toast(`☄ Meteorite recovered from plot ${plotName(cx, cz)}: ${Object.entries(n.meteor.reward).map(([k, v]) => `${ri(k)} +${fmt(v as number)}`).join(' ')}`, 'gold'); this.audio.play('levelup'); } this.ui.toast(`Survey of plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''} complete: ${n.found.length ? n.found.map((t: string) => esc(DEPOSITS[t].name)).join(', ') + ' found' : 'nothing below the surface'}`, n.found.length ? 'gold' : 'good'); if (n.base === this.s.at) this.world.sync(this.s); return; }
+    if (n.kind === 'prospect') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; this.audio.play('done'); if (n.meteor) { this.ui.toast(`☄ Meteorite recovered from plot ${plotName(cx, cz)}: ${Object.entries(n.meteor.reward).map(([k, v]) => `${ri(k)} +${fmt(v as number)}`).join(' ')}`, 'gold'); this.audio.play('levelup'); } this.ui.toast(`Survey of plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''} complete: ${n.found.length ? n.found.map((t: string) => esc(DEPOSITS[t].name)).join(', ') + ' found' : 'nothing below the surface'}`, n.found.length ? 'gold' : 'good'); if (n.base === this.s.at) { this.world.sync(this.s); if (this.world.mode === 'base') { const V = this.ui.land.verdict(cx, cz), at = { x: (cx + 0.5) * CHUNK - GRID / 2, y: 1.2, z: (cz + 0.5) * CHUNK - GRID / 2 }; this.world.burst(at as any, V.col, 34); const p = this.world.project(at); if (!p.behind) this.ui.popText(p.x, p.y - 20, `${V.icon} ${esc(V.title)}!`, V.col); } } return; } /* the reveal: a burst over the plot and its verdict */
     if (n.kind === 'claim') { const [cx, cz] = String(n.key).split(',').map(Number); const B = this.s.bases[n.base]; this.audio.play('done'); this.ui.toast(`Plot ${plotName(cx, cz)}${n.base !== this.s.at && B ? ` on ${esc(B.name)}` : ''} is yours: more room to build`, 'gold'); if (n.base === this.s.at) { this.world.sync(this.s); const p = { x: (cx + 0.5) * 6 - GRID / 2, y: 1, z: (cz + 0.5) * 6 - GRID / 2 }; this.world.burst(p as any, '#ffd36a', 36); } return; }
     if (n.kind === 'build') { const d = BUILDINGS[n.b]; this.audio.play(n.first ? 'done' : 'levelup'); const at = this.world.topOf(n.item); if (at) { this.world.burst(at, '#ffd36a', 28); if (!n.first && n.base === this.s.at && this.world.mode === 'base') { const p = this.world.project(at); if (!p.behind) this.ui.levelPop(p.x, p.y - 30, n.lvl); } } if (n.b === 'hq' && !n.first && n.base === 'earth') this.enqueue(() => this.ui.modal(this.ui.hqUnlockHTML(n.lvl), { rays: true })); this.ui.toast(`${esc(d.name)} ${n.first ? 'is ready' : `reached level ${n.lvl}`}`, 'good'); if (n.b === 'warroom' && n.first && !this.s.flags.trialsBrief) { this.s.flags.trialsBrief = 1; this.enqueue(() => this.ui.modal(this.ui.war.briefHTML(), { wide: true })); } if (n.b === 'hq') { this.platform.happytime(); if (areaSide('earth', n.lvl) > areaSide('earth', n.lvl - 1)) this.ui.toast('The spaceport grows: more room to build', 'gold'); } }
     else if (n.kind === 'core') { this.audio.play('claim'); this.ui.toast(`${n.fused ? 'Fusion complete' : 'Core assembled'}: a ${RARITIES[SPECIES[n.sp].rarity].name} core is ready to activate (Robots → Workshop)`, 'gold'); this.ui.renderNav(); if (this.ui.over === 'robots') this.ui.renderOver(); }
@@ -201,7 +202,10 @@ export class App {
     if (this.placing) return; if (h.drop) { this.openDropNow(); return; }
     if (this.world.land.mode) { if (h.cell) this.ui.land.tapCell(h.cell[0], h.cell[1]); return; }
     if (h.item) { const it = G.itemOf(this.s, this.s.at, h.item); if (it && this.R.item[it.id] && (it.held || 0) >= 1 && this.ui.sel !== it.id) { this.collect(it.id); } this.ui.select(h.item); this.audio.play('tap'); return; }
-    this.ui.select(null);
+    // bare ground: a tap closes an open building panel; otherwise it asks "what is this spot?" (and with a plot card
+    // already open, each tap moves it, so the player can browse the land plot by plot)
+    const c = h.cell; if (this.ui.sel || !c || c[0] < 0 || c[1] < 0 || c[0] >= GRID || c[1] >= GRID) { this.ui.select(null); return; }
+    this.ui.inspect({ cx: Math.floor(c[0] / CHUNK), cz: Math.floor(c[1] / CHUNK), cell: c }); this.audio.play('tap');
   }
   // ---------------- War Games ----------------
   battle: { B: Battle; live: boolean; opp: WG.Opp | null; who: string } | null = null;
@@ -251,6 +255,9 @@ export class App {
       if (next) { this.wallDir = [next[0] - g.x, next[1] - g.z]; this.changed(); this.startPlacing(g.b, undefined, next); return; } }
     if (!P.move && r.item && !BUILDINGS[g.b].instant) { this.ui.select(r.item.id); } this.changed();
   }
+  // where to put a building the player chose for a tapped spot: covering that spot if it fits, else the nearest room
+  spotAt(b: string, cell: [number, number]): [number, number] | undefined { const s = this.s, [w, d] = G.dims(b, 0); for (let dz = 0; dz < d; dz++) for (let dx = 0; dx < w; dx++) { const x = cell[0] - (Math.floor(w / 2) + dx) % w, z = cell[1] - (Math.floor(d / 2) + dz) % d; if (G.fits(s, s.at, b, x, z, 0).ok) return [x, z]; }
+    return G.freeSpot(s, s.at, b, 0, cell) || undefined; }
   cancelPlace() { this.placing = null; this.world.endGhost(); $('#place').classList.add('hidden'); document.getElementById('ghostUi')?.classList.add('hidden'); document.body.classList.remove('placing'); this.world.sync(this.s); }
   // ---------------- settings & save ----------------
   setSetting(k: string, v: any) { (this.s.settings as any)[k] = v; if (k === 'sfx') this.audio.setVolume(v); if (k === 'music') this.audio.setMusic(v); this.save(); }

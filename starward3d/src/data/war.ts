@@ -53,8 +53,8 @@ export const LEAGUES: League[] = [
 export interface Charter { id: string; circle: number; name: string; glyph: string; desc: string; }
 export const CHARTERS: Charter[] = [
   { id: 'land1', circle: 1, name: 'Land Charter I', glyph: '🚩', desc: 'Claiming land costs 10% less on every world.' },
-  { id: 'rover', circle: 2, name: 'Survey Charter', glyph: '🚙', desc: 'A third rover for surveys.' },
-  { id: 'land2', circle: 3, name: 'Land Charter II', glyph: '🚩', desc: 'Claims cost 20% less, and the rovers reach one plot further.' },
+  { id: 'rover', circle: 2, name: 'Survey Charter', glyph: '🚙', desc: 'One more survey team on Earth and one more rover on every other world.' },
+  { id: 'land2', circle: 3, name: 'Land Charter II', glyph: '🚩', desc: 'Claims cost 20% less, and surveys reach one plot further.' },
   { id: 'guard', circle: 4, name: 'Swarm Guard', glyph: '🛡', desc: 'Swarm landings on Earth come down with 15% fewer troops.' },
   { id: 'land3', circle: 5, name: 'Land Charter III', glyph: '🚩', desc: 'Claims cost 30% less, and claimed land draws 25% less energy.' },
   { id: 'seat', circle: 6, name: 'Council Seat', glyph: '🏛', desc: 'Trial grants are 25% bigger.' },
